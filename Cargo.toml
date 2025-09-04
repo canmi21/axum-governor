@@ -2,21 +2,34 @@
 name = "axum-governor"
 version = "0.1.0"
 edition = "2024"
-description = "A axum plugin backend by lazy-limit"
+description = "Rate limiting middleware for Axum, powered by lazy-limit and unrelated to governor etc."
 license = "MIT"
 repository = "https://github.com/canmi21/axum-governor"
 readme = "README.md"
-keywords = ["network", "server", "limit", "web", "router"]
-categories = ["network-programming", "web-programming", "development-tools"]
+keywords = ["axum", "middleware", "ratelimit", "limit", "lazy-limit"]
+categories = ["network-programming", "web-programming"]
 
 [lib]
 path = "src/lib.rs"
-crate-type = ["lib"]
 
 [[example]]
 name = "demo"
 path = "examples/demo.rs"
+required-features = ["full"]
+
+[features]
+default = []
+full = []
 
 [dependencies]
+axum = "0.8"
+futures-util = "0.3"
+lazy-limit = "1"
+real = { version = "0.1", features = ["axum"] }
 tokio = { version = "1", features = ["full"] }
-once_cell = "1"
+tower = "0.5"
+http = "1"
+tracing = "0.1"
+
+[dev-dependencies]
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
