@@ -1,6 +1,6 @@
 /* src/middleware.rs */
 
-use crate::GovernorConfig;
+use crate::{map_method, GovernorConfig};
 use axum::{
     body::Body,
     http::{Request, Response, StatusCode},
@@ -56,6 +56,7 @@ where
     fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
         let mut inner = self.inner.clone();
         let config = self.config.clone();
+        let method = req.method().clone();
 
         Box::pin(async move {
             // Extract the RealIp extension. This must be present.
@@ -79,9 +80,9 @@ where
             let path = req.uri().path().to_string();
 
             let allowed = if config.override_mode {
-                lazy_limit::limit_override!(&ip_str, &path).await
+                lazy_limit::limit_override!(&ip_str, &path, map_method(method)).await
             } else {
-                lazy_limit::limit!(&ip_str, &path).await
+                lazy_limit::limit!(&ip_str, &path, map_method(method)).await
             };
 
             if allowed {

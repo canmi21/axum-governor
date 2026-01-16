@@ -51,7 +51,7 @@
 //!     The `GovernorLayer` requires the `RealIpLayer` to be present. Always add `RealIpLayer` first.
 //!
 //!     ```rust
-//!     # use axum::{Router, routing::get, Server};
+//!     # use axum::{Router, routing::get};
 //!     # use axum_governor::GovernorLayer;
 //!     # use real::RealIpLayer;
 //!     # use std::net::SocketAddr;
@@ -73,6 +73,9 @@
 //!     # };
 //!     ```
 
+use axum::http::Method;
+use lazy_limit::HttpMethod;
+
 // Public exports
 pub use config::GovernorConfig;
 pub use layer::GovernorLayer;
@@ -82,3 +85,18 @@ pub use middleware::GovernorMiddleware;
 mod config;
 mod layer;
 mod middleware;
+
+pub fn map_method(m: Method) -> HttpMethod {
+    match m {
+        Method::GET => HttpMethod::GET,
+        Method::POST => HttpMethod::POST,
+        Method::PUT => HttpMethod::PUT,
+        Method::DELETE => HttpMethod::DELETE,
+        Method::PATCH => HttpMethod::PATCH,
+        Method::HEAD => HttpMethod::HEAD,
+        Method::OPTIONS => HttpMethod::OPTIONS,
+        Method::CONNECT => HttpMethod::CONNECT,
+        Method::TRACE => HttpMethod::TRACE,
+        _ => HttpMethod::OTHER,
+    }
+}

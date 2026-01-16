@@ -1,9 +1,13 @@
 /* examples/demo.rs */
 //! Demo for `axum-governor` showcasing various rate-limiting scenarios.
 
-use axum::{Router, routing::get};
+use axum::{
+    extract::Path,
+    routing::{get, post},
+    Router,
+};
 use axum_governor::{GovernorConfig, GovernorLayer};
-use lazy_limit::{Duration, RuleConfig, init_rate_limiter};
+use lazy_limit::{init_rate_limiter, Duration, HttpMethod, RuleConfig};
 use real::RealIpLayer;
 use std::net::SocketAddr;
 use tower::ServiceBuilder;
@@ -27,6 +31,14 @@ async fn login_handler() -> &'static str {
     "Login endpoint. Limit is 3 req/min."
 }
 
+async fn prefix_handler(Path(test): Path<String>) -> String {
+    format!("Prefix route. Param: {}", test)
+}
+
+async fn contact_handler() -> &'static str {
+    "Contact endpoint (POST). Limit is 5 req/s."
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize tracing for logging
@@ -44,6 +56,8 @@ async fn main() {
             ("/api/login", RuleConfig::new(Duration::minutes(1), 3)),  // 3 req/min
             ("/api/public", RuleConfig::new(Duration::seconds(1), 10)), // 10 req/s
             ("/api/premium", RuleConfig::new(Duration::seconds(1), 20)), // 20 req/s
+            ("/api/prefix/", RuleConfig::new(Duration::seconds(1), 6).match_prefix(true)), // 6 req/s for route prefix
+            ("/api/contact", RuleConfig::new(Duration::seconds(1), 7).for_methods(vec![HttpMethod::POST])), // 6 req/s for HTTP Method
         ]
     )
     .await;
@@ -72,6 +86,8 @@ async fn main() {
         .route("/", get(root_handler))
         .route("/api/public", get(public_api_handler))
         .route("/api/login", get(login_handler))
+        .route("/api/prefix/{test}", get(prefix_handler))
+        .route("/api/contact", post(contact_handler))
         .layer(default_limiter);
 
     // Routes with override rate limiting
@@ -110,6 +126,16 @@ async fn main() {
     println!("5. Test with a different IP using X-Real-IP header:");
     println!(
         "   for i in {{1..6}}; do curl -H 'X-Real-IP: 2.2.2.2' -w '%{{http_code}}\\n' http://127.0.0.1:3000/; done\n"
+    );
+
+    println!("6. Test Prefix Route (effective 6 req/s). Seventh request should fail:");
+    println!(
+        "   for i in {{1..7}}; do curl -w '%{{http_code}}\\n' http://127.0.0.1:3000/api/prefix/test; done\n"
+    );
+
+    println!("7. Test Contact POST (7 req/s). Eighth should fail:");
+    println!(
+        "   for i in {{1..8}}; do curl -X POST -w '%{{http_code}}\\n' http://127.0.0.1:3000/api/contact; done\n"
     );
 
     axum::serve(
