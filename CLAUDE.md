@@ -30,6 +30,11 @@ lint + test as the pre-push bundle.
 ## Conventions
 
 - **Chat:** Simplified Chinese. **Code / commits / docs-in-repo:** English.
+- **Naming:** see [`spec/naming.md`](spec/naming.md).
+- **Comments:** see [`spec/comments.md`](spec/comments.md).
+- **Testing:** see [`spec/testing.md`](spec/testing.md).
+- **Scope:** features planned for v2.0 and what is deferred or out of scope live in
+  [`spec/roadmap.md`](spec/roadmap.md). Edit there, not here.
 - When the user says "commit this" without a message, write one that passes commitlint.
 
 ## Git
