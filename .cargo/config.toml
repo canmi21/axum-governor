@@ -1,0 +1,6 @@
+[alias]
+c = "check --all-targets"
+b = "build --all-targets"
+t = "test"
+lint = "clippy --all-targets -- -D warnings"
+ci = "test --all-features"

@@ -1,0 +1,19 @@
+commit-msg:
+  commands:
+    commitlint:
+      run: bunx --bun commitlint --edit {1}
+
+pre-commit:
+  parallel: true
+  commands:
+    rustfmt:
+      glob: "*.rs"
+      run: rustfmt --edition 2024 {staged_files}
+      stage_fixed: true
+    dprint:
+      glob: "*.{md,json,toml,yml,yaml}"
+      run: dprint fmt {staged_files}
+      stage_fixed: true
+    clippy:
+      glob: "*.rs"
+      run: cargo clippy --workspace --all-targets -- -D warnings
