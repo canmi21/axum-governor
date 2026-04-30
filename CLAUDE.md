@@ -6,9 +6,9 @@ Single-crate Rust library (`axum-governor`) — rate-limiting middleware for `ax
 `governor`. Toolchain pinned in `rust-toolchain.toml`.
 
 A Nix flake (`flake.nix`) provides a reproducible dev shell — `nix develop` lands you in an
-environment with the rust toolchain, `cargo-nextest`, `just`, `bun`, `nixfmt`, and the musl
-cross-toolchain, all pinned via `flake.lock`. `nix fmt` formats `.nix` files. Optional — system
-rustup / brew works equivalently.
+environment with the rust toolchain, `cargo-nextest`, `just`, `bun`, and `nixfmt`, all pinned
+via `flake.lock`. `nix fmt` formats `.nix` files. Optional — system rustup / brew works
+equivalently.
 
 ## Quality gates
 
