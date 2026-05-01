@@ -11,8 +11,24 @@ rust-version = "1.95"
 description = "Rate limiting middleware for Axum, powered by governor."
 
 [features]
-default = []
+default = ["dashmap", "tracing", "json"]
+dashmap = ["governor/dashmap"]
+tracing = ["dep:tracing"]
+json = ["dep:serde_json"]
+test-utils = []
 
 [dependencies]
+axum = "0.8"
+governor = { version = "0.8", default-features = false, features = ["std"] }
+http = "1"
+nonzero_ext = "0.3"
+pin-project-lite = "0.2"
+serde_json = { version = "1", optional = true }
+tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
+tower = "0.5"
+tracing = { version = "0.1", optional = true }
 
 [dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
+tokio-test = "0.4"
+tower = { version = "0.5", features = ["util"] }
