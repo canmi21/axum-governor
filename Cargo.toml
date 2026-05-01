@@ -19,7 +19,7 @@ test-utils = []
 
 [dependencies]
 axum = "0.8"
-governor = { version = "0.8", default-features = false, features = ["std"] }
+governor = { version = "0.10", default-features = false, features = ["std"] }
 http = "1"
 nonzero_ext = "0.3"
 pin-project-lite = "0.2"
