@@ -14,7 +14,7 @@ use std::pin::Pin;
 
 pub struct KeyOutcome<K> {
     pub key: K,
-    pub quota_override: Option<governor::Quota>,
+    pub quota_override: Option<crate::Quota>,
 }
 
 #[derive(Debug)]
