@@ -24,6 +24,7 @@ pub use crate::extractor::{
 	SmartIp,
 };
 pub use crate::quota::{Quota, nz};
+pub use crate::response::{BodyPreset, ErrorHandler};
 
 #[cfg(test)]
 mod smoke {
