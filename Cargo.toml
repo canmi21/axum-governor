@@ -19,8 +19,10 @@ test-utils = []
 
 [dependencies]
 axum = "0.8"
+forwarded-header-value = "0.1"
 governor = { version = "0.10", default-features = false, features = ["std"] }
 http = "1"
+ipnet = "2"
 nonzero_ext = "0.3"
 pin-project-lite = "0.2"
 serde_json = { version = "1", optional = true }
