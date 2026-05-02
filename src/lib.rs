@@ -19,6 +19,7 @@ pub mod snapshot;
 pub mod test_utils;
 
 pub use crate::error::{ConfigError, ExtractionError, RejectionReason};
+pub use crate::quota::{Quota, nz};
 
 #[cfg(test)]
 mod smoke {
