@@ -21,6 +21,11 @@ pub struct KeyOutcome<K> {
 pub trait KeyExtractor: Send + Sync + 'static {
 	type Key: Hash + Eq + Clone + Send + Sync + 'static;
 	fn extract(&self, parts: &Parts) -> Result<KeyOutcome<Self::Key>, ExtractionError>;
+	/// Returns `true` if this extractor reads `ConnectInfo<SocketAddr>` from request extensions.
+	/// The builder uses this to enforce `expect_connect_info()` acknowledgement at config time.
+	fn requires_connect_info(&self) -> bool {
+		false
+	}
 }
 
 /// Return type of [`AsyncKeyExtractor::extract`].

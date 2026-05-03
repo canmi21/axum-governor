@@ -18,6 +18,7 @@ pub mod snapshot;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
+pub use crate::builder::{GovernorConfig, GovernorConfigBuilder};
 pub use crate::error::{ConfigError, ExtractionError, RejectionReason};
 pub use crate::extractor::{
 	AsyncKeyExtractor, Compound, Cookie, Extension, Global, Header, KeyExtractor, KeyOutcome, PeerIp,

@@ -33,6 +33,10 @@ impl PeerIp {
 impl KeyExtractor for PeerIp {
 	type Key = IpAddr;
 
+	fn requires_connect_info(&self) -> bool {
+		true
+	}
+
 	fn extract(&self, parts: &Parts) -> Result<KeyOutcome<Self::Key>, ExtractionError> {
 		let peer = parts
 			.extensions
