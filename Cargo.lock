@@ -71,6 +71,7 @@ name = "axum-governor"
 version = "2.0.0"
 dependencies = [
  "axum",
+ "dashmap",
  "forwarded-header-value",
  "governor",
  "http",

@@ -12,13 +12,14 @@ description = "Rate limiting middleware for Axum, powered by governor."
 
 [features]
 default = ["dashmap", "tracing", "json"]
-dashmap = ["governor/dashmap"]
+dashmap = ["dep:dashmap", "governor/dashmap"]
 tracing = ["dep:tracing"]
 json = ["dep:serde_json"]
 test-utils = []
 
 [dependencies]
 axum = "0.8"
+dashmap = { version = "6", optional = true }
 forwarded-header-value = "0.1"
 governor = { version = "0.10", default-features = false, features = ["std"] }
 http = "1"

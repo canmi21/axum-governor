@@ -18,7 +18,8 @@ use crate::headers::{
 	PolicyDescriptor, write_ietf_policy_set, write_ietf_rate_limit, write_legacy_rate_limit,
 	write_retry_after,
 };
-use crate::layer::LimiterShared;
+use crate::layer::{KeyedRateLimiter, LimiterShared};
+use crate::limiters::StackedResult;
 use crate::response::{default_body, default_status};
 
 #[derive(Clone)]
@@ -31,14 +32,14 @@ where
 }
 
 pin_project! {
-	pub struct GovernorFuture<F> {
-		#[pin] state: GovernorFutureState<F>,
+	pub struct GovernorFuture<F, E> {
+		#[pin] state: GovernorFutureState<F, E>,
 	}
 }
 
 pin_project! {
 	#[project = StateProj]
-	enum GovernorFutureState<F> {
+	enum GovernorFutureState<F, E> {
 		Admit {
 			#[pin] inner: F,
 			headers: Option<HeaderMap>,
@@ -46,108 +47,429 @@ pin_project! {
 		Reject {
 			response: Option<Response<axum::body::Body>>,
 		},
+		// Boxed state for the async extractor branch.
+		// Pin<Box<...>> is Unpin itself, so no #[pin] attribute is needed.
+		Boxed {
+			fut: Option<Pin<Box<dyn Future<Output = Result<Response<axum::body::Body>, E>> + Send>>>,
+		},
 	}
 }
 
 impl<S, K, ReqBody> tower::Service<Request<ReqBody>> for Governor<S, K>
 where
-	S: tower::Service<Request<ReqBody>, Response = Response<axum::body::Body>>,
+	S: tower::Service<Request<ReqBody>, Response = Response<axum::body::Body>>
+		+ Clone
+		+ Send
+		+ 'static,
+	S::Future: Send + 'static,
 	K: Hash + Eq + Clone + Send + Sync + 'static,
+	ReqBody: Send + 'static,
 {
 	type Response = Response<axum::body::Body>;
 	type Error = S::Error;
-	type Future = GovernorFuture<S::Future>;
+	type Future = GovernorFuture<S::Future, S::Error>;
 
 	fn poll_ready(&mut self, cx: &mut Context<'_>) -> Poll<Result<(), S::Error>> {
 		self.inner.poll_ready(cx)
 	}
 
 	fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
-		// Stage 6b will read these fields — listed here so deferred items are visible.
-		// Currently ignored: shared.config.quota_methods, shared.config.stack,
-		// and KeyOutcome::quota_override from the extractor result.
-		let (parts, body) = req.into_parts();
-		let cfg = &self.shared.config;
+		match &self.shared.config.extractor {
+			ExtractorSlot::Async(_) => {
+				call_async_dispatch(Arc::clone(&self.shared), self.inner.clone(), req)
+			}
+			_ => call_sync(&mut self.inner, &self.shared, req),
+		}
+	}
+}
 
-		// 1. Whitelist precedence — any hit bypasses the limiter with no header injection.
+// ---------------------------------------------------------------------------
+// Sync dispatch
+// ---------------------------------------------------------------------------
+
+fn call_sync<S, K, ReqBody>(
+	inner: &mut S,
+	shared: &Arc<LimiterShared<K>>,
+	req: Request<ReqBody>,
+) -> GovernorFuture<S::Future, S::Error>
+where
+	S: tower::Service<Request<ReqBody>, Response = Response<axum::body::Body>>
+		+ Clone
+		+ Send
+		+ 'static,
+	S::Future: Send + 'static,
+	K: Hash + Eq + Clone + Send + Sync + 'static,
+	ReqBody: Send + 'static,
+{
+	let (parts, body) = req.into_parts();
+	let cfg = &shared.config;
+
+	// 1. Whitelist precedence — any hit bypasses the limiter with no header injection.
+	if cfg.whitelist_methods.contains(&parts.method)
+		|| cfg.whitelist_paths.iter().any(|p| crate::glob::path_matches(p, parts.uri.path()))
+		|| peer_ip_from(&parts).is_some_and(|ip| cfg.whitelist_ips.iter().any(|n| n.contains(&ip)))
+	{
+		let req = Request::from_parts(parts, body);
+		return GovernorFuture::admit(inner.call(req), HeaderMap::new());
+	}
+
+	// 2. Extract rate-limit key.
+	let outcome = match &cfg.extractor {
+		ExtractorSlot::Sync(e) => e.extract(&parts),
+		ExtractorSlot::Async(_) => unreachable!("call_sync dispatched for sync extractor only"),
+		ExtractorSlot::None => unreachable!("guarded at GovernorConfigBuilder::finish"),
+	};
+	let outcome = match outcome {
+		Ok(o) => o,
+		Err(err) => {
+			let reason = RejectionReason::KeyExtractionFailed(err);
+			return GovernorFuture::reject(build_reject_no_headers(cfg, reason));
+		}
+	};
+
+	// 3. Check the primary limiter (per-method, quota_override, or default).
+	//
+	// Precedence:
+	//   a. Per-method limiter — if one exists for this request method, it wins over both
+	//      quota_override and the default.  State stores are independent per method.
+	//   b. quota_override from extractor — if present, look up or create a limiter from
+	//      the tier_cache.  The bucket is keyed by (key, override_quota) independently.
+	//   c. default_limiter — the fallback.
+	//
+	// If none applies, pass through with no rate-limiting.
+
+	let primary_result = if let Some(method_quota) =
+		cfg.quota_methods.iter().find(|(m, _)| *m == parts.method).map(|(_, q)| *q)
+	{
+		let limiter = shared
+			.method_limiters
+			.iter()
+			.find(|(m, _)| *m == parts.method)
+			.map(|(_, l)| l)
+			.expect("method_limiters and quota_methods are built in parallel");
+		Some(check_limiter(limiter, &outcome.key, method_quota))
+	} else if let Some(override_quota) = outcome.quota_override {
+		let limiter = shared.tier_cache.get_or_insert(override_quota);
+		Some(check_limiter(&limiter, &outcome.key, override_quota))
+	} else if let Some(limiter) = shared.default_limiter.as_ref() {
+		let q = cfg.quota_default.expect("default_limiter present => quota_default Some");
+		Some(check_limiter(limiter, &outcome.key, q))
+	} else {
+		None
+	};
+
+	let active_quota: Option<Quota> = cfg
+		.quota_methods
+		.iter()
+		.find(|(m, _)| *m == parts.method)
+		.map(|(_, q)| *q)
+		.or_else(|| outcome.quota_override.or(cfg.quota_default));
+
+	if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
+		let policies = gather_all_policies(shared, active_quota);
+		let reason = RejectionReason::QuotaExceeded {
+			wait,
+			snapshot: synthetic_snapshot(quota),
+			key: Box::new(outcome.key.clone()) as Box<dyn std::any::Any + Send>,
+			policy_name: "default",
+		};
+		return GovernorFuture::reject(build_reject_response_with_policies(
+			cfg, quota, wait, reason, "default", &policies,
+		));
+	}
+
+	let primary_remaining = primary_result.as_ref().and_then(|r| {
+		if let LimiterOutcome::Admit { remaining } = r { Some(*remaining) } else { None }
+	});
+
+	// 4. Walk the stack in order; first reject wins.
+	let all_policies = gather_all_policies(shared, active_quota);
+	let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
+
+	for entry in shared.stack.iter() {
+		match entry.check(&parts) {
+			StackedResult::ExtractionFailed(err) => {
+				let reason = RejectionReason::KeyExtractionFailed(err);
+				return GovernorFuture::reject(build_reject_no_headers(cfg, reason));
+			}
+			StackedResult::Reject { wait } => {
+				let quota = entry.quota();
+				let reason = RejectionReason::QuotaExceeded {
+					wait,
+					snapshot: synthetic_snapshot(quota),
+					key: Box::new(()) as Box<dyn std::any::Any + Send>,
+					policy_name: entry.name(),
+				};
+				return GovernorFuture::reject(build_reject_response_with_policies(
+					cfg,
+					quota,
+					wait,
+					reason,
+					entry.name(),
+					&all_policies,
+				));
+			}
+			StackedResult::Admit { remaining } => {
+				if remaining < lowest_remaining {
+					lowest_remaining = remaining;
+				}
+			}
+		}
+	}
+
+	// 5. Everything admitted.
+	if primary_result.is_none() && shared.stack.is_empty() {
+		// No quota configured — pass through with no headers.
+		let req = Request::from_parts(parts, body);
+		return GovernorFuture::admit(inner.call(req), HeaderMap::new());
+	}
+
+	let (admit_quota, admit_name) = if let Some(q) = active_quota {
+		(q, "default")
+	} else if !all_policies.is_empty() {
+		let pd = all_policies[0];
+		(pd.quota, pd.name)
+	} else {
+		let req = Request::from_parts(parts, body);
+		return GovernorFuture::admit(inner.call(req), HeaderMap::new());
+	};
+
+	let final_remaining = if lowest_remaining == u32::MAX { 0 } else { lowest_remaining };
+	let headers = build_admit_headers_with_policies(
+		cfg.legacy_reset_epoch,
+		admit_quota,
+		admit_name,
+		final_remaining,
+		&all_policies,
+	);
+	let req = Request::from_parts(parts, body);
+	GovernorFuture::admit(inner.call(req), headers)
+}
+
+// ---------------------------------------------------------------------------
+// Async dispatch
+// ---------------------------------------------------------------------------
+
+fn call_async_dispatch<S, K, ReqBody>(
+	shared: Arc<LimiterShared<K>>,
+	mut inner: S,
+	req: Request<ReqBody>,
+) -> GovernorFuture<S::Future, S::Error>
+where
+	S: tower::Service<Request<ReqBody>, Response = Response<axum::body::Body>>
+		+ Clone
+		+ Send
+		+ 'static,
+	S::Future: Send + 'static,
+	K: Hash + Eq + Clone + Send + Sync + 'static,
+	ReqBody: Send + 'static,
+{
+	let (parts, body) = req.into_parts();
+
+	type BoxedFut<E> = Pin<Box<dyn Future<Output = Result<Response<axum::body::Body>, E>> + Send>>;
+	let fut: BoxedFut<S::Error> = Box::pin(async move {
+		let cfg = &shared.config;
+
+		// 1. Whitelist check.
 		if cfg.whitelist_methods.contains(&parts.method)
 			|| cfg.whitelist_paths.iter().any(|p| crate::glob::path_matches(p, parts.uri.path()))
 			|| peer_ip_from(&parts).is_some_and(|ip| cfg.whitelist_ips.iter().any(|n| n.contains(&ip)))
 		{
 			let req = Request::from_parts(parts, body);
-			return GovernorFuture::admit(self.inner.call(req), HeaderMap::new());
+			return inner.call(req).await;
 		}
 
-		// 2. Extract rate-limit key.
+		// 2. Extract key asynchronously.
 		let outcome = match &cfg.extractor {
-			ExtractorSlot::Sync(e) => e.extract(&parts),
-			ExtractorSlot::Async(_) => unreachable!("guarded at Layer::new"),
-			ExtractorSlot::None => unreachable!("guarded at GovernorConfigBuilder::finish"),
+			ExtractorSlot::Async(e) => e.extract(&parts).await,
+			_ => unreachable!("call_async_dispatch dispatched for async extractor only"),
 		};
 		let outcome = match outcome {
 			Ok(o) => o,
 			Err(err) => {
 				let reason = RejectionReason::KeyExtractionFailed(err);
-				return GovernorFuture::reject(build_reject_no_headers(cfg, reason));
+				return Ok(build_reject_no_headers(cfg, reason));
 			}
 		};
 
-		// 3. Check default limiter; pass through if no quota is configured.
-		let Some(limiter) = self.shared.default_limiter.as_ref() else {
-			let req = Request::from_parts(parts, body);
-			return GovernorFuture::admit(self.inner.call(req), HeaderMap::new());
+		// 3. Check limiter (same precedence as sync path; stack is sync-only per spec).
+		let primary_result = if let Some(method_quota) =
+			cfg.quota_methods.iter().find(|(m, _)| *m == parts.method).map(|(_, q)| *q)
+		{
+			let limiter = shared
+				.method_limiters
+				.iter()
+				.find(|(m, _)| *m == parts.method)
+				.map(|(_, l)| l)
+				.expect("method_limiters and quota_methods are built in parallel");
+			Some(check_limiter(limiter, &outcome.key, method_quota))
+		} else if let Some(override_quota) = outcome.quota_override {
+			let limiter = shared.tier_cache.get_or_insert(override_quota);
+			Some(check_limiter(&limiter, &outcome.key, override_quota))
+		} else if let Some(limiter) = shared.default_limiter.as_ref() {
+			let q = cfg.quota_default.expect("default_limiter present => quota_default Some");
+			Some(check_limiter(limiter, &outcome.key, q))
+		} else {
+			None
 		};
 
-		match limiter.check_key(&outcome.key) {
-			Ok(snapshot) => {
-				let q = cfg.quota_default.expect("limiter present ⇒ quota_default Some");
-				let headers = build_admit_headers(cfg.legacy_reset_epoch, q, &snapshot);
-				let req = Request::from_parts(parts, body);
-				GovernorFuture::admit(self.inner.call(req), headers)
-			}
-			Err(not_until) => {
-				use governor::clock::Clock as _;
-				let now = governor::clock::DefaultClock::default().now();
-				let wait = not_until.wait_time_from(now);
+		let active_quota: Option<Quota> = cfg
+			.quota_methods
+			.iter()
+			.find(|(m, _)| *m == parts.method)
+			.map(|(_, q)| *q)
+			.or_else(|| outcome.quota_override.or(cfg.quota_default));
 
-				// NotUntil<P> does not expose its internal StateSnapshot via the public API.
-				// Construct a synthetic snapshot from the same quota. Its
-				// remaining_burst_capacity() will be burst-1 rather than 0; all emitted headers
-				// use remaining=0 computed directly from wait.
-				let snapshot = governor::RateLimiter::direct(not_until.quota())
-					.with_middleware::<governor::middleware::StateInformationMiddleware>()
-					.check()
-					.expect("fresh direct limiter always allows first check");
+		if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
+			let policies = gather_all_policies(&shared, active_quota);
+			let reason = RejectionReason::QuotaExceeded {
+				wait,
+				snapshot: synthetic_snapshot(quota),
+				key: Box::new(outcome.key.clone()) as Box<dyn std::any::Any + Send>,
+				policy_name: "default",
+			};
+			return Ok(build_reject_response_with_policies(
+				cfg, quota, wait, reason, "default", &policies,
+			));
+		}
 
-				let q = cfg.quota_default.expect("limiter present ⇒ quota_default Some");
-				let reason = RejectionReason::QuotaExceeded {
-					wait,
-					snapshot,
-					key: Box::new(outcome.key.clone()) as Box<dyn std::any::Any + Send>,
-					policy_name: "default",
-				};
-				GovernorFuture::reject(build_reject_response(cfg, q, wait, reason))
+		let primary_remaining = primary_result.as_ref().and_then(|r| {
+			if let LimiterOutcome::Admit { remaining } = r { Some(*remaining) } else { None }
+		});
+
+		// Walk the stack.
+		let all_policies = gather_all_policies(&shared, active_quota);
+		let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
+
+		for entry in shared.stack.iter() {
+			match entry.check(&parts) {
+				StackedResult::ExtractionFailed(err) => {
+					let reason = RejectionReason::KeyExtractionFailed(err);
+					return Ok(build_reject_no_headers(cfg, reason));
+				}
+				StackedResult::Reject { wait } => {
+					let quota = entry.quota();
+					let reason = RejectionReason::QuotaExceeded {
+						wait,
+						snapshot: synthetic_snapshot(quota),
+						key: Box::new(()) as Box<dyn std::any::Any + Send>,
+						policy_name: entry.name(),
+					};
+					return Ok(build_reject_response_with_policies(
+						cfg,
+						quota,
+						wait,
+						reason,
+						entry.name(),
+						&all_policies,
+					));
+				}
+				StackedResult::Admit { remaining } => {
+					if remaining < lowest_remaining {
+						lowest_remaining = remaining;
+					}
+				}
 			}
 		}
+
+		if primary_result.is_none() && shared.stack.is_empty() {
+			let req = Request::from_parts(parts, body);
+			return inner.call(req).await;
+		}
+
+		let (admit_quota, admit_name) = if let Some(q) = active_quota {
+			(q, "default")
+		} else if !all_policies.is_empty() {
+			let pd = all_policies[0];
+			(pd.quota, pd.name)
+		} else {
+			let req = Request::from_parts(parts, body);
+			return inner.call(req).await;
+		};
+
+		let final_remaining = if lowest_remaining == u32::MAX { 0 } else { lowest_remaining };
+		let headers = build_admit_headers_with_policies(
+			cfg.legacy_reset_epoch,
+			admit_quota,
+			admit_name,
+			final_remaining,
+			&all_policies,
+		);
+		let req = Request::from_parts(parts, body);
+		let mut resp = inner.call(req).await?;
+		for (name, value) in headers {
+			if let Some(n) = name {
+				resp.headers_mut().insert(n, value);
+			}
+		}
+		Ok(resp)
+	});
+
+	GovernorFuture { state: GovernorFutureState::Boxed { fut: Some(fut) } }
+}
+
+// ---------------------------------------------------------------------------
+// Helper types and functions
+// ---------------------------------------------------------------------------
+
+enum LimiterOutcome {
+	Admit { remaining: u32 },
+	Reject { wait: Duration, quota: Quota },
+}
+
+fn check_limiter<K: Hash + Eq + Clone + Send + Sync + 'static>(
+	limiter: &KeyedRateLimiter<K>,
+	key: &K,
+	quota: Quota,
+) -> LimiterOutcome {
+	use governor::clock::Clock as _;
+	match limiter.check_key(key) {
+		Ok(snapshot) => LimiterOutcome::Admit { remaining: snapshot.remaining_burst_capacity() },
+		Err(not_until) => {
+			let now = governor::clock::DefaultClock::default().now();
+			LimiterOutcome::Reject { wait: not_until.wait_time_from(now), quota }
+		}
 	}
+}
+
+fn gather_all_policies<K: Hash + Eq + Clone + Send + Sync + 'static>(
+	shared: &LimiterShared<K>,
+	active_quota: Option<Quota>,
+) -> Vec<PolicyDescriptor> {
+	let mut policies = Vec::new();
+	if let Some(q) = active_quota {
+		policies.push(PolicyDescriptor { name: "default", quota: q });
+	}
+	for entry in shared.stack.iter() {
+		policies.push(PolicyDescriptor { name: entry.name(), quota: entry.quota() });
+	}
+	policies
+}
+
+fn synthetic_snapshot(quota: Quota) -> governor::middleware::StateSnapshot {
+	use governor::middleware::StateInformationMiddleware;
+	governor::RateLimiter::direct(quota.inner())
+		.with_middleware::<StateInformationMiddleware>()
+		.check()
+		.expect("fresh direct limiter always allows first check")
 }
 
 fn peer_ip_from(parts: &http::request::Parts) -> Option<std::net::IpAddr> {
 	parts.extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|ci| ci.0.ip())
 }
 
-fn build_admit_headers(
+fn build_admit_headers_with_policies(
 	legacy_reset_epoch: bool,
 	quota: Quota,
-	snapshot: &governor::middleware::StateSnapshot,
+	policy_name: &'static str,
+	remaining: u32,
+	policies: &[PolicyDescriptor],
 ) -> HeaderMap {
 	let mut headers = HeaderMap::new();
 	let burst = quota.inner().burst_size().get();
-	let remaining = snapshot.remaining_burst_capacity();
 
-	// t = whole seconds until the bucket can absorb (burst - remaining) more requests.
 	let replenish_nanos = quota.inner().replenish_interval().as_nanos();
-	let consumed = (burst - remaining) as u128;
+	let consumed = (burst - remaining.min(burst)) as u128;
 	let t = ((consumed * replenish_nanos) / 1_000_000_000) as u64;
 
 	let reset = if legacy_reset_epoch {
@@ -156,18 +478,26 @@ fn build_admit_headers(
 		t
 	};
 
-	write_ietf_policy_set(&mut headers, &[PolicyDescriptor { name: "default", quota }]);
-	write_ietf_rate_limit(&mut headers, "default", remaining, t);
+	let active_policies: Vec<PolicyDescriptor> = if policies.is_empty() {
+		vec![PolicyDescriptor { name: policy_name, quota }]
+	} else {
+		policies.to_vec()
+	};
+
+	write_ietf_policy_set(&mut headers, &active_policies);
+	write_ietf_rate_limit(&mut headers, policy_name, remaining, t);
 	write_legacy_rate_limit(&mut headers, burst, remaining, reset);
 
 	headers
 }
 
-fn build_reject_response<K>(
+fn build_reject_response_with_policies<K>(
 	cfg: &crate::builder::GovernorConfig<K>,
 	quota: Quota,
 	wait: Duration,
 	reason: RejectionReason,
+	policy_name: &'static str,
+	policies: &[PolicyDescriptor],
 ) -> Response<axum::body::Body> {
 	let burst = quota.inner().burst_size().get();
 	let delta = wait.as_secs();
@@ -180,11 +510,17 @@ fn build_reject_response<K>(
 	};
 
 	let mut response = build_base_response(cfg, reason);
-
 	let h = response.headers_mut();
 	write_retry_after(h, retry_after);
-	write_ietf_policy_set(h, &[PolicyDescriptor { name: "default", quota }]);
-	write_ietf_rate_limit(h, "default", 0, delta);
+
+	let active_policies: Vec<PolicyDescriptor> = if policies.is_empty() {
+		vec![PolicyDescriptor { name: policy_name, quota }]
+	} else {
+		policies.to_vec()
+	};
+
+	write_ietf_policy_set(h, &active_policies);
+	write_ietf_rate_limit(h, policy_name, 0, delta);
 	write_legacy_rate_limit(h, burst, 0, reset);
 
 	response
@@ -215,7 +551,11 @@ fn build_base_response<K>(
 	}
 }
 
-impl<F> GovernorFuture<F> {
+// ---------------------------------------------------------------------------
+// GovernorFuture constructors and Future impl
+// ---------------------------------------------------------------------------
+
+impl<F, E> GovernorFuture<F, E> {
 	fn admit(inner: F, headers: HeaderMap) -> Self {
 		Self { state: GovernorFutureState::Admit { inner, headers: Some(headers) } }
 	}
@@ -225,7 +565,7 @@ impl<F> GovernorFuture<F> {
 	}
 }
 
-impl<F, E> Future for GovernorFuture<F>
+impl<F, E> Future for GovernorFuture<F, E>
 where
 	F: Future<Output = Result<Response<axum::body::Body>, E>>,
 {
@@ -252,6 +592,11 @@ where
 			StateProj::Reject { response } => {
 				Poll::Ready(Ok(response.take().expect("polled GovernorFuture::Reject after completion")))
 			}
+			// Pin<Box<dyn Future>> is Unpin; poll via as_mut().
+			StateProj::Boxed { fut } => {
+				let pinned = fut.as_mut().expect("polled GovernorFuture::Boxed after completion");
+				pinned.as_mut().poll(cx)
+			}
 		}
 	}
 }
@@ -262,7 +607,7 @@ mod tests {
 	use std::net::SocketAddr;
 
 	use axum::extract::ConnectInfo;
-	use http::{Method, Request, Response, StatusCode};
+	use http::{Method, Request, Response, StatusCode, header::AUTHORIZATION};
 	use ipnet::IpNet;
 	use tower::ServiceExt as _;
 
@@ -270,7 +615,9 @@ mod tests {
 
 	use super::*;
 	use crate::builder::GovernorConfigBuilder;
-	use crate::extractor::{Global, PeerIp};
+	use crate::extractor::{
+		AsyncExtractFuture, AsyncKeyExtractor, Global, Header, KeyOutcome, PeerIp,
+	};
 	use crate::layer::GovernorLayer;
 	use crate::{Quota, nz};
 
@@ -467,5 +814,192 @@ mod tests {
 
 		let body_bytes = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
 		assert!(body_bytes.starts_with(b"custom-body"));
+	}
+
+	// Stage 6b tests
+
+	#[tokio::test]
+	async fn per_method_quota_get_exhausted_post_passes() {
+		// GET has 1/s quota; POST falls through to default 100/s.
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.quota_for(Method::GET, Quota::requests_per_second(nz!(1u32)))
+			.quota_default(Quota::requests_per_second(nz!(100u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+		let svc = layer.layer(ok_inner());
+
+		// First GET passes.
+		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r1.status(), StatusCode::OK);
+
+		// Second GET is rejected.
+		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
+
+		// POST uses default quota (100/s) — passes.
+		let r3 = svc.clone().oneshot(req(Method::POST, "/")).await.unwrap();
+		assert_eq!(r3.status(), StatusCode::OK);
+
+		// GET still rejected.
+		let r4 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r4.status(), StatusCode::TOO_MANY_REQUESTS);
+	}
+
+	#[tokio::test]
+	async fn stacked_peer_and_auth_first_reject_wins() {
+		// Stack: peer 1/s (Global key), auth 600/min (Global key).
+		// Exhaust peer on 2nd request; rejection names "peer" and lists both policies.
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.stack("peer", Global, Quota::requests_per_second(nz!(1u32)))
+			.stack("auth", Global, Quota::requests_per_minute(nz!(600u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+		let svc = layer.layer(ok_inner());
+
+		// First request passes.
+		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r1.status(), StatusCode::OK);
+
+		// Second: peer (1/s) exhausted — 429.
+		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
+
+		// RateLimit: header names the triggering entry.
+		let rl = r2.headers().get("ratelimit").unwrap().to_str().unwrap();
+		assert!(rl.contains("\"peer\""), "expected 'peer' in RateLimit header, got: {rl}");
+
+		// RateLimit-Policy: lists both.
+		let policy = r2.headers().get("ratelimit-policy").unwrap().to_str().unwrap();
+		assert!(policy.contains("\"peer\""), "expected 'peer' in policy header");
+		assert!(policy.contains("\"auth\""), "expected 'auth' in policy header");
+	}
+
+	#[tokio::test]
+	async fn multi_window_quotas_first_rejects_on_per_second() {
+		// quotas("peer", Global, [1/s, 60/m]) expands to peer:1s and peer:1m.
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.quotas(
+				"peer",
+				Global,
+				[Quota::requests_per_second(nz!(1u32)), Quota::requests_per_minute(nz!(60u32))],
+			)
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+		let svc = layer.layer(ok_inner());
+
+		// First request passes.
+		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r1.status(), StatusCode::OK);
+
+		// Second request: peer:1s exhausted → 429.
+		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
+
+		// Policy header lists both windows.
+		let policy = r2.headers().get("ratelimit-policy").unwrap().to_str().unwrap();
+		assert!(policy.contains("\"peer:1s\""), "expected peer:1s in policy, got: {policy}");
+		assert!(policy.contains("\"peer:1m\""), "expected peer:1m in policy, got: {policy}");
+	}
+
+	#[tokio::test]
+	async fn per_tier_quota_override_admits_burst() {
+		use crate::extractor::KeyExtractor;
+		use http::request::Parts;
+
+		// Extractor returns quota_override = Some(100/s), bypassing the default 1/s.
+		#[derive(Clone)]
+		struct TierExtractor;
+		impl KeyExtractor for TierExtractor {
+			type Key = ();
+			fn extract(&self, _parts: &Parts) -> Result<KeyOutcome<()>, crate::ExtractionError> {
+				Ok(KeyOutcome { key: (), quota_override: Some(Quota::requests_per_second(nz!(100u32))) })
+			}
+		}
+
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(TierExtractor)
+			// Default very tight; override allows more.
+			.quota_default(Quota::requests_per_second(nz!(1u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+		let svc = layer.layer(ok_inner());
+
+		// With default 1/s the second would fail; with override 100/s it passes.
+		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r1.status(), StatusCode::OK);
+		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r2.status(), StatusCode::OK, "override quota should admit second request");
+	}
+
+	#[tokio::test]
+	async fn async_extractor_admits_and_rejects() {
+		#[derive(Clone, Debug)]
+		struct SimpleAsync;
+		impl AsyncKeyExtractor for SimpleAsync {
+			type Key = ();
+			fn extract<'a>(&'a self, _parts: &'a http::request::Parts) -> AsyncExtractFuture<'a, ()> {
+				Box::pin(async {
+					tokio::task::yield_now().await;
+					Ok(KeyOutcome { key: (), quota_override: None })
+				})
+			}
+		}
+
+		let cfg = GovernorConfigBuilder::default()
+			.with_async_extractor(SimpleAsync)
+			.quota_default(Quota::requests_per_second(nz!(1u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+		let svc = layer.layer(ok_inner());
+
+		// First request: 200.
+		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r1.status(), StatusCode::OK);
+
+		// Second request: 429.
+		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
+	}
+
+	#[tokio::test]
+	async fn stacked_reject_names_correct_entry_in_ratelimit_header() {
+		// peer 100/s (never exhausted), auth (via Header) 1/s.
+		// On the second request: peer passes (100 burst), auth rejects.
+		// The RateLimit: header should name "auth".
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.stack("peer", Global, Quota::requests_per_second(nz!(100u32)))
+			.stack("auth", Header(&AUTHORIZATION), Quota::requests_per_second(nz!(1u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+		let svc = layer.layer(ok_inner());
+
+		let make_req = || {
+			Request::builder()
+				.method(Method::GET)
+				.uri("/")
+				.header(AUTHORIZATION, "Bearer token123")
+				.body(axum::body::Body::empty())
+				.unwrap()
+		};
+
+		// First request passes.
+		let r1 = svc.clone().oneshot(make_req()).await.unwrap();
+		assert_eq!(r1.status(), StatusCode::OK);
+
+		// Second request: auth (1/s) exhausted → 429 naming "auth".
+		let r2 = svc.clone().oneshot(make_req()).await.unwrap();
+		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
+		let rl = r2.headers().get("ratelimit").unwrap().to_str().unwrap();
+		assert!(rl.contains("\"auth\""), "expected 'auth' in RateLimit header, got: {rl}");
 	}
 }

@@ -7,8 +7,11 @@ use governor::clock::DefaultClock;
 use governor::middleware::StateInformationMiddleware;
 use governor::state::keyed::DefaultKeyedStateStore;
 
+use http::Method;
+
 use crate::Quota;
-use crate::builder::{ExtractorSlot, GovernorConfig};
+use crate::builder::GovernorConfig;
+use crate::limiters::{LimiterCache, StackedRunner};
 
 pub(crate) type KeyedRateLimiter<K> =
 	governor::RateLimiter<K, DefaultKeyedStateStore<K>, DefaultClock, StateInformationMiddleware>;
@@ -19,6 +22,12 @@ where
 {
 	pub config: GovernorConfig<K>,
 	pub default_limiter: Option<KeyedRateLimiter<K>>,
+	/// Per-method limiters built from `config.quota_methods` at layer construction.
+	pub method_limiters: Vec<(Method, KeyedRateLimiter<K>)>,
+	/// Ordered stack of type-erased limiters built from `config.stack` factories.
+	pub stack: Vec<Box<dyn StackedRunner>>,
+	/// Cache mapping quota overrides to their limiters, used for per-tier dispatch.
+	pub tier_cache: LimiterCache<K>,
 }
 
 /// Tower `Layer` that wraps services with governor-backed rate limiting.
@@ -34,15 +43,56 @@ where
 	K: Hash + Eq + Clone + Send + Sync + 'static,
 {
 	pub fn new(config: GovernorConfig<K>) -> Self {
-		// Stage 6b removes this guard.
-		if matches!(config.extractor, ExtractorSlot::Async(_)) {
-			unimplemented!("async extractor wiring is Stage 6b; configure with_extractor(...) for now");
-		}
 		let default_limiter = config.quota_default.map(|q: Quota| {
-			// Use keyed() rather than dashmap() so the build works without the dashmap feature.
 			governor::RateLimiter::keyed(q.inner()).with_middleware::<StateInformationMiddleware>()
 		});
-		Self { shared: Arc::new(LimiterShared { config, default_limiter }) }
+
+		let method_limiters: Vec<(Method, KeyedRateLimiter<K>)> = config
+			.quota_methods
+			.iter()
+			.map(|(method, q)| {
+				let limiter =
+					governor::RateLimiter::keyed(q.inner()).with_middleware::<StateInformationMiddleware>();
+				(method.clone(), limiter)
+			})
+			.collect();
+
+		// Consume the stack factories, building each StackedRunner.  The factories are
+		// consumed here so the config field is left empty; the built runners live in `stack`.
+		// We rebuild quota_methods from config, so we need to drain stack only.
+		// Because GovernorConfig.stack is Vec<Box<dyn StackEntryFactory>>, we need to
+		// temporarily take ownership.  The config is moved in, so we can destructure it.
+
+		// Build stack before moving config into LimiterShared.
+		let stack: Vec<Box<dyn StackedRunner>> = config.stack.into_iter().map(|f| f.build()).collect();
+
+		// Rebuild config without the consumed stack field.
+		let config_rebuilt = GovernorConfig {
+			extractor: config.extractor,
+			quota_default: config.quota_default,
+			quota_methods: config.quota_methods,
+			stack: Vec::new(), // consumed above
+			whitelist_methods: config.whitelist_methods,
+			whitelist_paths: config.whitelist_paths,
+			whitelist_ips: config.whitelist_ips,
+			body_preset: config.body_preset,
+			error_handler: config.error_handler,
+			gc_interval: config.gc_interval,
+			gc_disabled: config.gc_disabled,
+			max_keys: config.max_keys,
+			connect_info_required: config.connect_info_required,
+			legacy_reset_epoch: config.legacy_reset_epoch,
+		};
+
+		Self {
+			shared: Arc::new(LimiterShared {
+				config: config_rebuilt,
+				default_limiter,
+				method_limiters,
+				stack,
+				tier_cache: LimiterCache::<K>::new(),
+			}),
+		}
 	}
 }
 
@@ -61,8 +111,9 @@ where
 mod tests {
 	use super::*;
 	use crate::builder::GovernorConfigBuilder;
-	use crate::extractor::Global;
+	use crate::extractor::{AsyncExtractFuture, AsyncKeyExtractor, Global, KeyOutcome};
 	use crate::{Quota, nz};
+	use http::request::Parts;
 
 	#[test]
 	fn sync_extractor_constructs_ok() {
@@ -75,12 +126,7 @@ mod tests {
 	}
 
 	#[test]
-	#[should_panic(expected = "async extractor wiring is Stage 6b")]
-	fn async_extractor_panics() {
-		use crate::builder::GovernorConfigBuilder;
-		use crate::extractor::{AsyncExtractFuture, AsyncKeyExtractor, KeyOutcome};
-		use http::request::Parts;
-
+	fn async_extractor_constructs_ok() {
 		#[derive(Debug)]
 		struct DummyAsync;
 		impl AsyncKeyExtractor for DummyAsync {
@@ -103,5 +149,31 @@ mod tests {
 		let cfg = GovernorConfigBuilder::default().with_extractor(Global).finish().unwrap();
 		let layer: GovernorLayer<()> = GovernorLayer::new(cfg);
 		assert!(layer.shared.default_limiter.is_none());
+	}
+
+	#[test]
+	fn method_limiters_built_from_config() {
+		use http::Method;
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.quota_for(Method::GET, Quota::requests_per_second(nz!(10u32)))
+			.quota_for(Method::POST, Quota::requests_per_second(nz!(5u32)))
+			.finish()
+			.unwrap();
+		let layer: GovernorLayer<()> = GovernorLayer::new(cfg);
+		assert_eq!(layer.shared.method_limiters.len(), 2);
+	}
+
+	#[test]
+	fn stack_entries_built_from_factories() {
+		use crate::extractor::PeerIp;
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.stack("peer", PeerIp::default(), Quota::requests_per_second(nz!(10u32)))
+			.finish()
+			.unwrap();
+		let layer: GovernorLayer<()> = GovernorLayer::new(cfg);
+		assert_eq!(layer.shared.stack.len(), 1);
+		assert_eq!(layer.shared.stack[0].name(), "peer");
 	}
 }

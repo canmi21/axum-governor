@@ -1,5 +1,6 @@
 //! Rate quota types exposed in the public API.
 
+use std::hash::{Hash, Hasher};
 use std::num::NonZeroU32;
 use std::time::Duration;
 
@@ -12,6 +13,15 @@ pub use nonzero_ext::nonzero as nz;
 /// this crate's names are unambiguous where governor's `per_second` is not.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Quota(pub(crate) governor::Quota);
+
+// governor::Quota does not derive Hash; implement manually by hashing the two
+// observable fields that fully characterize a quota for rate-limiting purposes.
+impl Hash for Quota {
+	fn hash<H: Hasher>(&self, state: &mut H) {
+		self.0.burst_size().get().hash(state);
+		self.0.replenish_interval().hash(state);
+	}
+}
 
 impl Quota {
 	/// Allow at most `n` requests per second, with burst equal to `n`.
@@ -60,10 +70,18 @@ impl From<governor::Quota> for Quota {
 
 #[cfg(test)]
 mod tests {
+	use std::collections::hash_map::DefaultHasher;
+	use std::hash::{Hash, Hasher};
 	use std::num::NonZeroU32;
 	use std::time::Duration;
 
 	use super::{Quota, nz};
+
+	fn hash_of(q: Quota) -> u64 {
+		let mut h = DefaultHasher::new();
+		q.hash(&mut h);
+		h.finish()
+	}
 
 	const _: core::num::NonZeroU32 = nz!(50u32);
 
@@ -102,5 +120,20 @@ mod tests {
 		let q = base.burst(burst_n).inner();
 		assert_eq!(q.burst_size(), burst_n);
 		assert_eq!(q.replenish_interval(), interval);
+	}
+
+	#[test]
+	fn equal_quotas_hash_equal() {
+		let a = Quota::requests_per_second(nz!(50u32));
+		let b = Quota::requests_per_second(nz!(50u32));
+		assert_eq!(a, b);
+		assert_eq!(hash_of(a), hash_of(b));
+	}
+
+	#[test]
+	fn different_quotas_hash_different() {
+		let a = Quota::requests_per_second(nz!(50u32));
+		let b = Quota::requests_per_minute(nz!(50u32));
+		assert_ne!(hash_of(a), hash_of(b));
 	}
 }

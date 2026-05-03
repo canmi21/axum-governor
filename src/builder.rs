@@ -1,8 +1,5 @@
 //! Builder for assembling a `GovernorConfig`.
 
-// Fields on GovernorConfig are consumed by the Service layer (Stage 6).
-#![allow(dead_code)]
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,22 +10,8 @@ use crate::Quota;
 use crate::error::ConfigError;
 use crate::extractor::{AsyncKeyExtractor, KeyExtractor};
 use crate::headers::quota_window_seconds;
+use crate::limiters::{StackEntryFactory, TypedStackFactory};
 use crate::response::{BodyPreset, ErrorHandler};
-
-/// Marker trait for type-erased sync extractors stored in the stack.
-pub(crate) trait ErasedSyncExtractor: Send + Sync + 'static {}
-
-impl<T: KeyExtractor> ErasedSyncExtractor for T {}
-
-/// An `Arc`-wrapped sync extractor with its key type erased, for use in stacked limiters.
-pub struct BoxedSyncExtractor(pub(crate) Arc<dyn ErasedSyncExtractor>);
-
-/// One entry in a stacked or multi-window limiter chain.
-pub struct StackEntry {
-	pub(crate) name: &'static str,
-	pub(crate) extractor: BoxedSyncExtractor,
-	pub(crate) quota: Quota,
-}
 
 /// Holds the primary extractor configured on the builder.
 pub(crate) enum ExtractorSlot<K> {
@@ -42,7 +25,7 @@ pub struct GovernorConfig<K> {
 	pub(crate) extractor: ExtractorSlot<K>,
 	pub(crate) quota_default: Option<Quota>,
 	pub(crate) quota_methods: Vec<(Method, Quota)>,
-	pub(crate) stack: Vec<StackEntry>,
+	pub(crate) stack: Vec<Box<dyn StackEntryFactory>>,
 	pub(crate) whitelist_methods: Vec<Method>,
 	pub(crate) whitelist_paths: Vec<String>,
 	pub(crate) whitelist_ips: Vec<IpNet>,
@@ -72,7 +55,7 @@ pub struct GovernorConfigBuilder<K = ()> {
 	requires_connect_info: bool,
 	quota_default: Option<Quota>,
 	quota_methods: Vec<(Method, Quota)>,
-	stack: Vec<StackEntry>,
+	stack: Vec<Box<dyn StackEntryFactory>>,
 	empty_chain_names: Vec<&'static str>,
 	whitelist_methods: Vec<Method>,
 	whitelist_paths: Vec<String>,
@@ -182,7 +165,7 @@ impl<K> GovernorConfigBuilder<K> {
 	/// Entries are checked in insertion order; the first reject wins.
 	#[must_use]
 	pub fn stack<E: KeyExtractor>(mut self, name: &'static str, extractor: E, quota: Quota) -> Self {
-		self.stack.push(StackEntry { name, extractor: BoxedSyncExtractor(Arc::new(extractor)), quota });
+		self.stack.push(Box::new(TypedStackFactory { name, quota, extractor: Arc::new(extractor) }));
 		self
 	}
 
@@ -205,14 +188,14 @@ impl<K> GovernorConfigBuilder<K> {
 			self.empty_chain_names.push(name);
 			return self;
 		}
-		let shared: Arc<dyn ErasedSyncExtractor> = Arc::new(extractor);
+		let shared = Arc::new(extractor);
 		for (idx, q) in entries.into_iter().enumerate() {
 			let label = quota_label(name, &q, idx);
-			self.stack.push(StackEntry {
+			self.stack.push(Box::new(TypedStackFactory {
 				name: label,
-				extractor: BoxedSyncExtractor(Arc::clone(&shared)),
 				quota: q,
-			});
+				extractor: Arc::clone(&shared),
+			}));
 		}
 		self
 	}
@@ -309,12 +292,11 @@ impl<K> GovernorConfigBuilder<K> {
 		}
 
 		// 2. ZeroBurst — governor enforces NonZeroU32 on burst, so this is a defensive guard.
-		let all_q = self
-			.quota_default
-			.iter()
-			.chain(self.quota_methods.iter().map(|(_, q)| q))
-			.chain(self.stack.iter().map(|e| &e.quota));
-		for q in all_q {
+		// Stack entries are type-erased factories; quota is validated when each factory was
+		// created (the extractor API only accepts NonZeroU32). Check the explicitly-stored
+		// quota fields.
+		let explicit_q = self.quota_default.iter().chain(self.quota_methods.iter().map(|(_, q)| q));
+		for q in explicit_q {
 			if q.inner().burst_size().get() == 0 {
 				return Err(ConfigError::ZeroBurst);
 			}
@@ -492,30 +474,37 @@ mod tests {
 
 	#[test]
 	fn stack_single_entry_added() {
+		use crate::layer::GovernorLayer;
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(Global)
 			.stack("peer", PeerIp::default(), q1s())
 			.finish()
 			.unwrap();
 		assert_eq!(cfg.stack.len(), 1);
-		assert_eq!(cfg.stack[0].name, "peer");
+		// Build the layer to get the finalized runners and verify name propagated.
+		// The primary extractor is Global (K = ()), stack entries are type-erased.
+		let layer: GovernorLayer<()> = GovernorLayer::new(cfg);
+		assert_eq!(layer.shared.stack[0].name(), "peer");
 	}
 
 	#[test]
 	fn quotas_expands_to_three_stack_entries_with_labels() {
+		use crate::layer::GovernorLayer;
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(Global)
 			.quotas("peer", PeerIp::default(), [q1s(), q1m(), q1h()])
 			.finish()
 			.unwrap();
 		assert_eq!(cfg.stack.len(), 3);
-		assert_eq!(cfg.stack[0].name, "peer:1s");
-		assert_eq!(cfg.stack[1].name, "peer:1m");
-		assert_eq!(cfg.stack[2].name, "peer:1h");
+		let layer: GovernorLayer<()> = GovernorLayer::new(cfg);
+		assert_eq!(layer.shared.stack[0].name(), "peer:1s");
+		assert_eq!(layer.shared.stack[1].name(), "peer:1m");
+		assert_eq!(layer.shared.stack[2].name(), "peer:1h");
 	}
 
 	#[test]
 	fn quotas_unknown_window_uses_index() {
+		use crate::layer::GovernorLayer;
 		// seconds_per_request(5) → burst=1, replenish=5s, window=5s — not 1/60/3600
 		let odd = Quota::seconds_per_request(nz!(5u32));
 		let cfg = GovernorConfigBuilder::default()
@@ -523,7 +512,8 @@ mod tests {
 			.quotas("x", Global, [odd])
 			.finish()
 			.unwrap();
-		assert_eq!(cfg.stack[0].name, "x:0");
+		let layer: GovernorLayer<()> = GovernorLayer::new(cfg);
+		assert_eq!(layer.shared.stack[0].name(), "x:0");
 	}
 
 	#[test]
