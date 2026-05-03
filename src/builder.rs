@@ -52,6 +52,7 @@ pub struct GovernorConfig<K> {
 	pub(crate) gc_disabled: bool,
 	pub(crate) max_keys: Option<usize>,
 	pub(crate) connect_info_required: bool,
+	pub(crate) legacy_reset_epoch: bool,
 }
 
 // ExtractorSlot contains Arc<dyn ...> which isn't Debug; minimal impl avoids K: Debug bound.
@@ -82,6 +83,7 @@ pub struct GovernorConfigBuilder<K = ()> {
 	gc_disabled: bool,
 	max_keys: Option<usize>,
 	connect_info_acknowledged: bool,
+	legacy_reset_epoch: bool,
 }
 
 impl Default for GovernorConfigBuilder<()> {
@@ -98,10 +100,11 @@ impl Default for GovernorConfigBuilder<()> {
 			whitelist_ips: Vec::new(),
 			body_preset: BodyPreset::default(),
 			error_handler: None,
-			gc_interval: None,
+			gc_interval: Some(Duration::from_secs(60)),
 			gc_disabled: false,
 			max_keys: None,
 			connect_info_acknowledged: false,
+			legacy_reset_epoch: false,
 		}
 	}
 }
@@ -129,6 +132,7 @@ impl GovernorConfigBuilder<()> {
 			gc_disabled: self.gc_disabled,
 			max_keys: self.max_keys,
 			connect_info_acknowledged: self.connect_info_acknowledged,
+			legacy_reset_epoch: self.legacy_reset_epoch,
 		}
 	}
 
@@ -153,6 +157,7 @@ impl GovernorConfigBuilder<()> {
 			gc_disabled: self.gc_disabled,
 			max_keys: self.max_keys,
 			connect_info_acknowledged: self.connect_info_acknowledged,
+			legacy_reset_epoch: self.legacy_reset_epoch,
 		}
 	}
 }
@@ -252,6 +257,15 @@ impl<K> GovernorConfigBuilder<K> {
 		self
 	}
 
+	/// Switch `X-RateLimit-Reset` from delta-seconds (default) to Unix epoch seconds.
+	///
+	/// Most APIs use delta; flip this if you need to match GitHub-style epoch wire format.
+	#[must_use]
+	pub fn legacy_reset_epoch(mut self, on: bool) -> Self {
+		self.legacy_reset_epoch = on;
+		self
+	}
+
 	/// Override the GC sweep interval (default: 60 s).
 	#[must_use]
 	pub fn gc_interval(mut self, interval: Duration) -> Self {
@@ -337,6 +351,7 @@ impl<K> GovernorConfigBuilder<K> {
 			gc_disabled: self.gc_disabled,
 			max_keys: self.max_keys,
 			connect_info_required: self.requires_connect_info,
+			legacy_reset_epoch: self.legacy_reset_epoch,
 		})
 	}
 }
@@ -604,6 +619,26 @@ mod tests {
 			.finish()
 			.unwrap();
 		assert!(!cfg.connect_info_required);
+	}
+
+	#[test]
+	fn gc_interval_defaults_to_60s() {
+		let cfg = GovernorConfigBuilder::default().with_extractor(Global).finish().unwrap();
+		assert_eq!(cfg.gc_interval, Some(Duration::from_secs(60)));
+		assert!(!cfg.gc_disabled);
+	}
+
+	#[test]
+	fn legacy_reset_epoch_defaults_false_and_round_trips() {
+		let cfg = GovernorConfigBuilder::default().with_extractor(Global).finish().unwrap();
+		assert!(!cfg.legacy_reset_epoch);
+
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.legacy_reset_epoch(true)
+			.finish()
+			.unwrap();
+		assert!(cfg.legacy_reset_epoch);
 	}
 
 	// --- KeyExtractor::requires_connect_info ---
