@@ -8,6 +8,7 @@ counterpart), so user code names `K` and not the concrete extractor.
 
 ```rust
 use http::request::Parts;
+use std::fmt::Debug;
 use std::future::Future;
 use std::hash::Hash;
 use std::pin::Pin;
@@ -27,13 +28,13 @@ pub enum ExtractionError {
 }
 
 pub trait KeyExtractor: Send + Sync + 'static {
-    type Key: Hash + Eq + Clone + Send + Sync + 'static;
+    type Key: Hash + Eq + Clone + Debug + Send + Sync + 'static;
     fn extract(&self, parts: &Parts)
         -> Result<KeyOutcome<Self::Key>, ExtractionError>;
 }
 
 pub trait AsyncKeyExtractor: Send + Sync + 'static {
-    type Key: Hash + Eq + Clone + Send + Sync + 'static;
+    type Key: Hash + Eq + Clone + Debug + Send + Sync + 'static;
     fn extract<'a>(&'a self, parts: &'a Parts)
         -> Pin<Box<
             dyn Future<Output = Result<KeyOutcome<Self::Key>, ExtractionError>>
@@ -82,7 +83,7 @@ All of these implement `KeyExtractor` (sync) unless noted.
 - **`Cookie(name: &'static str)`** — value of a named cookie. Walks `Cookie` headers
   without pulling in a full cookie crate; users who need parsed attributes should use
   `Extension<T>` after a cookie-parsing middleware.
-- **`Extension<T: Clone + Hash + Eq + Send + Sync + 'static>`** — pulls a value of type
+- **`Extension<T: Clone + Hash + Eq + Debug + Send + Sync + 'static>`** — pulls a value of type
   `T` from `parts.extensions`. The conventional shape for "auth has populated a
   `UserId`, rate-limit by that".
 
