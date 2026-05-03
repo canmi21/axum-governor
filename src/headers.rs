@@ -1,5 +1,9 @@
 //! Pure header writers for rate-limit response headers.
 
+// Functions in this module are called by the Service layer (Stage 6); suppress
+// dead_code until that wiring exists.
+#![allow(dead_code)]
+
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 
 use crate::Quota;
@@ -71,28 +75,6 @@ pub(crate) fn write_legacy_rate_limit(
 		HeaderValue::from_str(&reset_seconds.to_string())
 			.expect("x-ratelimit-reset value is always valid"),
 	);
-}
-
-/// Write the full rate-limit header set for a single policy rejection.
-///
-/// Emits `Retry-After`, `RateLimit`, `RateLimit-Policy`, and the three `X-RateLimit-*` headers.
-/// Useful for custom error handlers that need standards-compliant headers without the full layer.
-pub fn write_all(
-	headers: &mut HeaderMap,
-	triggering_policy: &'static str,
-	all_policies: &[PolicyDescriptor],
-	remaining: u32,
-	wait_seconds: u64,
-) {
-	let limit = all_policies
-		.iter()
-		.find(|p| p.name == triggering_policy)
-		.map(|p| p.quota.inner().burst_size().get())
-		.unwrap_or(0);
-	write_retry_after(headers, wait_seconds);
-	write_ietf_rate_limit(headers, triggering_policy, remaining, wait_seconds);
-	write_ietf_policy_set(headers, all_policies);
-	write_legacy_rate_limit(headers, limit, remaining, wait_seconds);
 }
 
 /// `w=` value for IETF policy: `(burst * replenish_interval)` in whole seconds, min 1.

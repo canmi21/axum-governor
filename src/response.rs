@@ -1,5 +1,9 @@
 //! Default 429 response bodies and the `BodyPreset` enum.
 
+// Functions in this module are called by the Service layer (Stage 6); suppress
+// dead_code until that wiring exists.
+#![allow(dead_code)]
+
 use http::{HeaderValue, StatusCode};
 
 use crate::error::{ExtractionError, RejectionReason};
@@ -18,16 +22,9 @@ pub enum BodyPreset {
 	ProblemJson,
 }
 
-impl BodyPreset {
-	/// Build the default response body and `Content-Type` for a rejection reason.
-	///
-	/// Useful for custom error handlers that want default formatting with a specific preset.
-	pub fn apply(self, reason: &crate::RejectionReason) -> (http::HeaderValue, Vec<u8>) {
-		default_body(self, reason)
-	}
-}
-
 /// User-supplied response builder; overrides the default body.
+///
+/// Wrapped in `Arc` so the cloned `Service` shares one handler.
 pub type ErrorHandler = std::sync::Arc<
 	dyn Fn(crate::RejectionReason) -> http::Response<axum::body::Body> + Send + Sync + 'static,
 >;
