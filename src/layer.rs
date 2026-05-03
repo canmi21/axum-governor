@@ -28,6 +28,37 @@ where
 	pub stack: Vec<Box<dyn StackedRunner>>,
 	/// Cache mapping quota overrides to their limiters, used for per-tier dispatch.
 	pub tier_cache: LimiterCache<K>,
+	/// Handle to the background GC task; `None` when GC is disabled.
+	pub gc_handle: Option<tokio::task::AbortHandle>,
+}
+
+impl<K> LimiterShared<K>
+where
+	K: Hash + Eq + Clone + Send + Sync + 'static,
+{
+	pub(crate) fn retain_all(&self) {
+		if let Some(l) = &self.default_limiter {
+			l.retain_recent();
+		}
+		for (_, l) in &self.method_limiters {
+			l.retain_recent();
+		}
+		for entry in &self.stack {
+			entry.retain_recent();
+		}
+		self.tier_cache.retain_all();
+	}
+}
+
+impl<K> Drop for LimiterShared<K>
+where
+	K: Hash + Eq + Clone + Send + Sync + 'static,
+{
+	fn drop(&mut self) {
+		if let Some(handle) = self.gc_handle.take() {
+			handle.abort();
+		}
+	}
 }
 
 /// Tower `Layer` that wraps services with governor-backed rate limiting.
@@ -79,20 +110,31 @@ where
 			error_handler: config.error_handler,
 			gc_interval: config.gc_interval,
 			gc_disabled: config.gc_disabled,
+			// stored but not yet enforced: governor 0.10 does not expose state-store injection
 			max_keys: config.max_keys,
 			connect_info_required: config.connect_info_required,
 			legacy_reset_epoch: config.legacy_reset_epoch,
 		};
 
-		Self {
-			shared: Arc::new(LimiterShared {
+		let gc_interval = config_rebuilt.gc_interval;
+		let gc_disabled = config_rebuilt.gc_disabled;
+
+		let shared = Arc::new_cyclic(|weak: &std::sync::Weak<LimiterShared<K>>| {
+			let gc_handle = match (gc_interval, gc_disabled) {
+				(Some(every), false) => crate::gc::spawn_gc_inner(weak.clone(), every),
+				_ => None,
+			};
+			LimiterShared {
 				config: config_rebuilt,
 				default_limiter,
 				method_limiters,
 				stack,
 				tier_cache: LimiterCache::<K>::new(),
-			}),
-		}
+				gc_handle,
+			}
+		});
+
+		Self { shared }
 	}
 }
 

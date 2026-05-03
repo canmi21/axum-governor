@@ -40,6 +40,7 @@ pub(crate) trait StackedRunner: Send + Sync + 'static {
 	fn name(&self) -> &'static str;
 	fn quota(&self) -> crate::Quota;
 	fn check(&self, parts: &http::request::Parts) -> StackedResult;
+	fn retain_recent(&self);
 }
 
 // ---------------------------------------------------------------------------
@@ -75,6 +76,10 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 				}
 			},
 		}
+	}
+
+	fn retain_recent(&self) {
+		self.limiter.retain_recent();
 	}
 }
 
@@ -148,6 +153,12 @@ where
 			})
 			.clone()
 	}
+
+	pub(crate) fn retain_all(&self) {
+		for kv in self.inner.iter() {
+			kv.value().retain_recent();
+		}
+	}
 }
 
 #[cfg(not(feature = "dashmap"))]
@@ -178,6 +189,13 @@ where
 				)
 			})
 			.clone()
+	}
+
+	pub(crate) fn retain_all(&self) {
+		let map = self.inner.lock().expect("LimiterCache mutex poisoned");
+		for (_, l) in map.iter() {
+			l.retain_recent();
+		}
 	}
 }
 
