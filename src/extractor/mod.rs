@@ -19,7 +19,7 @@ pub struct KeyOutcome<K> {
 /// Synchronous key extractor. Object-safe; the layer holds
 /// `Arc<dyn KeyExtractor<Key = K>>`.
 pub trait KeyExtractor: Send + Sync + 'static {
-	type Key: Hash + Eq + Clone + Send + Sync + 'static;
+	type Key: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static;
 	fn extract(&self, parts: &Parts) -> Result<KeyOutcome<Self::Key>, ExtractionError>;
 	/// Returns `true` if this extractor reads `ConnectInfo<SocketAddr>` from request extensions.
 	/// The builder uses this to enforce `expect_connect_info()` acknowledgement at config time.
@@ -36,7 +36,7 @@ pub type AsyncExtractFuture<'a, K> =
 /// (e.g. database tier lookup). Hand-rolled `Pin<Box<dyn Future>>` so the
 /// trait stays dyn-compatible without pulling in `async-trait`.
 pub trait AsyncKeyExtractor: Send + Sync + 'static {
-	type Key: Hash + Eq + Clone + Send + Sync + 'static;
+	type Key: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static;
 	fn extract<'a>(&'a self, parts: &'a Parts) -> AsyncExtractFuture<'a, Self::Key>;
 }
 

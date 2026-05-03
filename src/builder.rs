@@ -36,6 +36,7 @@ pub struct GovernorConfig<K> {
 	pub(crate) max_keys: Option<usize>,
 	pub(crate) connect_info_required: bool,
 	pub(crate) legacy_reset_epoch: bool,
+	pub(crate) redact_keys: bool,
 }
 
 // ExtractorSlot contains Arc<dyn ...> which isn't Debug; minimal impl avoids K: Debug bound.
@@ -67,6 +68,7 @@ pub struct GovernorConfigBuilder<K = ()> {
 	max_keys: Option<usize>,
 	connect_info_acknowledged: bool,
 	legacy_reset_epoch: bool,
+	redact_keys: bool,
 }
 
 impl Default for GovernorConfigBuilder<()> {
@@ -88,6 +90,7 @@ impl Default for GovernorConfigBuilder<()> {
 			max_keys: None,
 			connect_info_acknowledged: false,
 			legacy_reset_epoch: false,
+			redact_keys: false,
 		}
 	}
 }
@@ -116,6 +119,7 @@ impl GovernorConfigBuilder<()> {
 			max_keys: self.max_keys,
 			connect_info_acknowledged: self.connect_info_acknowledged,
 			legacy_reset_epoch: self.legacy_reset_epoch,
+			redact_keys: self.redact_keys,
 		}
 	}
 
@@ -141,6 +145,7 @@ impl GovernorConfigBuilder<()> {
 			max_keys: self.max_keys,
 			connect_info_acknowledged: self.connect_info_acknowledged,
 			legacy_reset_epoch: self.legacy_reset_epoch,
+			redact_keys: self.redact_keys,
 		}
 	}
 }
@@ -280,6 +285,15 @@ impl<K> GovernorConfigBuilder<K> {
 		self
 	}
 
+	/// When `true`, keys are hashed with SipHash and rendered as `hash:<hex>` in tracing
+	/// events instead of their `Debug` representation. Use this to avoid logging sensitive
+	/// values such as API keys or session tokens.
+	#[must_use]
+	pub fn redact_keys(mut self, on: bool) -> Self {
+		self.redact_keys = on;
+		self
+	}
+
 	/// Validate the configuration and produce a [`GovernorConfig`].
 	///
 	/// Checks are applied in order:
@@ -334,6 +348,7 @@ impl<K> GovernorConfigBuilder<K> {
 			max_keys: self.max_keys,
 			connect_info_required: self.requires_connect_info,
 			legacy_reset_epoch: self.legacy_reset_epoch,
+			redact_keys: self.redact_keys,
 		})
 	}
 }
@@ -646,5 +661,14 @@ mod tests {
 	#[test]
 	fn global_does_not_require_connect_info() {
 		assert!(!Global.requires_connect_info());
+	}
+
+	#[test]
+	fn redact_keys_default_false_and_round_trips() {
+		let cfg = GovernorConfigBuilder::default().with_extractor(Global).finish().unwrap();
+		assert!(!cfg.redact_keys);
+		let cfg =
+			GovernorConfigBuilder::default().with_extractor(Global).redact_keys(true).finish().unwrap();
+		assert!(cfg.redact_keys);
 	}
 }

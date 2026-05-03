@@ -40,7 +40,7 @@ impl<T> std::fmt::Debug for Extension<T> {
 	}
 }
 
-impl<T: Clone + Hash + Eq + Send + Sync + 'static> KeyExtractor for Extension<T> {
+impl<T: Clone + Hash + Eq + std::fmt::Debug + Send + Sync + 'static> KeyExtractor for Extension<T> {
 	type Key = T;
 
 	fn extract(&self, parts: &Parts) -> Result<KeyOutcome<Self::Key>, ExtractionError> {

@@ -24,7 +24,7 @@ use crate::layer::KeyedRateLimiter;
 /// Outcome of checking one stacked limiter entry.
 pub(crate) enum StackedResult {
 	Admit { remaining: u32 },
-	Reject { wait: Duration },
+	Reject { wait: Duration, key_repr: String },
 	ExtractionFailed(crate::ExtractionError),
 }
 
@@ -39,8 +39,9 @@ pub(crate) enum StackedResult {
 pub(crate) trait StackedRunner: Send + Sync + 'static {
 	fn name(&self) -> &'static str;
 	fn quota(&self) -> crate::Quota;
-	fn check(&self, parts: &http::request::Parts) -> StackedResult;
+	fn check(&self, parts: &http::request::Parts, redact: bool) -> StackedResult;
 	fn retain_recent(&self);
+	fn len(&self) -> usize;
 }
 
 // ---------------------------------------------------------------------------
@@ -64,7 +65,7 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 		self.quota
 	}
 
-	fn check(&self, parts: &http::request::Parts) -> StackedResult {
+	fn check(&self, parts: &http::request::Parts, redact: bool) -> StackedResult {
 		use governor::clock::Clock as _;
 		match self.extractor.extract(parts) {
 			Err(e) => StackedResult::ExtractionFailed(e),
@@ -72,7 +73,8 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 				Ok(snapshot) => StackedResult::Admit { remaining: snapshot.remaining_burst_capacity() },
 				Err(not_until) => {
 					let now = DefaultClock::default().now();
-					StackedResult::Reject { wait: not_until.wait_time_from(now) }
+					let key_repr = crate::util::format_key(&outcome.key, redact);
+					StackedResult::Reject { wait: not_until.wait_time_from(now), key_repr }
 				}
 			},
 		}
@@ -80,6 +82,10 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 
 	fn retain_recent(&self) {
 		self.limiter.retain_recent();
+	}
+
+	fn len(&self) -> usize {
+		self.limiter.len()
 	}
 }
 
@@ -159,6 +165,10 @@ where
 			kv.value().retain_recent();
 		}
 	}
+
+	pub(crate) fn total_len(&self) -> usize {
+		self.inner.iter().map(|kv| kv.value().len()).sum()
+	}
 }
 
 #[cfg(not(feature = "dashmap"))]
@@ -196,6 +206,11 @@ where
 		for (_, l) in map.iter() {
 			l.retain_recent();
 		}
+	}
+
+	pub(crate) fn total_len(&self) -> usize {
+		let map = self.inner.lock().expect("LimiterCache mutex poisoned");
+		map.values().map(|l| l.len()).sum()
 	}
 }
 

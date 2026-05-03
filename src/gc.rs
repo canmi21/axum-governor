@@ -10,7 +10,7 @@ pub(crate) fn spawn_gc_inner<K>(
 	every: Duration,
 ) -> Option<tokio::task::AbortHandle>
 where
-	K: std::hash::Hash + Eq + Clone + Send + Sync + 'static,
+	K: std::hash::Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	// If there is no Tokio runtime (e.g. in synchronous unit tests), skip spawning.
 	// The GC task is a best-effort background sweep; its absence is safe.

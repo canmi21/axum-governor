@@ -18,7 +18,7 @@ pub(crate) type KeyedRateLimiter<K> =
 
 pub(crate) struct LimiterShared<K>
 where
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	pub config: GovernorConfig<K>,
 	pub default_limiter: Option<KeyedRateLimiter<K>>,
@@ -34,7 +34,7 @@ where
 
 impl<K> LimiterShared<K>
 where
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	pub(crate) fn retain_all(&self) {
 		if let Some(l) = &self.default_limiter {
@@ -52,7 +52,7 @@ where
 
 impl<K> Drop for LimiterShared<K>
 where
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	fn drop(&mut self) {
 		if let Some(handle) = self.gc_handle.take() {
@@ -64,15 +64,20 @@ where
 /// Tower `Layer` that wraps services with governor-backed rate limiting.
 pub struct GovernorLayer<K>
 where
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	pub(crate) shared: Arc<LimiterShared<K>>,
 }
 
 impl<K> GovernorLayer<K>
 where
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
+	/// Return a handle for live introspection of the running limiter state.
+	pub fn limiter(&self) -> crate::snapshot::LimiterHandle<K> {
+		crate::snapshot::LimiterHandle { shared: Arc::clone(&self.shared) }
+	}
+
 	pub fn new(config: GovernorConfig<K>) -> Self {
 		let default_limiter = config.quota_default.map(|q: Quota| {
 			governor::RateLimiter::keyed(q.inner()).with_middleware::<StateInformationMiddleware>()
@@ -114,6 +119,7 @@ where
 			max_keys: config.max_keys,
 			connect_info_required: config.connect_info_required,
 			legacy_reset_epoch: config.legacy_reset_epoch,
+			redact_keys: config.redact_keys,
 		};
 
 		let gc_interval = config_rebuilt.gc_interval;
@@ -140,7 +146,7 @@ where
 
 impl<S, K> tower::Layer<S> for GovernorLayer<K>
 where
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	type Service = crate::service::Governor<S, K>;
 

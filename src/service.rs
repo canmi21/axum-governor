@@ -8,6 +8,35 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+// ---------------------------------------------------------------------------
+// Tracing helpers (feature-gated)
+// ---------------------------------------------------------------------------
+
+#[cfg(feature = "tracing")]
+fn span_for(method: &http::Method, path: &str) -> tracing::Span {
+	tracing::debug_span!(target: "axum_governor::layer",
+        "axum_governor::layer", method = %method, path = %path)
+}
+
+#[cfg(feature = "tracing")]
+fn emit_reject_event(key_str: &str, quota_burst: u32, wait_ms: u128, policy: &str) {
+	tracing::info!(target: "axum_governor",
+        key = %key_str, quota_burst, wait_ms, policy,
+        "rate limit exceeded");
+}
+
+#[cfg(not(feature = "tracing"))]
+fn emit_reject_event(_key_str: &str, _quota_burst: u32, _wait_ms: u128, _policy: &str) {}
+
+#[cfg(feature = "tracing")]
+fn emit_extraction_failed_event(reason: &crate::ExtractionError) {
+	tracing::warn!(target: "axum_governor", error = %reason,
+        "rate-limit key extraction failed");
+}
+
+#[cfg(not(feature = "tracing"))]
+fn emit_extraction_failed_event(_reason: &crate::ExtractionError) {}
+
 use http::{HeaderMap, Request, Response};
 use pin_project_lite::pin_project;
 
@@ -25,7 +54,7 @@ use crate::response::{default_body, default_status};
 #[derive(Clone)]
 pub struct Governor<S, K>
 where
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	pub(crate) inner: S,
 	pub(crate) shared: Arc<LimiterShared<K>>,
@@ -62,7 +91,7 @@ where
 		+ Send
 		+ 'static,
 	S::Future: Send + 'static,
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 	ReqBody: Send + 'static,
 {
 	type Response = Response<axum::body::Body>;
@@ -98,10 +127,14 @@ where
 		+ Send
 		+ 'static,
 	S::Future: Send + 'static,
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 	ReqBody: Send + 'static,
 {
 	let (parts, body) = req.into_parts();
+
+	#[cfg(feature = "tracing")]
+	let _span_guard = span_for(&parts.method, parts.uri.path()).entered();
+
 	let cfg = &shared.config;
 
 	// 1. Whitelist precedence — any hit bypasses the limiter with no header injection.
@@ -122,6 +155,7 @@ where
 	let outcome = match outcome {
 		Ok(o) => o,
 		Err(err) => {
+			emit_extraction_failed_event(&err);
 			let reason = RejectionReason::KeyExtractionFailed(err);
 			return GovernorFuture::reject(build_reject_no_headers(cfg, reason));
 		}
@@ -166,6 +200,8 @@ where
 		.or_else(|| outcome.quota_override.or(cfg.quota_default));
 
 	if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
+		let key_repr = crate::util::format_key(&outcome.key, cfg.redact_keys);
+		emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
 		let policies = gather_all_policies(shared, active_quota);
 		let reason = RejectionReason::QuotaExceeded {
 			wait,
@@ -187,13 +223,20 @@ where
 	let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
 
 	for entry in shared.stack.iter() {
-		match entry.check(&parts) {
+		match entry.check(&parts, cfg.redact_keys) {
 			StackedResult::ExtractionFailed(err) => {
+				emit_extraction_failed_event(&err);
 				let reason = RejectionReason::KeyExtractionFailed(err);
 				return GovernorFuture::reject(build_reject_no_headers(cfg, reason));
 			}
-			StackedResult::Reject { wait } => {
+			StackedResult::Reject { wait, key_repr } => {
 				let quota = entry.quota();
+				emit_reject_event(
+					&key_repr,
+					quota.inner().burst_size().get(),
+					wait.as_millis(),
+					entry.name(),
+				);
 				let reason = RejectionReason::QuotaExceeded {
 					wait,
 					snapshot: synthetic_snapshot(quota),
@@ -261,13 +304,17 @@ where
 		+ Send
 		+ 'static,
 	S::Future: Send + 'static,
-	K: Hash + Eq + Clone + Send + Sync + 'static,
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 	ReqBody: Send + 'static,
 {
 	let (parts, body) = req.into_parts();
 
 	type BoxedFut<E> = Pin<Box<dyn Future<Output = Result<Response<axum::body::Body>, E>> + Send>>;
-	let fut: BoxedFut<S::Error> = Box::pin(async move {
+
+	#[cfg(feature = "tracing")]
+	let _async_span = span_for(&parts.method, parts.uri.path());
+
+	let inner_fut = async move {
 		let cfg = &shared.config;
 
 		// 1. Whitelist check.
@@ -287,6 +334,7 @@ where
 		let outcome = match outcome {
 			Ok(o) => o,
 			Err(err) => {
+				emit_extraction_failed_event(&err);
 				let reason = RejectionReason::KeyExtractionFailed(err);
 				return Ok(build_reject_no_headers(cfg, reason));
 			}
@@ -321,6 +369,8 @@ where
 			.or_else(|| outcome.quota_override.or(cfg.quota_default));
 
 		if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
+			let key_repr = crate::util::format_key(&outcome.key, cfg.redact_keys);
+			emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
 			let policies = gather_all_policies(&shared, active_quota);
 			let reason = RejectionReason::QuotaExceeded {
 				wait,
@@ -342,13 +392,20 @@ where
 		let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
 
 		for entry in shared.stack.iter() {
-			match entry.check(&parts) {
+			match entry.check(&parts, cfg.redact_keys) {
 				StackedResult::ExtractionFailed(err) => {
+					emit_extraction_failed_event(&err);
 					let reason = RejectionReason::KeyExtractionFailed(err);
 					return Ok(build_reject_no_headers(cfg, reason));
 				}
-				StackedResult::Reject { wait } => {
+				StackedResult::Reject { wait, key_repr } => {
 					let quota = entry.quota();
+					emit_reject_event(
+						&key_repr,
+						quota.inner().burst_size().get(),
+						wait.as_millis(),
+						entry.name(),
+					);
 					let reason = RejectionReason::QuotaExceeded {
 						wait,
 						snapshot: synthetic_snapshot(quota),
@@ -403,7 +460,15 @@ where
 			}
 		}
 		Ok(resp)
-	});
+	};
+
+	#[cfg(feature = "tracing")]
+	let fut: BoxedFut<S::Error> = {
+		use tracing::Instrument as _;
+		Box::pin(inner_fut.instrument(_async_span))
+	};
+	#[cfg(not(feature = "tracing"))]
+	let fut: BoxedFut<S::Error> = Box::pin(inner_fut);
 
 	GovernorFuture { state: GovernorFutureState::Boxed { fut: Some(fut) } }
 }
@@ -432,7 +497,7 @@ fn check_limiter<K: Hash + Eq + Clone + Send + Sync + 'static>(
 	}
 }
 
-fn gather_all_policies<K: Hash + Eq + Clone + Send + Sync + 'static>(
+fn gather_all_policies<K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static>(
 	shared: &LimiterShared<K>,
 	active_quota: Option<Quota>,
 ) -> Vec<PolicyDescriptor> {
@@ -1001,5 +1066,32 @@ mod tests {
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 		let rl = r2.headers().get("ratelimit").unwrap().to_str().unwrap();
 		assert!(rl.contains("\"auth\""), "expected 'auth' in RateLimit header, got: {rl}");
+	}
+
+	#[test]
+	fn format_key_redact_off_uses_debug() {
+		let k: String = "alice".into();
+		assert_eq!(crate::util::format_key(&k, false), "\"alice\"");
+	}
+
+	#[test]
+	fn format_key_redact_on_hashes() {
+		let s = crate::util::format_key(&String::from("alice"), true);
+		assert!(s.starts_with("hash:"), "got {s}");
+		assert_eq!(s.len(), "hash:".len() + 16);
+	}
+
+	#[cfg(feature = "tracing")]
+	#[tokio::test]
+	async fn tracing_smoke_compiles_and_runs() {
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.quota_default(Quota::requests_per_second(nz!(1u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+		let svc = layer.layer(ok_inner());
+		let _ = svc.clone().oneshot(req(Method::GET, "/")).await;
+		let _ = svc.clone().oneshot(req(Method::GET, "/")).await;
 	}
 }

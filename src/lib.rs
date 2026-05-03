@@ -16,6 +16,7 @@ pub mod quota;
 pub mod response;
 pub mod service;
 pub mod snapshot;
+mod util;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
@@ -29,6 +30,7 @@ pub use crate::extractor::{
 pub use crate::layer::GovernorLayer;
 pub use crate::quota::{Quota, nz};
 pub use crate::response::{BodyPreset, ErrorHandler};
+pub use crate::snapshot::{LimiterHandle, LimiterSnapshot};
 
 #[cfg(test)]
 mod smoke {
