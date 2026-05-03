@@ -1,9 +1,5 @@
 //! Pure header writers for rate-limit response headers.
 
-// Functions in this module are called by the Service layer (Stage 6); suppress
-// dead_code until that wiring exists.
-#![allow(dead_code)]
-
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 
 use crate::Quota;

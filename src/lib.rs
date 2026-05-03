@@ -8,6 +8,7 @@ pub mod builder;
 pub mod error;
 pub mod extractor;
 pub mod gc;
+mod glob;
 pub mod headers;
 pub mod layer;
 pub mod quota;
@@ -24,6 +25,7 @@ pub use crate::extractor::{
 	AsyncKeyExtractor, Compound, Cookie, Extension, Global, Header, KeyExtractor, KeyOutcome, PeerIp,
 	SmartIp,
 };
+pub use crate::layer::GovernorLayer;
 pub use crate::quota::{Quota, nz};
 pub use crate::response::{BodyPreset, ErrorHandler};
 

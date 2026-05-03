@@ -1,9 +1,5 @@
 //! Default 429 response bodies and the `BodyPreset` enum.
 
-// Functions in this module are called by the Service layer (Stage 6); suppress
-// dead_code until that wiring exists.
-#![allow(dead_code)]
-
 use http::{HeaderValue, StatusCode};
 
 use crate::error::{ExtractionError, RejectionReason};
