@@ -62,6 +62,7 @@ where
 }
 
 /// Tower `Layer` that wraps services with governor-backed rate limiting.
+#[derive(Clone)]
 pub struct GovernorLayer<K>
 where
 	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,

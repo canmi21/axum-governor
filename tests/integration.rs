@@ -2,7 +2,6 @@
 // To include these in the test suite: cargo nextest run --features test-utils
 
 use std::net::SocketAddr;
-use std::sync::Arc;
 
 use axum::Router;
 use axum::extract::ConnectInfo;
@@ -126,12 +125,12 @@ async fn problem_json_reject_body_round_trips() {
 }
 
 // ---------------------------------------------------------------------------
-// Test 4: BoxedGovernorLayer stored in an AppState pattern (via Arc)
+// Test 4: BoxedGovernorLayer stored in an AppState pattern (Clone, no Arc)
 // ---------------------------------------------------------------------------
 
 #[derive(Clone)]
 struct AppState {
-	rate_limit: Arc<BoxedGovernorLayer>,
+	rate_limit: BoxedGovernorLayer,
 }
 
 #[tokio::test]
@@ -141,7 +140,7 @@ async fn boxed_layer_in_app_state_pattern() {
 		.quota_default(Quota::requests_per_second(nz!(10u32)))
 		.finish()
 		.unwrap();
-	let state = AppState { rate_limit: Arc::new(BoxedGovernorLayer::from_config(cfg)) };
+	let state = AppState { rate_limit: BoxedGovernorLayer::from_config(cfg) };
 	let router = Router::new().route("/", get(handler));
 	let r = state.rate_limit.layer(router).oneshot(req(Method::GET, "/")).await.unwrap();
 	assert_eq!(r.status(), StatusCode::OK);

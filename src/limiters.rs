@@ -3,7 +3,7 @@
 //! Structural choice (option a): the builder constructs stack entries immediately at
 //! stack()/quotas() call time for the factory objects, and the actual RateLimiter is
 //! constructed when Layer::new() is called (via StackEntryFactory::build()). This
-//! avoids storing Arc<dyn ErasedSyncExtractor> and re-extracting the key type at build
+//! avoids storing `Arc<dyn ErasedSyncExtractor>` and re-extracting the key type at build
 //! time, keeping type information alive through the factory pattern until the moment the
 //! layer is finalized.
 

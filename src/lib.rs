@@ -1,6 +1,58 @@
-//! Rate limiting middleware for axum, powered by governor.
+//! Rate-limiting middleware for [`axum`], backed by [`governor`].
 //!
-//! See `spec/` in the repository for architecture documentation.
+//! # Quick start
+//!
+//! ```rust,no_run
+//! use std::net::SocketAddr;
+//! use axum::{Router, routing::get};
+//! use axum_governor::{GovernorConfigBuilder, GovernorLayer, Quota, nz, extractor::PeerIp};
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!     let cfg = GovernorConfigBuilder::default()
+//!         .with_extractor(PeerIp::default())
+//!         .expect_connect_info()
+//!         .quota_default(Quota::requests_per_second(nz!(50u32)))
+//!         .finish()
+//!         .unwrap();
+//!
+//!     let app = Router::new()
+//!         .route("/", get(|| async { "hello" }))
+//!         .layer(GovernorLayer::new(cfg));
+//!
+//!     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await.unwrap();
+//!     axum::serve(listener, app.into_make_service_with_connect_info::<SocketAddr>())
+//!         .await
+//!         .unwrap();
+//! }
+//! ```
+//!
+//! # Features
+//!
+//! - **Key extraction** — sync and async extractors; built-in `PeerIp`, `Global`,
+//!   `Header`, `Extension`, `SmartIp`, `Cookie`, `Compound`. See [`extractor`].
+//! - **Per-method quotas** — different limits for GET vs POST via
+//!   [`GovernorConfigBuilder::quota_for`].
+//! - **Stacked limits** — ordered chain of named policies with first-reject-wins
+//!   semantics and IETF `RateLimit-Policy` header listing all entries.
+//! - **Per-tier override** — extractors return [`extractor::KeyOutcome`] with
+//!   `quota_override` for per-request quota selection.
+//! - **Background GC** — periodic `retain_recent` sweep driven by a `Weak`-referenced
+//!   task; configurable interval and opt-out via [`GovernorConfigBuilder::gc_disable`].
+//! - **Type erasure** — [`BoxedGovernorLayer`] collapses the `K` parameter for
+//!   use in `#[derive(Clone)] struct AppState`.
+//!
+//! # Cargo features
+//!
+//! | Feature | Default | Enables |
+//! |---------|---------|---------|
+//! | `dashmap` | yes | Lock-free per-tier limiter cache |
+//! | `tracing` | yes | Per-request span and per-reject event |
+//! | `json` | yes | `BodyPreset::ProblemJson` reject bodies |
+//! | `test-utils` | no | `test_utils` helpers for downstream tests |
+//!
+//! [`axum`]: https://docs.rs/axum
+//! [`governor`]: https://docs.rs/governor
 
 #![forbid(unsafe_code)]
 

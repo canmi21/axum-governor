@@ -66,6 +66,7 @@ where
 /// `Debug` representation before hashing. Cost: one `String` allocation and
 /// one extra hash per request. In exchange the concrete type carries no
 /// generic parameter, making it straightforward to store in shared app state.
+#[derive(Clone)]
 pub struct BoxedGovernorLayer {
 	inner: GovernorLayer<String>,
 }
