@@ -4,6 +4,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod boxed;
 pub mod builder;
 pub mod error;
 pub mod extractor;
@@ -21,6 +22,7 @@ mod util;
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
 
+pub use crate::boxed::BoxedGovernorLayer;
 pub use crate::builder::{GovernorConfig, GovernorConfigBuilder};
 pub use crate::error::{ConfigError, ExtractionError, RejectionReason};
 pub use crate::extractor::{
@@ -31,6 +33,7 @@ pub use crate::layer::GovernorLayer;
 pub use crate::quota::{Quota, nz};
 pub use crate::response::{BodyPreset, ErrorHandler};
 pub use crate::snapshot::{LimiterHandle, LimiterSnapshot};
+pub use governor::clock::FakeRelativeClock as MockClock;
 
 #[cfg(test)]
 mod smoke {
