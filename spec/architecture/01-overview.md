@@ -22,8 +22,10 @@ Six concrete commitments distinguish v2 from existing wrappers (see
    it up. Misconfiguration is caught at build time, not on the request path.
 5. **Production observability.** Every reject is a `tracing` event; the limiter exposes a
    `snapshot()` API for live introspection.
-6. **Deterministic tests.** `MockClock` plus a `test_utils` module replace wall-clock
-   sleeps in downstream tests.
+6. **Test ergonomics.** A `test_utils` module removes synthetic-request boilerplate;
+   `MockClock` is re-exported for direct use with governor's `RateLimiter`. Threading
+   a `Clock` through the Layer itself is deferred (see
+   [`07-ergonomics-and-testing.md`](07-ergonomics-and-testing.md)).
 
 ## Layered structure
 

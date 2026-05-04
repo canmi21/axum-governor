@@ -78,8 +78,10 @@ See [`architecture/07-ergonomics-and-testing.md`](architecture/07-ergonomics-and
 - Builder `.finish()` returns `Result<GovernorConfig, ConfigError>` — misconfiguration
   surfaces at build time.
 - All builder methods are `#[must_use]`.
-- `MockClock` (re-export of `governor::clock::FakeRelativeClock`) plus
-  `axum_governor::test_utils` for deterministic time control in downstream tests.
+- `MockClock` re-export of `governor::clock::FakeRelativeClock` for direct use with
+  governor's `RateLimiter`; `axum_governor::test_utils` removes synthetic-request
+  boilerplate for `GovernorLayer` tests. Threading a custom `Clock` through the
+  Layer is deferred for v2.0.
 
 ### Performance
 

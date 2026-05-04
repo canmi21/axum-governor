@@ -41,7 +41,7 @@ Do not re-verify behaviour that belongs to a dependency:
 
 A `tokio::time::sleep(N)` used as a happens-before barrier between an async producer and consumer is flake fuel — `N` rarely covers the worst case under parallel load. Gate on observable state.
 
-For tests that depend on rate-limit windows or GC cadence, use the `MockClock` helper (see [`spec/roadmap.md`](roadmap.md) § _Ergonomics & safety_) rather than wall-clock sleeps. Deterministic time control is the difference between "this test passes on my laptop" and "this test passes under CI parallel load".
+For tests that depend on time (rate-limit windows, GC cadence), use deterministic time control rather than wall-clock sleeps. Our own GC tests use `tokio::time::pause` + `advance` (see `src/gc.rs`); downstream tests of governor-level math can use `governor::clock::FakeRelativeClock`, re-exported as `axum_governor::MockClock`. Threading a `Clock` through our `GovernorLayer` is deferred for v2.0 — see [`spec/architecture/07-ergonomics-and-testing.md`](architecture/07-ergonomics-and-testing.md).
 
 When a wall-clock loop is genuinely needed, the trigger-loop idiom — `Option<Instant>` avoids `clippy::unchecked_time_subtraction` and fires on the first iteration:
 

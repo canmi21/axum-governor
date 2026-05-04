@@ -65,11 +65,16 @@ clock.advance(Duration::from_secs(60));
 Re-exporting under a non-vendor-name keeps the public surface stable across governor
 versions and matches the project's naming rule
 ([`spec/naming.md`](../naming.md): names describe what the thing does, not which crate
-provided it). The Layer accepts a `Clock` impl through the builder:
+provided it).
 
-```rust
-.with_clock(MockClock::default())
-```
+Threading a custom `Clock` through `GovernorLayer` would require making `Clock` a
+generic parameter on every user-facing type (`GovernorLayer<K, C = DefaultClock>`,
+`Governor<S, K, C>`, the builder, the snapshot handle, the limiter cache). That
+refactor is **deferred** for v2.0. Users needing deterministic time control should
+construct a `governor::RateLimiter` directly with `FakeRelativeClock` for the units
+they want to test, rather than going through our Layer. Our own tests use
+`tokio::time::pause` + `advance` for time-dependent assertions (see
+`src/gc.rs::tests::gc_task_aborts_on_last_arc_drop`).
 
 ## `axum_governor::test_utils`
 
@@ -87,12 +92,10 @@ pub fn drive(
     path: &str,
     peer: Option<SocketAddr>,
 ) -> StatusCode { /* ... */ }
-
-pub fn fast_forward(clock: &MockClock, by: Duration) -> StateSnapshot { /* ... */ }
 ```
 
 The test utility surface deliberately stops at "send a synthetic request and read
-back the StateSnapshot". Anything more is a real integration test (`tests/`); the
+back the StatusCode". Anything more is a real integration test (`tests/`); the
 helper exists to remove `tower::Service::oneshot` boilerplate from unit tests.
 
 ## Test redundancy rule
