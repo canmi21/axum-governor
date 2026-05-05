@@ -16,6 +16,7 @@ use governor::middleware::StateInformationMiddleware;
 
 use crate::extractor::KeyExtractor;
 use crate::layer::KeyedRateLimiter;
+use crate::tracker::KeyTracker;
 
 // ---------------------------------------------------------------------------
 // StackedResult
@@ -37,11 +38,13 @@ pub(crate) enum StackedResult {
 /// The Layer holds `Vec<Box<dyn StackedRunner>>`. On each request every entry is
 /// checked in insertion order; the first `Reject` wins.
 pub(crate) trait StackedRunner: Send + Sync + 'static {
-	fn name(&self) -> &'static str;
+	fn name(&self) -> &str;
+	fn name_arc(&self) -> Arc<str>;
 	fn quota(&self) -> crate::Quota;
 	fn check(&self, parts: &http::request::Parts, redact: bool) -> StackedResult;
 	fn retain_recent(&self);
 	fn len(&self) -> usize;
+	fn top_n(&self, n: usize) -> Vec<(String, u64)>;
 }
 
 // ---------------------------------------------------------------------------
@@ -50,15 +53,20 @@ pub(crate) trait StackedRunner: Send + Sync + 'static {
 
 /// Concrete implementation of `StackedRunner` for a given `KeyExtractor`.
 pub(crate) struct StackedEntry<E: KeyExtractor> {
-	name: &'static str,
+	name: Arc<str>,
 	quota: crate::Quota,
 	extractor: Arc<E>,
 	limiter: KeyedRateLimiter<E::Key>,
+	tracker: KeyTracker<E::Key>,
 }
 
 impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
-	fn name(&self) -> &'static str {
-		self.name
+	fn name(&self) -> &str {
+		&self.name
+	}
+
+	fn name_arc(&self) -> Arc<str> {
+		Arc::clone(&self.name)
 	}
 
 	fn quota(&self) -> crate::Quota {
@@ -69,14 +77,22 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 		use governor::clock::Clock as _;
 		match self.extractor.extract(parts) {
 			Err(e) => StackedResult::ExtractionFailed(e),
-			Ok(outcome) => match self.limiter.check_key(&outcome.key) {
-				Ok(snapshot) => StackedResult::Admit { remaining: snapshot.remaining_burst_capacity() },
-				Err(not_until) => {
-					let now = DefaultClock::default().now();
-					let key_repr = crate::util::format_key(&outcome.key, redact);
-					StackedResult::Reject { wait: not_until.wait_time_from(now), key_repr }
+			Ok(outcome) => {
+				let result = match self.limiter.check_key(&outcome.key) {
+					Ok(snapshot) => StackedResult::Admit { remaining: snapshot.remaining_burst_capacity() },
+					Err(not_until) => {
+						let now = DefaultClock::default().now();
+						let key_repr = crate::util::format_key(&outcome.key, redact);
+						StackedResult::Reject { wait: not_until.wait_time_from(now), key_repr }
+					}
+				};
+				let touch = self.tracker.touch(&outcome.key);
+				if touch.evicted.is_some() {
+					emit_eviction_warn(&self.name);
+					self.limiter.retain_recent();
 				}
-			},
+				result
+			}
 		}
 	}
 
@@ -87,7 +103,20 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 	fn len(&self) -> usize {
 		self.limiter.len()
 	}
+
+	fn top_n(&self, n: usize) -> Vec<(String, u64)> {
+		self.tracker.top_n(n)
+	}
 }
+
+#[cfg(feature = "tracing")]
+fn emit_eviction_warn(name: &str) {
+	tracing::warn!(target: "axum_governor", policy = %name,
+        "max_keys exceeded; evicted oldest key from tracker and forced retain_recent");
+}
+
+#[cfg(not(feature = "tracing"))]
+fn emit_eviction_warn(_name: &str) {}
 
 // ---------------------------------------------------------------------------
 // StackEntryFactory
@@ -97,19 +126,19 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 /// finalized. The builder stores `Vec<Box<dyn StackEntryFactory>>` and calls `build()`
 /// inside `Layer::new()`.
 pub(crate) trait StackEntryFactory: Send + Sync + 'static {
-	fn build(self: Box<Self>) -> Box<dyn StackedRunner>;
+	fn build(self: Box<Self>, max_keys: Option<usize>) -> Box<dyn StackedRunner>;
 }
 
 /// Concrete factory for `StackedEntry<E>`. Holds everything except the `RateLimiter`,
 /// which is constructed inside `build()`.
 pub(crate) struct TypedStackFactory<E: KeyExtractor> {
-	pub(crate) name: &'static str,
+	pub(crate) name: Arc<str>,
 	pub(crate) quota: crate::Quota,
 	pub(crate) extractor: Arc<E>,
 }
 
 impl<E: KeyExtractor> StackEntryFactory for TypedStackFactory<E> {
-	fn build(self: Box<Self>) -> Box<dyn StackedRunner> {
+	fn build(self: Box<Self>, max_keys: Option<usize>) -> Box<dyn StackedRunner> {
 		let limiter = governor::RateLimiter::keyed(self.quota.inner())
 			.with_middleware::<StateInformationMiddleware>();
 		Box::new(StackedEntry {
@@ -117,6 +146,7 @@ impl<E: KeyExtractor> StackEntryFactory for TypedStackFactory<E> {
 			quota: self.quota,
 			extractor: self.extractor,
 			limiter,
+			tracker: KeyTracker::new(max_keys),
 		})
 	}
 }

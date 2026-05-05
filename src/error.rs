@@ -1,5 +1,6 @@
 //! Error and reason types shared across the middleware.
 
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Failure modes when extracting a rate-limit key from a request.
@@ -71,7 +72,10 @@ pub enum RejectionReason {
 		wait: Duration,
 		snapshot: governor::middleware::StateSnapshot,
 		key: Box<dyn std::any::Any + Send>,
-		policy_name: &'static str,
+		/// Name of the policy that triggered the rejection. Owned (`Arc<str>`) because
+		/// stack entries created via `quotas("name", ..)` carry dynamic labels such as
+		/// `"name:1s"` and would otherwise require leaking memory to outlive the layer.
+		policy_name: Arc<str>,
 	},
 	KeyExtractionFailed(ExtractionError),
 }

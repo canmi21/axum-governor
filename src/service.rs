@@ -37,19 +37,29 @@ fn emit_extraction_failed_event(reason: &crate::ExtractionError) {
 #[cfg(not(feature = "tracing"))]
 fn emit_extraction_failed_event(_reason: &crate::ExtractionError) {}
 
-use http::{HeaderMap, Request, Response};
+#[cfg(feature = "tracing")]
+fn emit_eviction_warn(name: &str) {
+	tracing::warn!(target: "axum_governor", policy = %name,
+        "max_keys exceeded; evicted oldest key from tracker and forced retain_recent");
+}
+
+#[cfg(not(feature = "tracing"))]
+fn emit_eviction_warn(_name: &str) {}
+
+use http::{HeaderMap, HeaderName, Request, Response};
 use pin_project_lite::pin_project;
 
 use crate::Quota;
 use crate::builder::ExtractorSlot;
 use crate::error::RejectionReason;
 use crate::headers::{
-	PolicyDescriptor, write_ietf_policy_set, write_ietf_rate_limit, write_legacy_rate_limit,
+	PolicyDescriptor, render_policy_value, write_ietf_rate_limit, write_legacy_rate_limit,
 	write_retry_after,
 };
-use crate::layer::{KeyedRateLimiter, LimiterShared};
+use crate::layer::{KeyedRateLimiter, LimiterShared, PolicyEntry};
 use crate::limiters::StackedResult;
 use crate::response::{default_body, default_status};
+use crate::tracker::KeyTracker;
 
 #[derive(Clone)]
 pub struct Governor<S, K>
@@ -161,56 +171,30 @@ where
 		}
 	};
 
-	// 3. Check the primary limiter (per-method, quota_override, or default).
-	//
-	// Precedence:
-	//   a. Per-method limiter — if one exists for this request method, it wins over both
-	//      quota_override and the default.  State stores are independent per method.
-	//   b. quota_override from extractor — if present, look up or create a limiter from
-	//      the tier_cache.  The bucket is keyed by (key, override_quota) independently.
-	//   c. default_limiter — the fallback.
-	//
-	// If none applies, pass through with no rate-limiting.
+	let dispatch = pick_primary(shared, &parts.method, outcome.quota_override);
+	let primary_result = dispatch.as_ref().map(|d| d.run(&outcome.key));
 
-	let primary_result = if let Some(method_quota) =
-		cfg.quota_methods.iter().find(|(m, _)| *m == parts.method).map(|(_, q)| *q)
-	{
-		let limiter = shared
-			.method_limiters
-			.iter()
-			.find(|(m, _)| *m == parts.method)
-			.map(|(_, l)| l)
-			.expect("method_limiters and quota_methods are built in parallel");
-		Some(check_limiter(limiter, &outcome.key, method_quota))
-	} else if let Some(override_quota) = outcome.quota_override {
-		let limiter = shared.tier_cache.get_or_insert(override_quota);
-		Some(check_limiter(&limiter, &outcome.key, override_quota))
-	} else if let Some(limiter) = shared.default_limiter.as_ref() {
-		let q = cfg.quota_default.expect("default_limiter present => quota_default Some");
-		Some(check_limiter(limiter, &outcome.key, q))
-	} else {
-		None
-	};
-
-	let active_quota: Option<Quota> = cfg
-		.quota_methods
-		.iter()
-		.find(|(m, _)| *m == parts.method)
-		.map(|(_, q)| *q)
-		.or_else(|| outcome.quota_override.or(cfg.quota_default));
+	let active_quota: Option<Quota> = dispatch.as_ref().map(|d| d.quota);
 
 	if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
 		let key_repr = crate::util::format_key(&outcome.key, cfg.redact_keys);
 		emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
-		let policies = gather_all_policies(shared, active_quota);
+		let policy_entry = pick_policy_entry(shared, &parts.method, outcome.quota_override.is_some());
+		let label = Arc::clone(&shared.default_label);
 		let reason = RejectionReason::QuotaExceeded {
 			wait,
 			snapshot: synthetic_snapshot(quota),
 			key: Box::new(outcome.key.clone()) as Box<dyn std::any::Any + Send>,
-			policy_name: "default",
+			policy_name: Arc::clone(&label),
 		};
-		return GovernorFuture::reject(build_reject_response_with_policies(
-			cfg, quota, wait, reason, "default", &policies,
+		return GovernorFuture::reject(build_reject_response(
+			cfg,
+			quota,
+			wait,
+			reason,
+			&label,
+			policy_entry,
+			shared,
 		));
 	}
 
@@ -219,7 +203,7 @@ where
 	});
 
 	// 4. Walk the stack in order; first reject wins.
-	let all_policies = gather_all_policies(shared, active_quota);
+	let policy_entry = pick_policy_entry(shared, &parts.method, outcome.quota_override.is_some());
 	let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
 
 	for entry in shared.stack.iter() {
@@ -231,25 +215,22 @@ where
 			}
 			StackedResult::Reject { wait, key_repr } => {
 				let quota = entry.quota();
-				emit_reject_event(
-					&key_repr,
-					quota.inner().burst_size().get(),
-					wait.as_millis(),
-					entry.name(),
-				);
+				let name = entry.name_arc();
+				emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), &name);
 				let reason = RejectionReason::QuotaExceeded {
 					wait,
 					snapshot: synthetic_snapshot(quota),
 					key: Box::new(()) as Box<dyn std::any::Any + Send>,
-					policy_name: entry.name(),
+					policy_name: Arc::clone(&name),
 				};
-				return GovernorFuture::reject(build_reject_response_with_policies(
+				return GovernorFuture::reject(build_reject_response(
 					cfg,
 					quota,
 					wait,
 					reason,
-					entry.name(),
-					&all_policies,
+					&name,
+					policy_entry,
+					shared,
 				));
 			}
 			StackedResult::Admit { remaining } => {
@@ -261,29 +242,30 @@ where
 	}
 
 	// 5. Everything admitted.
-	if primary_result.is_none() && shared.stack.is_empty() {
-		// No quota configured — pass through with no headers.
+	if dispatch.is_none() && shared.stack.is_empty() {
 		let req = Request::from_parts(parts, body);
 		return GovernorFuture::admit(inner.call(req), HeaderMap::new());
 	}
 
 	let (admit_quota, admit_name) = if let Some(q) = active_quota {
-		(q, "default")
-	} else if !all_policies.is_empty() {
-		let pd = all_policies[0];
-		(pd.quota, pd.name)
+		(q, Arc::clone(&shared.default_label))
+	} else if let Some(entry) = policy_entry.as_ref().filter(|e| !e.descriptors.is_empty()) {
+		let first = &entry.descriptors[0];
+		(first.quota, Arc::clone(&first.name))
 	} else {
 		let req = Request::from_parts(parts, body);
 		return GovernorFuture::admit(inner.call(req), HeaderMap::new());
 	};
 
 	let final_remaining = if lowest_remaining == u32::MAX { 0 } else { lowest_remaining };
-	let headers = build_admit_headers_with_policies(
+	let headers = build_admit_headers(
 		cfg.legacy_reset_epoch,
 		admit_quota,
-		admit_name,
+		&admit_name,
 		final_remaining,
-		&all_policies,
+		policy_entry,
+		shared,
+		outcome.quota_override,
 	);
 	let req = Request::from_parts(parts, body);
 	GovernorFuture::admit(inner.call(req), headers)
@@ -340,55 +322,30 @@ where
 			}
 		};
 
-		// 3. Check limiter (same precedence as sync path; stack is sync-only per spec).
-		let primary_result = if let Some(method_quota) =
-			cfg.quota_methods.iter().find(|(m, _)| *m == parts.method).map(|(_, q)| *q)
-		{
-			let limiter = shared
-				.method_limiters
-				.iter()
-				.find(|(m, _)| *m == parts.method)
-				.map(|(_, l)| l)
-				.expect("method_limiters and quota_methods are built in parallel");
-			Some(check_limiter(limiter, &outcome.key, method_quota))
-		} else if let Some(override_quota) = outcome.quota_override {
-			let limiter = shared.tier_cache.get_or_insert(override_quota);
-			Some(check_limiter(&limiter, &outcome.key, override_quota))
-		} else if let Some(limiter) = shared.default_limiter.as_ref() {
-			let q = cfg.quota_default.expect("default_limiter present => quota_default Some");
-			Some(check_limiter(limiter, &outcome.key, q))
-		} else {
-			None
-		};
-
-		let active_quota: Option<Quota> = cfg
-			.quota_methods
-			.iter()
-			.find(|(m, _)| *m == parts.method)
-			.map(|(_, q)| *q)
-			.or_else(|| outcome.quota_override.or(cfg.quota_default));
+		let dispatch = pick_primary(&shared, &parts.method, outcome.quota_override);
+		let primary_result = dispatch.as_ref().map(|d| d.run(&outcome.key));
+		let active_quota: Option<Quota> = dispatch.as_ref().map(|d| d.quota);
 
 		if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
 			let key_repr = crate::util::format_key(&outcome.key, cfg.redact_keys);
 			emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
-			let policies = gather_all_policies(&shared, active_quota);
+			let policy_entry =
+				pick_policy_entry(&shared, &parts.method, outcome.quota_override.is_some());
+			let label = Arc::clone(&shared.default_label);
 			let reason = RejectionReason::QuotaExceeded {
 				wait,
 				snapshot: synthetic_snapshot(quota),
 				key: Box::new(outcome.key.clone()) as Box<dyn std::any::Any + Send>,
-				policy_name: "default",
+				policy_name: Arc::clone(&label),
 			};
-			return Ok(build_reject_response_with_policies(
-				cfg, quota, wait, reason, "default", &policies,
-			));
+			return Ok(build_reject_response(cfg, quota, wait, reason, &label, policy_entry, &shared));
 		}
 
 		let primary_remaining = primary_result.as_ref().and_then(|r| {
 			if let LimiterOutcome::Admit { remaining } = r { Some(*remaining) } else { None }
 		});
 
-		// Walk the stack.
-		let all_policies = gather_all_policies(&shared, active_quota);
+		let policy_entry = pick_policy_entry(&shared, &parts.method, outcome.quota_override.is_some());
 		let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
 
 		for entry in shared.stack.iter() {
@@ -400,26 +357,15 @@ where
 				}
 				StackedResult::Reject { wait, key_repr } => {
 					let quota = entry.quota();
-					emit_reject_event(
-						&key_repr,
-						quota.inner().burst_size().get(),
-						wait.as_millis(),
-						entry.name(),
-					);
+					let name = entry.name_arc();
+					emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), &name);
 					let reason = RejectionReason::QuotaExceeded {
 						wait,
 						snapshot: synthetic_snapshot(quota),
 						key: Box::new(()) as Box<dyn std::any::Any + Send>,
-						policy_name: entry.name(),
+						policy_name: Arc::clone(&name),
 					};
-					return Ok(build_reject_response_with_policies(
-						cfg,
-						quota,
-						wait,
-						reason,
-						entry.name(),
-						&all_policies,
-					));
+					return Ok(build_reject_response(cfg, quota, wait, reason, &name, policy_entry, &shared));
 				}
 				StackedResult::Admit { remaining } => {
 					if remaining < lowest_remaining {
@@ -429,28 +375,30 @@ where
 			}
 		}
 
-		if primary_result.is_none() && shared.stack.is_empty() {
+		if dispatch.is_none() && shared.stack.is_empty() {
 			let req = Request::from_parts(parts, body);
 			return inner.call(req).await;
 		}
 
 		let (admit_quota, admit_name) = if let Some(q) = active_quota {
-			(q, "default")
-		} else if !all_policies.is_empty() {
-			let pd = all_policies[0];
-			(pd.quota, pd.name)
+			(q, Arc::clone(&shared.default_label))
+		} else if let Some(entry) = policy_entry.as_ref().filter(|e| !e.descriptors.is_empty()) {
+			let first = &entry.descriptors[0];
+			(first.quota, Arc::clone(&first.name))
 		} else {
 			let req = Request::from_parts(parts, body);
 			return inner.call(req).await;
 		};
 
 		let final_remaining = if lowest_remaining == u32::MAX { 0 } else { lowest_remaining };
-		let headers = build_admit_headers_with_policies(
+		let headers = build_admit_headers(
 			cfg.legacy_reset_epoch,
 			admit_quota,
-			admit_name,
+			&admit_name,
 			final_remaining,
-			&all_policies,
+			policy_entry,
+			&shared,
+			outcome.quota_override,
 		);
 		let req = Request::from_parts(parts, body);
 		let mut resp = inner.call(req).await?;
@@ -482,6 +430,131 @@ enum LimiterOutcome {
 	Reject { wait: Duration, quota: Quota },
 }
 
+/// Bundle the limiter, tracker and quota chosen by the precedence rules so the
+/// dispatch site doesn't have to thread three options through the rest of the
+/// flow. `Dispatch::run` performs the check and the tracker bookkeeping in a
+/// single call so the hot path stays linear.
+struct Dispatch<'a, K>
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+	limiter: LimiterRef<'a, K>,
+	tracker: Option<&'a KeyTracker<K>>,
+	policy_label: &'a str,
+	quota: Quota,
+}
+
+enum LimiterRef<'a, K>
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+	Borrowed(&'a KeyedRateLimiter<K>),
+	Owned(Arc<KeyedRateLimiter<K>>),
+}
+
+impl<K> LimiterRef<'_, K>
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+	fn as_ref(&self) -> &KeyedRateLimiter<K> {
+		match self {
+			Self::Borrowed(l) => l,
+			Self::Owned(arc) => arc.as_ref(),
+		}
+	}
+}
+
+impl<K> Dispatch<'_, K>
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+	fn run(&self, key: &K) -> LimiterOutcome {
+		let outcome = check_limiter(self.limiter.as_ref(), key, self.quota);
+		if let Some(tracker) = self.tracker {
+			let touch = tracker.touch(key);
+			if touch.evicted.is_some() {
+				emit_eviction_warn(self.policy_label);
+				self.limiter.as_ref().retain_recent();
+			}
+		}
+		outcome
+	}
+}
+
+fn pick_primary<'a, K>(
+	shared: &'a LimiterShared<K>,
+	method: &http::Method,
+	quota_override: Option<Quota>,
+) -> Option<Dispatch<'a, K>>
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+	if let Some(method_quota) =
+		shared.config.quota_methods.iter().find(|(m, _)| m == method).map(|(_, q)| *q)
+	{
+		let limiter = shared
+			.method_limiters
+			.iter()
+			.find(|(m, _)| m == method)
+			.map(|(_, l)| l)
+			.expect("method_limiters and quota_methods are built in parallel");
+		let tracker = shared.method_trackers.iter().find(|(m, _)| m == method).map(|(_, t)| t);
+		return Some(Dispatch {
+			limiter: LimiterRef::Borrowed(limiter),
+			tracker,
+			policy_label: &shared.default_label,
+			quota: method_quota,
+		});
+	}
+
+	if let Some(override_quota) = quota_override {
+		let limiter = shared.tier_cache.get_or_insert(override_quota);
+		// Tier-cache buckets have their own state stores per quota; we don't track
+		// the override path through the per-limiter LRU since hit counts would split
+		// across (key, quota) combinations. The default tracker still sees the key,
+		// so top_n reflects activity faithfully when the user opts into max_keys.
+		return Some(Dispatch {
+			limiter: LimiterRef::Owned(limiter),
+			tracker: shared.default_tracker.as_ref(),
+			policy_label: &shared.default_label,
+			quota: override_quota,
+		});
+	}
+
+	if let Some(limiter) = shared.default_limiter.as_ref() {
+		let q = shared.config.quota_default.expect("default_limiter present => quota_default Some");
+		return Some(Dispatch {
+			limiter: LimiterRef::Borrowed(limiter),
+			tracker: shared.default_tracker.as_ref(),
+			policy_label: &shared.default_label,
+			quota: q,
+		});
+	}
+
+	None
+}
+
+fn pick_policy_entry<'a, K>(
+	shared: &'a LimiterShared<K>,
+	method: &http::Method,
+	has_tier_override: bool,
+) -> Option<&'a PolicyEntry>
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+	// Per-method overrides shadow the default-quota policy entry.
+	if let Some(entry) = shared.policy_per_method.iter().find(|(m, _)| m == method).map(|(_, e)| e) {
+		return Some(entry);
+	}
+	// Tier overrides change the "default" entry's quota at runtime, so the
+	// pre-rendered default header is not accurate for that case. Fall back to
+	// inline rendering at the call site instead of returning a stale entry.
+	if has_tier_override {
+		return None;
+	}
+	shared.policy_default.as_ref()
+}
+
 fn check_limiter<K: Hash + Eq + Clone + Send + Sync + 'static>(
 	limiter: &KeyedRateLimiter<K>,
 	key: &K,
@@ -497,20 +570,6 @@ fn check_limiter<K: Hash + Eq + Clone + Send + Sync + 'static>(
 	}
 }
 
-fn gather_all_policies<K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static>(
-	shared: &LimiterShared<K>,
-	active_quota: Option<Quota>,
-) -> Vec<PolicyDescriptor> {
-	let mut policies = Vec::new();
-	if let Some(q) = active_quota {
-		policies.push(PolicyDescriptor { name: "default", quota: q });
-	}
-	for entry in shared.stack.iter() {
-		policies.push(PolicyDescriptor { name: entry.name(), quota: entry.quota() });
-	}
-	policies
-}
-
 fn synthetic_snapshot(quota: Quota) -> governor::middleware::StateSnapshot {
 	use governor::middleware::StateInformationMiddleware;
 	governor::RateLimiter::direct(quota.inner())
@@ -523,13 +582,18 @@ fn peer_ip_from(parts: &http::request::Parts) -> Option<std::net::IpAddr> {
 	parts.extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|ci| ci.0.ip())
 }
 
-fn build_admit_headers_with_policies(
+fn build_admit_headers<K>(
 	legacy_reset_epoch: bool,
 	quota: Quota,
-	policy_name: &'static str,
+	policy_name: &str,
 	remaining: u32,
-	policies: &[PolicyDescriptor],
-) -> HeaderMap {
+	policy_entry: Option<&PolicyEntry>,
+	shared: &LimiterShared<K>,
+	tier_override: Option<Quota>,
+) -> HeaderMap
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
 	let mut headers = HeaderMap::new();
 	let burst = quota.inner().burst_size().get();
 
@@ -543,27 +607,25 @@ fn build_admit_headers_with_policies(
 		t
 	};
 
-	let active_policies: Vec<PolicyDescriptor> = if policies.is_empty() {
-		vec![PolicyDescriptor { name: policy_name, quota }]
-	} else {
-		policies.to_vec()
-	};
-
-	write_ietf_policy_set(&mut headers, &active_policies);
+	insert_policy_header(&mut headers, policy_entry, shared, tier_override, quota, policy_name);
 	write_ietf_rate_limit(&mut headers, policy_name, remaining, t);
 	write_legacy_rate_limit(&mut headers, burst, remaining, reset);
 
 	headers
 }
 
-fn build_reject_response_with_policies<K>(
+fn build_reject_response<K>(
 	cfg: &crate::builder::GovernorConfig<K>,
 	quota: Quota,
 	wait: Duration,
 	reason: RejectionReason,
-	policy_name: &'static str,
-	policies: &[PolicyDescriptor],
-) -> Response<axum::body::Body> {
+	policy_name: &str,
+	policy_entry: Option<&PolicyEntry>,
+	shared: &LimiterShared<K>,
+) -> Response<axum::body::Body>
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
 	let burst = quota.inner().burst_size().get();
 	let delta = wait.as_secs();
 	let retry_after = delta.max(1);
@@ -578,17 +640,48 @@ fn build_reject_response_with_policies<K>(
 	let h = response.headers_mut();
 	write_retry_after(h, retry_after);
 
-	let active_policies: Vec<PolicyDescriptor> = if policies.is_empty() {
-		vec![PolicyDescriptor { name: policy_name, quota }]
-	} else {
-		policies.to_vec()
-	};
-
-	write_ietf_policy_set(h, &active_policies);
+	insert_policy_header(h, policy_entry, shared, None, quota, policy_name);
 	write_ietf_rate_limit(h, policy_name, 0, delta);
 	write_legacy_rate_limit(h, burst, 0, reset);
 
 	response
+}
+
+/// Insert the `RateLimit-Policy` header. Prefers the precomputed value held by
+/// `LimiterShared`; falls back to inline rendering only when a tier override has
+/// changed the default-quota policy at request time.
+fn insert_policy_header<K>(
+	headers: &mut HeaderMap,
+	policy_entry: Option<&PolicyEntry>,
+	shared: &LimiterShared<K>,
+	tier_override: Option<Quota>,
+	fallback_quota: Quota,
+	fallback_name: &str,
+) where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+	if let Some(entry) = policy_entry {
+		// Hot path: clone the precomputed HeaderValue (cheap; backed by Bytes).
+		headers.insert(HeaderName::from_static("ratelimit-policy"), entry.header.clone());
+		return;
+	}
+
+	// Slow path: tier override forced inline rendering, or there is no precomputed
+	// entry at all (e.g. caller has neither a default quota nor a stack and we still
+	// got here for some reason). Build a transient view from the override (if any)
+	// and the static stack descriptors.
+	let mut view: Vec<PolicyDescriptor<'_>> = Vec::new();
+	if let Some(q) = tier_override {
+		view.push(PolicyDescriptor { name: &shared.default_label, quota: q });
+	} else {
+		view.push(PolicyDescriptor { name: fallback_name, quota: fallback_quota });
+	}
+	for entry in shared.stack.iter() {
+		view.push(PolicyDescriptor { name: entry.name(), quota: entry.quota() });
+	}
+	if let Some(value) = render_policy_value(&view) {
+		headers.insert(HeaderName::from_static("ratelimit-policy"), value);
+	}
 }
 
 fn build_reject_no_headers<K>(
@@ -1066,6 +1159,31 @@ mod tests {
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 		let rl = r2.headers().get("ratelimit").unwrap().to_str().unwrap();
 		assert!(rl.contains("\"auth\""), "expected 'auth' in RateLimit header, got: {rl}");
+	}
+
+	#[tokio::test]
+	async fn max_keys_evicts_oldest_under_pressure() {
+		// max_keys=2 with PeerIp: after 3 distinct IPs, the oldest should have been
+		// dropped from the tracker. Snapshot reflects the tracker's view.
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(PeerIp::default())
+			.expect_connect_info()
+			.quota_default(Quota::requests_per_second(nz!(10u32)))
+			.max_keys(2)
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+		let svc = layer.layer(ok_inner());
+
+		for ip in ["1.1.1.1:1", "2.2.2.2:1", "3.3.3.3:1"] {
+			let r = svc.clone().oneshot(req_with_peer(Method::GET, "/", ip)).await.unwrap();
+			assert_eq!(r.status(), StatusCode::OK);
+		}
+
+		let snap = layer.limiter().snapshot();
+		// Tracker is capped at 2; eviction also called retain_recent on governor's
+		// state, so the limiter itself ought to converge to <=2 over time as well.
+		assert!(snap.key_count <= 3, "expected key_count to track eviction, got {}", snap.key_count);
 	}
 
 	#[test]

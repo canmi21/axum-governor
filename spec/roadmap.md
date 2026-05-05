@@ -56,7 +56,12 @@ See [`architecture/06-runtime-and-lifecycle.md`](architecture/06-runtime-and-lif
 
 - Background tokio task running `RateLimiter::retain_recent` on a configurable interval
   (default 60 s); started by the Layer constructor, opt-out via builder.
-- Maximum-keys bound with LRU eviction, off by default.
+- Maximum-keys bound with approximate-LRU eviction, off by default. Implementation note:
+  governor 0.10's keyed state store does not expose per-key removal, so the cap is
+  enforced via a sidecar tracker (sequence-stamped LRU); on overflow the oldest tracker
+  entry is dropped and `retain_recent()` is forced on the underlying limiter to nudge
+  governor's DashMap to converge. A `WARN`-level `tracing` event names the limiter that
+  is being shed.
 - Layer `Drop` aborts the GC task automatically.
 - Startup acknowledgement — builders that select `PeerIp` or `SmartIp` must call
   `expect_connect_info()` before `finish()`, surfacing the deployment requirement at
@@ -68,7 +73,10 @@ See [`architecture/06-runtime-and-lifecycle.md`](architecture/06-runtime-and-lif
 
 - `tracing` event on every reject, carrying key, configured quota, and wait duration.
 - `tracing` span around middleware execution, opt-out via the `tracing` feature.
-- `Limiter::snapshot()` — current key count, rough memory estimate, top-N hottest keys.
+- `Limiter::snapshot()` — current key count, rough memory estimate, and top-N hottest
+  keys (default N=10, configurable via `snapshot_top_n(n)`). Hits are tracked by the
+  same sidecar that powers `max_keys`, so keys appear once they have been touched at
+  least once and counts saturate at `u64::MAX`.
 
 ### Ergonomics and testing
 
@@ -85,7 +93,12 @@ See [`architecture/07-ergonomics-and-testing.md`](architecture/07-ergonomics-and
 
 ### Performance
 
-- Hot-path `check` is non-allocating (preserves governor's existing guarantee).
+- Hot-path `check` allocates only the per-request key (when the extractor produces an
+  owned key) and the `RateLimit:` header value. The `RateLimit-Policy` header is
+  pre-rendered to an `HeaderValue` once per (default-quota or per-method-quota) at
+  Layer construction and cloned per request via `Bytes` ref-counting; legacy
+  `X-RateLimit-*` headers and `Retry-After` use `HeaderValue::from(u32 | u64)`, which
+  itoa-formats into a small buffer instead of going through `format!` + `String`.
 
 ## Deferred
 

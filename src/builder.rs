@@ -170,7 +170,11 @@ impl<K> GovernorConfigBuilder<K> {
 	/// Entries are checked in insertion order; the first reject wins.
 	#[must_use]
 	pub fn stack<E: KeyExtractor>(mut self, name: &'static str, extractor: E, quota: Quota) -> Self {
-		self.stack.push(Box::new(TypedStackFactory { name, quota, extractor: Arc::new(extractor) }));
+		self.stack.push(Box::new(TypedStackFactory {
+			name: Arc::from(name),
+			quota,
+			extractor: Arc::new(extractor),
+		}));
 		self
 	}
 
@@ -353,14 +357,18 @@ impl<K> GovernorConfigBuilder<K> {
 	}
 }
 
-fn quota_label(name: &'static str, q: &Quota, idx: usize) -> &'static str {
-	let suffix = match quota_window_seconds(q) {
-		1 => "1s".to_owned(),
-		60 => "1m".to_owned(),
-		3600 => "1h".to_owned(),
-		_ => idx.to_string(),
+fn quota_label(name: &'static str, q: &Quota, idx: usize) -> Arc<str> {
+	// `Arc<str>` lets the layer outlive each entry's label without leaking memory:
+	// when the layer is dropped, every Arc is freed. Cost is one allocation per
+	// label at config time and one atomic-ref-count clone per request that needs
+	// the name (e.g. when constructing a `RejectionReason`).
+	let suffix: &str = match quota_window_seconds(q) {
+		1 => "1s",
+		60 => "1m",
+		3600 => "1h",
+		_ => return Arc::from(format!("{name}:{idx}")),
 	};
-	Box::leak(format!("{name}:{suffix}").into_boxed_str())
+	Arc::from(format!("{name}:{suffix}"))
 }
 
 #[cfg(test)]

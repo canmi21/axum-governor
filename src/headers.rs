@@ -1,54 +1,102 @@
 //! Pure header writers for rate-limit response headers.
+//!
+//! Two design notes worth preserving:
+//!
+//! 1. `PolicyDescriptor` borrows its `name`. Stack entries can carry dynamic labels
+//!    (e.g. `peer:1s`), so we can no longer pin them to `&'static str` without
+//!    leaking. The lifetime is tied to the layer, which the request future holds via
+//!    `Arc<LimiterShared>` — so per-request descriptors borrow without overhead.
+//! 2. Integer-only header values use `HeaderValue::from::<u32>` / `From::<u64>`,
+//!    which itoa-format into a small buffer. Compared to `format!("{n}")` +
+//!    `from_str` this avoids both the formatter and a `String` allocation.
+
+use std::fmt::Write as _;
 
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 
 use crate::Quota;
 
-/// One advertised rate-limit policy (name + quota), used to fill `RateLimit-Policy:`.
+/// One advertised rate-limit policy (name + quota). Stored in headers and used to
+/// fill `RateLimit-Policy:`.
 #[derive(Clone, Copy, Debug)]
-pub struct PolicyDescriptor {
-	pub name: &'static str,
+pub struct PolicyDescriptor<'a> {
+	pub name: &'a str,
 	pub quota: Quota,
 }
 
 pub(crate) fn write_retry_after(headers: &mut HeaderMap, delta_seconds: u64) {
-	headers.insert(
-		http::header::RETRY_AFTER,
-		HeaderValue::from_str(&delta_seconds.to_string())
-			.expect("decimal integer is a valid header value"),
-	);
+	headers.insert(http::header::RETRY_AFTER, HeaderValue::from(delta_seconds));
 }
 
 pub(crate) fn write_ietf_rate_limit(
 	headers: &mut HeaderMap,
-	policy_name: &'static str,
+	policy_name: &str,
 	remaining: u32,
 	t_seconds: u64,
 ) {
-	let value = format!("\"{policy_name}\";r={remaining};t={t_seconds}");
+	let mut buf = String::with_capacity(policy_name.len() + 24);
+	buf.push('"');
+	buf.push_str(policy_name);
+	buf.push('"');
+	buf.push_str(";r=");
+	let _ = write!(&mut buf, "{remaining}");
+	buf.push_str(";t=");
+	let _ = write!(&mut buf, "{t_seconds}");
 	headers.insert(
 		HeaderName::from_static("ratelimit"),
-		HeaderValue::from_str(&value).expect("ratelimit header value is always valid"),
+		HeaderValue::from_str(&buf).expect("ratelimit header value is always valid"),
 	);
 }
 
-pub(crate) fn write_ietf_policy_set(headers: &mut HeaderMap, policies: &[PolicyDescriptor]) {
+/// Render and insert a `RateLimit-Policy` header from descriptors. Currently only
+/// exercised in tests — the hot path uses `render_policy_value` once at layer
+/// construction and then clones the cached `HeaderValue`.
+#[cfg(test)]
+pub(crate) fn write_ietf_policy_set(headers: &mut HeaderMap, policies: &[PolicyDescriptor<'_>]) {
 	if policies.is_empty() {
 		return;
 	}
-	let parts: Vec<String> = policies
-		.iter()
-		.map(|p| {
-			let q = p.quota.inner().burst_size().get();
-			let w = quota_window_seconds(&p.quota);
-			format!("\"{}\";q={};w={}", p.name, q, w)
-		})
-		.collect();
-	let value = parts.join(", ");
+	let value = render_policy_set(policies);
 	headers.insert(
 		HeaderName::from_static("ratelimit-policy"),
 		HeaderValue::from_str(&value).expect("ratelimit-policy header value is always valid"),
 	);
+}
+
+/// Pre-render a policy set to a `HeaderValue`. Layer construction calls this once
+/// per static configuration so the hot path can `.clone()` the resulting
+/// `HeaderValue` (cheap — internally a `Bytes`-backed buffer) instead of rebuilding
+/// the string per request.
+pub(crate) fn render_policy_value(policies: &[PolicyDescriptor<'_>]) -> Option<HeaderValue> {
+	if policies.is_empty() {
+		return None;
+	}
+	let s = render_policy_set(policies);
+	Some(HeaderValue::from_str(&s).expect("ratelimit-policy header value is always valid"))
+}
+
+fn render_policy_set(policies: &[PolicyDescriptor<'_>]) -> String {
+	// Estimate: each entry is `"name";q=NNNN;w=NNNN, ` ≈ name.len() + 16. Pre-size to
+	// avoid the realloc churn that a naive `String::new()` gets on a 3-stack policy.
+	let cap: usize = policies.iter().map(|p| p.name.len() + 16).sum::<usize>() + 4;
+	let mut buf = String::with_capacity(cap);
+	let mut first = true;
+	for p in policies {
+		if !first {
+			buf.push_str(", ");
+		}
+		first = false;
+		let q = p.quota.inner().burst_size().get();
+		let w = quota_window_seconds(&p.quota);
+		buf.push('"');
+		buf.push_str(p.name);
+		buf.push('"');
+		buf.push_str(";q=");
+		let _ = write!(&mut buf, "{q}");
+		buf.push_str(";w=");
+		let _ = write!(&mut buf, "{w}");
+	}
+	buf
 }
 
 pub(crate) fn write_legacy_rate_limit(
@@ -57,20 +105,9 @@ pub(crate) fn write_legacy_rate_limit(
 	remaining: u32,
 	reset_seconds: u64,
 ) {
-	headers.insert(
-		HeaderName::from_static("x-ratelimit-limit"),
-		HeaderValue::from_str(&limit.to_string()).expect("x-ratelimit-limit value is always valid"),
-	);
-	headers.insert(
-		HeaderName::from_static("x-ratelimit-remaining"),
-		HeaderValue::from_str(&remaining.to_string())
-			.expect("x-ratelimit-remaining value is always valid"),
-	);
-	headers.insert(
-		HeaderName::from_static("x-ratelimit-reset"),
-		HeaderValue::from_str(&reset_seconds.to_string())
-			.expect("x-ratelimit-reset value is always valid"),
-	);
+	headers.insert(HeaderName::from_static("x-ratelimit-limit"), HeaderValue::from(limit));
+	headers.insert(HeaderName::from_static("x-ratelimit-remaining"), HeaderValue::from(remaining));
+	headers.insert(HeaderName::from_static("x-ratelimit-reset"), HeaderValue::from(reset_seconds));
 }
 
 /// `w=` value for IETF policy: `(burst * replenish_interval)` in whole seconds, min 1.
@@ -130,6 +167,23 @@ mod tests {
 		let mut headers = HeaderMap::new();
 		write_ietf_policy_set(&mut headers, &[]);
 		assert!(headers.get("ratelimit-policy").is_none());
+	}
+
+	#[test]
+	fn render_policy_value_round_trips_through_set_writer() {
+		let policies = [
+			PolicyDescriptor { name: "peer", quota: crate::Quota::requests_per_second(nz!(10u32)) },
+			PolicyDescriptor { name: "auth", quota: crate::Quota::requests_per_minute(nz!(600u32)) },
+		];
+		let pre = render_policy_value(&policies).expect("non-empty policies render to a value");
+		let mut headers = HeaderMap::new();
+		write_ietf_policy_set(&mut headers, &policies);
+		assert_eq!(headers["ratelimit-policy"], pre);
+	}
+
+	#[test]
+	fn render_policy_value_empty_returns_none() {
+		assert!(render_policy_value(&[]).is_none());
 	}
 
 	#[test]

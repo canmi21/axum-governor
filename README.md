@@ -64,10 +64,10 @@ See `examples/` for runnable programs covering stacked limits and per-tier overr
 
 | Feature      | Default | Description                                                      |
 | ------------ | ------- | ---------------------------------------------------------------- |
-| `dashmap`    | yes     | Concurrent `DashMapStateStore` for the per-key limiter cache     |
-| `tracing`    | yes     | Per-request span and per-reject tracing event                    |
-| `json`       | yes     | `BodyPreset::ProblemJson` for RFC 9457 reject bodies             |
-| `test-utils` | no      | `test_utils::drive` and re-exported helpers for downstream tests |
+| `dashmap`    | Yes     | Concurrent `DashMapStateStore` for the per-key limiter cache     |
+| `tracing`    | Yes     | Per-request span and per-reject tracing event                    |
+| `json`       | Yes     | `BodyPreset::ProblemJson` for RFC 9457 reject bodies             |
+| `test-utils` | No      | `test_utils::drive` and re-exported helpers for downstream tests |
 
 Build without default features (`--no-default-features`) to get a minimal binary that
 uses `HashMapStateStore` and emits plain text reject bodies.

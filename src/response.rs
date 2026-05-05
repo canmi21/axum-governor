@@ -143,7 +143,7 @@ mod tests {
 			wait: Duration::from_secs(5),
 			snapshot: fake_snapshot(),
 			key: Box::new(()) as Box<dyn std::any::Any + Send>,
-			policy_name: "default",
+			policy_name: std::sync::Arc::from("default"),
 		}
 	}
 
