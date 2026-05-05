@@ -1,15 +1,13 @@
-# axum-governor
+# Axum Governor
 
-Rate-limiting middleware for [axum](https://docs.rs/axum), powered by
-[governor](https://docs.rs/governor).
-
-![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)
+Rate-limiting middleware for [Axum](https://docs.rs/axum) powered by
+[Governor](https://docs.rs/governor).
 
 ## Quick start
 
 ```toml
 [dependencies]
-axum-governor = "2.0"
+axum-governor = "2"
 ```
 
 ```rust
@@ -74,27 +72,6 @@ See `examples/` for runnable programs covering stacked limits and per-tier overr
 Build without default features (`--no-default-features`) to get a minimal binary that
 uses `HashMapStateStore` and emits plain text reject bodies.
 
-## Comparison
-
-| Feature                     | axum-governor v2 | tower-governor | actix-governor |
-| --------------------------- | ---------------- | -------------- | -------------- |
-| Object-safe extractor trait | yes              | no             | no             |
-| Async extractor             | yes              | no             | no             |
-| IETF RateLimit headers      | yes              | partial        | no             |
-| Per-method quotas           | yes              | no             | no             |
-| Per-tier quota override     | yes              | no             | no             |
-| Stacked multi-window limits | yes              | no             | no             |
-| Automatic background GC     | yes              | no             | no             |
-| Type-erased `BoxedLayer`    | yes              | no             | no             |
-
-## MSRV
-
-Rust 1.95 (pinned in `rust-toolchain.toml`).
-
-## License
-
-MIT. See [LICENSE](LICENSE).
-
 ## Acknowledgements
 
 This project was inspired by:
@@ -104,3 +81,7 @@ This project was inspired by:
 - [tower-governor](https://github.com/benwis/tower-governor)
 
 Thanks to the open source community and contributors.
+
+## License
+
+Released under the MIT License © 2025 [Canmi](https://canmi.net)
