@@ -1,25 +1,32 @@
-//! Sidecar key tracker that enforces `max_keys` and powers `LimiterSnapshot::top_n`.
+//! Sidecar key tracker that backs `max_keys` shedding and `LimiterSnapshot::top_n`.
 //!
 //! governor 0.10 only lets us read `len()` and call `retain_recent()` on a keyed state
 //! store; it does not expose per-key removal or iteration. So we keep our own table
 //! of observed keys: a hit counter plus a monotonic sequence stamp for approximate LRU
 //! eviction. Operations are O(log n) on touch (one `BTreeMap` insert + one remove of
-//! the previous stamp) and only run under `max_keys`-bound — for unbounded limiters
-//! we skip the LRU bookkeeping entirely.
+//! the previous stamp).
+//!
+//! `max_keys` is best-effort for governor's state store because we cannot delete a
+//! specific key from governor. The tracker cap is strict for this sidecar; when a
+//! configured `max_keys` overflows, callers can force `retain_recent()` to nudge the
+//! underlying limiter toward the same bound. Without `max_keys`, the tracker still
+//! uses a fixed observability budget so `top_n` cannot introduce unbounded memory use.
 
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
 use std::sync::Mutex;
 
+pub(crate) const DEFAULT_TRACKER_CAP: usize = 65_536;
+
 /// Per-limiter sidecar that pairs governor's keyed state store with our own LRU and
-/// hit-count tables. `K_repr` is the key's `Debug` rendering; this lets the tracker
-/// stay independent of `K` while still exposing meaningful labels via `top_n`.
+/// hit-count tables.
 pub(crate) struct KeyTracker<K>
 where
 	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	inner: Mutex<TrackerInner<K>>,
 	max_keys: Option<usize>,
+	tracker_cap: usize,
 }
 
 struct TrackerInner<K> {
@@ -33,11 +40,17 @@ struct KeyState {
 	hits: u64,
 }
 
-/// Outcome of a single `touch`. `evicted` is the key bumped out of our LRU when
-/// the tracker is over `max_keys`; the caller is expected to react (typically by
-/// calling `RateLimiter::retain_recent()` to nudge governor's DashMap).
+/// Outcome of a single `touch`. `reason` lets callers distinguish a
+/// user-configured `max_keys` shed from an internal observability-budget eviction.
 pub(crate) struct TouchOutcome<K> {
-	pub evicted: Option<K>,
+	pub reason: Option<EvictionReason>,
+	_marker: std::marker::PhantomData<K>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EvictionReason {
+	MaxKeys,
+	TrackerBudget,
 }
 
 impl<K> KeyTracker<K>
@@ -45,6 +58,7 @@ where
 	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	pub(crate) fn new(max_keys: Option<usize>) -> Self {
+		let tracker_cap = max_keys.unwrap_or(DEFAULT_TRACKER_CAP);
 		Self {
 			inner: Mutex::new(TrackerInner {
 				by_key: HashMap::new(),
@@ -52,13 +66,14 @@ where
 				next_seq: 0,
 			}),
 			max_keys,
+			tracker_cap,
 		}
 	}
 
 	/// Record an access for `key`. Returns the key evicted from the tracker when the
-	/// LRU is over `max_keys`. When `max_keys` is `None` we still keep counts for
-	/// `top_n` but never evict; tracker memory is bounded by governor's own
-	/// `retain_recent` sweep in that mode.
+	/// LRU is over its cap. Configured `max_keys` evictions are surfaced separately
+	/// from internal observability-budget evictions so callers know when to warn and
+	/// force a governor cleanup pass.
 	pub(crate) fn touch(&self, key: &K) -> TouchOutcome<K> {
 		let mut g = self.inner.lock().expect("KeyTracker mutex poisoned");
 		let seq = g.next_seq;
@@ -78,12 +93,19 @@ where
 			}
 		}
 
-		let evicted = match self.max_keys {
-			Some(cap) if g.by_key.len() > cap => pop_oldest(&mut g),
-			_ => None,
+		let reason = if g.by_key.len() > self.tracker_cap {
+			let reason = if self.max_keys.is_some() {
+				EvictionReason::MaxKeys
+			} else {
+				EvictionReason::TrackerBudget
+			};
+			let _ = pop_oldest(&mut g);
+			Some(reason)
+		} else {
+			None
 		};
 
-		TouchOutcome { evicted }
+		TouchOutcome { reason, _marker: std::marker::PhantomData }
 	}
 
 	#[cfg(test)]
@@ -127,13 +149,16 @@ mod tests {
 	use super::*;
 
 	#[test]
-	fn touch_with_no_cap_never_evicts() {
+	fn touch_without_max_keys_uses_internal_budget() {
 		let t: KeyTracker<u32> = KeyTracker::new(None);
-		for k in 0..1000u32 {
+		for k in 0..DEFAULT_TRACKER_CAP as u32 {
 			let out = t.touch(&k);
-			assert!(out.evicted.is_none());
+			assert!(out.reason.is_none());
 		}
-		assert_eq!(t.key_count(), 1000);
+		let out = t.touch(&(DEFAULT_TRACKER_CAP as u32));
+		assert_eq!(out.reason, Some(EvictionReason::TrackerBudget));
+		assert_eq!(t.key_count(), DEFAULT_TRACKER_CAP);
+		assert!(!t.top_n(DEFAULT_TRACKER_CAP).iter().any(|(k, _)| k == "0"));
 	}
 
 	#[test]
@@ -145,8 +170,12 @@ mod tests {
 		// Re-touching 1 promotes it; the next insertion should evict 2 (now oldest).
 		t.touch(&1);
 		let out = t.touch(&4);
-		assert_eq!(out.evicted, Some(2), "expected 2 to be evicted, key 1 was just touched");
+		assert_eq!(out.reason, Some(EvictionReason::MaxKeys));
 		assert_eq!(t.key_count(), 3);
+		assert!(
+			!t.top_n(3).iter().any(|(k, _)| k == "2"),
+			"expected 2 to be evicted, key 1 was just touched"
+		);
 	}
 
 	#[test]
@@ -183,15 +212,15 @@ mod tests {
 		assert_eq!(t.key_count(), 1);
 		// 1 is gone, so adding 3 should not evict anything.
 		let out = t.touch(&3);
-		assert!(out.evicted.is_none());
+		assert!(out.reason.is_none());
 	}
 
 	#[test]
 	fn cap_zero_evicts_every_insertion() {
-		// Edge case: max_keys = 0 should reject everything by evicting on every touch.
+		// Edge case: max_keys = 0 keeps no sidecar entries.
 		let t: KeyTracker<u32> = KeyTracker::new(Some(0));
 		let out = t.touch(&1);
-		assert_eq!(out.evicted, Some(1));
+		assert_eq!(out.reason, Some(EvictionReason::MaxKeys));
 		assert_eq!(t.key_count(), 0);
 	}
 }

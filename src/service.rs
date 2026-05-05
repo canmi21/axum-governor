@@ -59,7 +59,7 @@ use crate::headers::{
 use crate::layer::{KeyedRateLimiter, LimiterShared, PolicyEntry};
 use crate::limiters::StackedResult;
 use crate::response::{default_body, default_status};
-use crate::tracker::KeyTracker;
+use crate::tracker::{EvictionReason, KeyTracker};
 
 #[derive(Clone)]
 pub struct Governor<S, K>
@@ -472,7 +472,7 @@ where
 		let outcome = check_limiter(self.limiter.as_ref(), key, self.quota);
 		if let Some(tracker) = self.tracker {
 			let touch = tracker.touch(key);
-			if touch.evicted.is_some() {
+			if touch.reason == Some(EvictionReason::MaxKeys) {
 				emit_eviction_warn(self.policy_label);
 				self.limiter.as_ref().retain_recent();
 			}
@@ -1164,7 +1164,8 @@ mod tests {
 	#[tokio::test]
 	async fn max_keys_evicts_oldest_under_pressure() {
 		// max_keys=2 with PeerIp: after 3 distinct IPs, the oldest should have been
-		// dropped from the tracker. Snapshot reflects the tracker's view.
+		// dropped from the sidecar tracker. governor's internal keyed state is nudged
+		// via retain_recent(), but it cannot delete that exact fresh key in governor 0.10.
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(PeerIp::default())
 			.expect_connect_info()
@@ -1181,9 +1182,12 @@ mod tests {
 		}
 
 		let snap = layer.limiter().snapshot();
-		// Tracker is capped at 2; eviction also called retain_recent on governor's
-		// state, so the limiter itself ought to converge to <=2 over time as well.
-		assert!(snap.key_count <= 3, "expected key_count to track eviction, got {}", snap.key_count);
+		assert_eq!(snap.top_n.len(), 2, "tracker-backed top_n should be capped by max_keys");
+		assert!(
+			!snap.top_n.iter().any(|(k, _)| k.contains("1.1.1.1")),
+			"oldest key should have been evicted from tracker: {:?}",
+			snap.top_n
+		);
 	}
 
 	#[test]

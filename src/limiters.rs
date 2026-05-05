@@ -16,7 +16,7 @@ use governor::middleware::StateInformationMiddleware;
 
 use crate::extractor::KeyExtractor;
 use crate::layer::KeyedRateLimiter;
-use crate::tracker::KeyTracker;
+use crate::tracker::{EvictionReason, KeyTracker};
 
 // ---------------------------------------------------------------------------
 // StackedResult
@@ -87,7 +87,7 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 					}
 				};
 				let touch = self.tracker.touch(&outcome.key);
-				if touch.evicted.is_some() {
+				if touch.reason == Some(EvictionReason::MaxKeys) {
 					emit_eviction_warn(&self.name);
 					self.limiter.retain_recent();
 				}

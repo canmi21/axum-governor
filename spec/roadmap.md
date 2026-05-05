@@ -56,12 +56,11 @@ See [`architecture/06-runtime-and-lifecycle.md`](architecture/06-runtime-and-lif
 
 - Background tokio task running `RateLimiter::retain_recent` on a configurable interval
   (default 60 s); started by the Layer constructor, opt-out via builder.
-- Maximum-keys bound with approximate-LRU eviction, off by default. Implementation note:
-  governor 0.10's keyed state store does not expose per-key removal, so the cap is
-  enforced via a sidecar tracker (sequence-stamped LRU); on overflow the oldest tracker
-  entry is dropped and `retain_recent()` is forced on the underlying limiter to nudge
-  governor's DashMap to converge. A `WARN`-level `tracing` event names the limiter that
-  is being shed.
+- `max_keys` sidecar bound with approximate-LRU shedding, off by default. governor
+  0.10's keyed state store does not expose per-key removal, so this is not a hard
+  bound on governor's internal map: on overflow the oldest sidecar entry is dropped,
+  `retain_recent()` is forced on the underlying limiter, and a `WARN`-level
+  `tracing` event names the limiter being shed.
 - Layer `Drop` aborts the GC task automatically.
 - Startup acknowledgement — builders that select `PeerIp` or `SmartIp` must call
   `expect_connect_info()` before `finish()`, surfacing the deployment requirement at
@@ -76,7 +75,9 @@ See [`architecture/06-runtime-and-lifecycle.md`](architecture/06-runtime-and-lif
 - `Limiter::snapshot()` — current key count, rough memory estimate, and top-N hottest
   keys (default N=10, configurable via `snapshot_top_n(n)`). Hits are tracked by the
   same sidecar that powers `max_keys`, so keys appear once they have been touched at
-  least once and counts saturate at `u64::MAX`.
+  least once and counts saturate at `u64::MAX`. Without `max_keys`, the sidecar still
+  applies an internal observability budget; `top_n` is therefore approximate rather
+  than an unbounded full-history ranking.
 
 ### Ergonomics and testing
 
@@ -93,12 +94,12 @@ See [`architecture/07-ergonomics-and-testing.md`](architecture/07-ergonomics-and
 
 ### Performance
 
-- Hot-path `check` allocates only the per-request key (when the extractor produces an
-  owned key) and the `RateLimit:` header value. The `RateLimit-Policy` header is
-  pre-rendered to an `HeaderValue` once per (default-quota or per-method-quota) at
-  Layer construction and cloned per request via `Bytes` ref-counting; legacy
-  `X-RateLimit-*` headers and `Retry-After` use `HeaderValue::from(u32 | u64)`, which
-  itoa-formats into a small buffer instead of going through `format!` + `String`.
+- Hot-path header work avoids rebuilding static policy headers: `RateLimit-Policy` is
+  pre-rendered to a `HeaderValue` once per default/per-method policy at Layer
+  construction and cloned per request. `RateLimit:` is request-specific and is still
+  rendered per response. Tier overrides are also rendered per response because their
+  policy quota is request-time data. Legacy `X-RateLimit-*` headers and `Retry-After`
+  use integer `HeaderValue` conversions instead of `format!` + `String`.
 
 ## Deferred
 

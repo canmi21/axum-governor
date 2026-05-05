@@ -272,7 +272,11 @@ impl<K> GovernorConfigBuilder<K> {
 		self
 	}
 
-	/// Cap the number of tracked keys; entries exceeding the limit evict the oldest key.
+	/// Cap the sidecar tracker used for `snapshot().top_n` and best-effort key shedding.
+	///
+	/// governor 0.10 does not expose per-key removal, so exceeding this value evicts the
+	/// oldest key from axum-governor's tracker and forces a `retain_recent()` pass on the
+	/// underlying limiter. Fresh governor entries may remain until they become stale.
 	#[must_use]
 	pub fn max_keys(mut self, n: usize) -> Self {
 		self.max_keys = Some(n);

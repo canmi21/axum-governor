@@ -20,8 +20,10 @@ where
 /// As a consequence:
 ///   * Keys appear in `top_n` only after they have been touched at least once.
 ///   * Hit counts are tracked per key and saturate at `u64::MAX`.
-///   * When `max_keys` is set, the tracker bounds its own size; when unset, the
-///     tracker grows alongside governor's DashMap and shrinks on `retain_recent`.
+///   * When `max_keys` is set, the tracker bounds itself to that value. When unset,
+///     it uses an internal observability budget and evicts least-recently-touched
+///     tracker entries after the budget is reached. This keeps `top_n` approximate
+///     instead of letting monitoring state grow without bound.
 #[derive(Clone, Debug)]
 pub struct LimiterSnapshot {
 	pub key_count: usize,

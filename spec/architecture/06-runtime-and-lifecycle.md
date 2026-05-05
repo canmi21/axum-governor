@@ -8,8 +8,8 @@ and the `Drop` cleanup.
 
 `governor::RateLimiter::retain_recent` walks the keyed state and removes entries
 whose last activity is older than the longest replenishment interval in the current
-quota set. It is O(n) over keys and is the only mechanism that prevents unbounded
-memory growth under malicious key floods.
+quota set. It is O(n) over keys and is governor's primary built-in mechanism for
+controlling keyed-store growth.
 
 v2 starts a tokio task on Layer construction:
 
@@ -35,23 +35,28 @@ per Layer, which is documented as an anti-pattern in
 [`07-ergonomics-and-testing.md`](07-ergonomics-and-testing.md); the `BoxedGovernorLayer`
 ergonomics aim to make the one-config-per-process pattern the obvious one.
 
-## Maximum keys with LRU
+## Key tracker and `max_keys`
 
-Even with `retain_recent`, a malicious key flood within one GC interval can grow the
-state to OOM. v2 adds an upper bound:
+`governor` 0.10 does not expose iteration or per-key removal for keyed limiters. That
+means axum-governor cannot implement a strict "delete this exact key now" bound over
+governor's internal state without replacing governor's state store. v2 therefore uses
+a sidecar tracker with explicit, documented limits:
 
 ```rust
-.max_keys(200_000)   // off by default
+.max_keys(200_000)   // optional, best-effort shed threshold
 ```
 
-Implementation: a thin wrapper over the chosen state store that tracks an LRU queue
-per shard. On insertion beyond `max_keys`, the LRU shard's tail is evicted. The
-eviction emits a `tracing` event at `WARN` so operators see floods in dashboards
-rather than as latency spikes.
+The sidecar tracks observed keys, hit counts, and a monotonic sequence stamp used as
+an approximate LRU. On insertion beyond `max_keys`, the oldest sidecar entry is
+evicted, a `WARN`-level `tracing` event names the affected limiter, and
+`RateLimiter::retain_recent()` is forced on the underlying governor limiter. This is
+best-effort cleanup for governor's own keyed state: fresh entries may remain until
+they become stale enough for `retain_recent()` to remove.
 
-This is off by default because (a) most apps never approach the bound, (b) the LRU
-adds a small constant factor to insert, and (c) picking a number is a deployment
-concern.
+When `max_keys` is not configured, the sidecar still has an internal observability
+budget so `snapshot().top_n` cannot introduce unbounded memory growth. Evicting from
+that budget only affects the `top_n` view; it does not warn and does not change
+limiter decisions.
 
 ## Startup acknowledgement
 
@@ -73,24 +78,21 @@ Builders that select `PeerIp` or `SmartIp` and skip `expect_connect_info()` make
 points to the docs for `into_make_service_with_connect_info`.
 
 The first request that arrives without `ConnectInfo` despite the acknowledgement
-still fails — but the failure path is a deterministic 500 with a `tracing::error!`
-naming the request line and the same docs URL. The library cannot inspect the router
-topology, so it cannot do better than a typed acknowledgement; the acknowledgement
-makes the responsibility explicit.
+still fails — but the failure path is a deterministic 500 with a `tracing::warn!`
+naming the extraction error. The library cannot inspect the router topology, so it
+cannot do better than a typed acknowledgement; the acknowledgement makes the
+responsibility explicit.
 
 ## `tracing` integration
 
 Two emission points:
 
 1. **Per-request span** at `DEBUG`, named `axum_governor::layer`, with fields
-   `method`, `path` (template, not raw), `outcome` (`admit` / `reject`), `policy`
-   (when stacked). Opt-out by disabling the `tracing` feature.
+   `method` and request URI path. Opt-out by disabling the `tracing` feature.
 2. **Per-reject event** at `INFO`, with fields `key` (string-formatted), `quota`
-   (`{n}/{period}`), `wait_ms`, `policy`. The `key` is _opaque-debug-formatted_ — IPs
-   render as `1.2.3.4`, headers render as `<header:authorization=...>` with the value
-   truncated to the first 8 bytes to avoid leaking secrets verbatim into logs. A
-   `.redact_keys(true)` switch hashes the key with SipHash and renders the hex
-   instead.
+   burst, `wait_ms`, and `policy`. By default the key uses `Debug`; callers limiting
+   on sensitive values should enable `.redact_keys(true)`, which hashes the key with
+   SipHash and renders `hash:<hex>` instead.
 
 The span is _around_ the inner Service call, so downstream tracing fields (status
 code, latency) attach to it naturally.
@@ -113,20 +115,23 @@ pub struct LimiterSnapshot {
 }
 ```
 
-`approx_bytes` is `key_count * (key_size + state_size)` plus a constant for DashMap
-overhead; documented as approximate. `top_n` defaults to N=10 and is computed by
-walking shards and tracking the most-recent-tat values — O(n) but only on demand.
+`approx_bytes` is `key_count * (key_size + state_size)` plus a constant for keyed
+store overhead; documented as approximate. `top_n` defaults to N=10 and is computed
+from the sidecar's hit counters, not from governor's internal state. The list is
+therefore an observability sample: bounded by `max_keys` when configured and by the
+internal tracker budget otherwise.
 
 ## Resource ownership summary
 
-| Resource                | Owner                                 | Released by                        |
-| ----------------------- | ------------------------------------- | ---------------------------------- |
-| GC tokio task           | `GovernorLayer<K>`                    | `Drop` calls `AbortHandle::abort`. |
-| State store DashMap     | `Arc<...>` shared with cloned Service | last `Service` clone drops.        |
-| `Arc<dyn KeyExtractor>` | `GovernorLayer`                       | last clone drops.                  |
-| `AbortHandle`           | `GovernorLayer`                       | dropped with the Layer.            |
+| Resource                | Owner                                      | Released by                        |
+| ----------------------- | ------------------------------------------ | ---------------------------------- |
+| GC tokio task           | `LimiterShared<K>`                         | `Drop` calls `AbortHandle::abort`. |
+| Governor keyed store    | `LimiterShared<K>` shared with services    | last shared clone drops.           |
+| Sidecar key tracker     | one tracker per limiter in `LimiterShared` | last shared clone drops.           |
+| `Arc<dyn KeyExtractor>` | `LimiterShared<K>`                         | last shared clone drops.           |
+| `AbortHandle`           | `LimiterShared<K>`                         | dropped with shared state.         |
 
 The Service is `Clone` (Tower requires it); the Layer is the singleton, so cloning
-the Service inside Tower's stacking does not duplicate any GC tasks. We do not
-implement `Clone` on `GovernorLayer` — users who think they need to clone the Layer
-should instead clone the `BoxedGovernorLayer` or share through `Arc`.
+the Service inside Tower's stacking does not duplicate any GC tasks. `GovernorLayer`
+is also `Clone`, but clones share the same `LimiterShared`, limiter state, tracker
+state, and GC task.
