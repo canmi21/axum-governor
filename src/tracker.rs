@@ -14,7 +14,7 @@
 
 use std::collections::{BTreeMap, HashMap};
 use std::hash::Hash;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 pub(crate) const DEFAULT_TRACKER_CAP: usize = 65_536;
 
@@ -30,8 +30,13 @@ where
 }
 
 struct TrackerInner<K> {
-	by_key: HashMap<K, KeyState>,
-	by_seq: BTreeMap<u64, K>,
+	// `by_key` and `by_seq` index the same keys from two angles (hash lookup and
+	// approximate-LRU order). Sharing each key through an `Arc` keeps its bytes
+	// allocated exactly once across both tables instead of storing two owned copies,
+	// and lets the hot re-touch path move the `Arc` between seq slots without cloning
+	// the key.
+	by_key: HashMap<Arc<K>, KeyState>,
+	by_seq: BTreeMap<u64, Arc<K>>,
 	next_seq: u64,
 }
 
@@ -84,12 +89,14 @@ where
 				let old_seq = state.seq;
 				state.seq = seq;
 				state.hits = state.hits.saturating_add(1);
-				g.by_seq.remove(&old_seq);
-				g.by_seq.insert(seq, key.clone());
+				// Reuse the existing `Arc` under the new seq; no key clone on re-touch.
+				let shared = g.by_seq.remove(&old_seq).expect("by_seq must track every live key");
+				g.by_seq.insert(seq, shared);
 			}
 			None => {
-				g.by_key.insert(key.clone(), KeyState { seq, hits: 1 });
-				g.by_seq.insert(seq, key.clone());
+				let shared = Arc::new(key.clone());
+				g.by_key.insert(Arc::clone(&shared), KeyState { seq, hits: 1 });
+				g.by_seq.insert(seq, shared);
 			}
 		}
 
@@ -128,18 +135,18 @@ where
 			return Vec::new();
 		}
 		let g = self.inner.lock().expect("KeyTracker mutex poisoned");
-		let mut entries: Vec<(&K, u64)> = g.by_key.iter().map(|(k, s)| (k, s.hits)).collect();
+		let mut entries: Vec<(&Arc<K>, u64)> = g.by_key.iter().map(|(k, s)| (k, s.hits)).collect();
 		entries.sort_unstable_by_key(|e| std::cmp::Reverse(e.1));
 		entries.into_iter().take(n).map(|(k, h)| (format!("{k:?}"), h)).collect()
 	}
 }
 
-fn pop_oldest<K>(g: &mut TrackerInner<K>) -> Option<K>
+fn pop_oldest<K>(g: &mut TrackerInner<K>) -> Option<Arc<K>>
 where
-	K: Hash + Eq + Clone,
+	K: Hash + Eq,
 {
-	let (oldest_seq, oldest_key) = g.by_seq.iter().next().map(|(s, k)| (*s, k.clone()))?;
-	g.by_seq.remove(&oldest_seq);
+	let oldest_seq = *g.by_seq.keys().next()?;
+	let oldest_key = g.by_seq.remove(&oldest_seq)?;
 	g.by_key.remove(&oldest_key);
 	Some(oldest_key)
 }
