@@ -1,0 +1,23 @@
+[tasks.check]
+description = "Type-check the crate and its targets"
+run = "cargo check --all-targets"
+
+[tasks.lint]
+description = "Lint the crate, warnings denied"
+run = "cargo clippy --all-targets -- -D warnings"
+
+[tasks.test]
+description = "Run the test suite, every feature on"
+run = "cargo test --all-features"
+
+[tasks.verify]
+description = "Everything a change has to pass"
+depends = ["check", "lint", "test"]
+
+# Reached from the workspace as `mise run publish governor`. It depends on verify because a
+# release is the one thing that cannot be taken back: crates.io accepts a version once and
+# yanking leaves it downloadable. `--dry-run` threads through to cargo's own.
+[tasks.publish]
+description = "Publish the crate to crates.io: `publish [--dry-run]`"
+depends = ["verify"]
+run = "cargo publish"

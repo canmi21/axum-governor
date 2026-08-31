@@ -1,15 +1,8 @@
+# Cargo build output.
 /target
 
-node_modules/
-
-.env
-*.local
-
+# OS and editor noise.
 .DS_Store
 *.log
-
-.claude/
-
-result
-result-*
-.direnv/
+.env
+*.local

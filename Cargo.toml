@@ -1,6 +1,10 @@
+# Cargo walks up the filesystem and would otherwise treat this crate as a member of the
+# workspace this directory sits in. An empty table stops that walk.
+[workspace]
+
 [package]
 name = "axum-governor"
-version = "2.0.6"
+version = "2.0.7"
 categories = ["network-programming", "web-programming"]
 edition = "2024"
 keywords = ["axum", "middleware", "ratelimit", "governor", "tower"]

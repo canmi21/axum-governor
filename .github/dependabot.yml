@@ -1,39 +1,29 @@
+# Every entry is commented out. Dependencies are updated from the workspace with
+# `mise run update`, which upgrades within the pins and reports what waits across one;
+# a bot opening pull requests against that would be a second hand on the same file.
+#
+# Kept rather than deleted so the shape is here if the repository ever leaves the
+# workspace and has to look after itself again.
+#
 # Dependabot version-update config for axum-governor.
 # Reference: https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
-
-version: 2
-updates:
+#
+# version: 2
+# updates:
   # Rust crate at the repo root.
-  - package-ecosystem: cargo
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 10
-    groups:
-      cargo-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-    commit-message:
-      prefix: chore
-      include: scope
-
-  # JS dev tooling — package.json declares commitlint + dprint helpers.
-  # Dependabot reads package.json against the npm registry; it does
-  # not speak bun, so bun.lock is not refreshed automatically. After
-  # merging an npm bump, run `bun install` locally to resync the lock.
-  - package-ecosystem: npm
-    directory: /
-    schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
-    groups:
-      npm-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-    commit-message:
-      prefix: chore
-      include: scope
-
+#   - package-ecosystem: cargo
+#     directory: /
+#     schedule:
+#       interval: weekly
+#     open-pull-requests-limit: 10
+#     groups:
+#       cargo-minor-patch:
+#         patterns: ["*"]
+#         update-types: ["minor", "patch"]
+#     commit-message:
+#       prefix: chore
+#       include: scope
+#
   # GitHub Actions — uncomment when the first workflow file lands
   # under .github/workflows/.
   # - package-ecosystem: github-actions
