@@ -73,7 +73,7 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 					}
 				};
 				if self.tracker.touch(&outcome.key) == Some(EvictionReason::MaxKeys) {
-					emit_eviction_warn(&self.name);
+					crate::trace::eviction(&self.name);
 					self.limiter.retain_recent();
 				}
 				result
@@ -93,15 +93,6 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 		self.tracker.top_n(n)
 	}
 }
-
-#[cfg(feature = "tracing")]
-fn emit_eviction_warn(name: &str) {
-	tracing::warn!(target: "axum_governor", policy = %name,
-        "max_keys exceeded; evicted oldest key from tracker and forced retain_recent");
-}
-
-#[cfg(not(feature = "tracing"))]
-fn emit_eviction_warn(_name: &str) {}
 
 /// Type-erased factory that builds one `Box<dyn StackedRunner>` when the Layer is
 /// finalized. The builder stores `Vec<Box<dyn StackEntryFactory>>` and calls `build()`
@@ -210,7 +201,7 @@ where
 
 	pub(crate) fn retain_all(&self) {
 		let map = self.inner.lock().expect("LimiterCache mutex poisoned");
-		for (_, l) in map.iter() {
+		for l in map.values() {
 			l.retain_recent();
 		}
 	}

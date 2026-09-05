@@ -2,13 +2,18 @@
 description = "Type-check the crate and its targets"
 run = "cargo check --all-targets"
 
+# Both feature extremes are linted because every optional feature has a `not(feature)` twin
+# that only compiles when the feature is off; `--all-features` alone never sees those.
 [tasks.lint]
-description = "Lint the crate, warnings denied"
-run = "cargo clippy --all-targets -- -D warnings"
+description = "Lint the crate at both feature extremes, warnings denied"
+run = [
+	"cargo clippy --all-targets --all-features -- -D warnings",
+	"cargo clippy --all-targets --no-default-features -- -D warnings",
+]
 
 [tasks.test]
-description = "Run the test suite, every feature on"
-run = "cargo test --all-features"
+description = "Run the test suite at both feature extremes"
+run = ["cargo test --all-features", "cargo test --no-default-features"]
 
 [tasks.verify]
 description = "Everything a change has to pass"

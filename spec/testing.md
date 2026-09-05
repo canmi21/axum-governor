@@ -2,7 +2,9 @@
 
 ## Local dev environment
 
-Local development happens on **`aarch64-apple-darwin`** (macOS arm64) exclusively. `cargo nextest run` (or `just t`) is the canonical runner; its process-per-test scheduling exposes races that `cargo test`'s shared-binary model masks. `cargo test` (or `just test-cargo`) remains the bypass for doctests and for ruling out runner behaviour when a nextest result looks suspect.
+Local development happens on **`aarch64-apple-darwin`** (macOS arm64) exclusively. `mise run verify` is the gate: type check, clippy with warnings denied, and the test suite. It is what `mise run check governor` dispatches to from the workspace.
+
+**Verify runs clippy and the tests at both feature extremes**, `--all-features` and `--no-default-features`. Every optional feature here has a `not(feature)` twin (the tracing no-ops, the mutex-backed `LimiterCache`, the text-only `BodyPreset`) that only compiles when the feature is off, so a gate that only enables everything never looks at half the cfg branches. The first run with defaults off found a clippy error that had been sitting in the mutex cache for as long as it existed. Intermediate combinations are not run; the two extremes cover every cfg branch once, and the middle only adds build time.
 
 Unit tests live beside their code in `#[cfg(test)] mod tests` blocks; integration tests live in the top-level `tests/` directory.
 

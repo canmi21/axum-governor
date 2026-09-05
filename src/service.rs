@@ -2,45 +2,10 @@
 
 use std::future::Future;
 use std::hash::Hash;
-use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-
-#[cfg(feature = "tracing")]
-fn span_for(method: &http::Method, path: &str) -> tracing::Span {
-	tracing::debug_span!(target: "axum_governor::layer",
-        "axum_governor::layer", method = %method, path = %path)
-}
-
-#[cfg(feature = "tracing")]
-fn emit_reject_event(key_str: &str, quota_burst: u32, wait_ms: u128, policy: &str) {
-	tracing::info!(target: "axum_governor",
-        key = %key_str, quota_burst, wait_ms, policy,
-        "rate limit exceeded");
-}
-
-#[cfg(not(feature = "tracing"))]
-fn emit_reject_event(_key_str: &str, _quota_burst: u32, _wait_ms: u128, _policy: &str) {}
-
-#[cfg(feature = "tracing")]
-fn emit_extraction_failed_event(reason: &crate::ExtractionError) {
-	tracing::warn!(target: "axum_governor", error = %reason,
-        "rate-limit key extraction failed");
-}
-
-#[cfg(not(feature = "tracing"))]
-fn emit_extraction_failed_event(_reason: &crate::ExtractionError) {}
-
-#[cfg(feature = "tracing")]
-fn emit_eviction_warn(name: &str) {
-	tracing::warn!(target: "axum_governor", policy = %name,
-        "max_keys exceeded; evicted oldest key from tracker and forced retain_recent");
-}
-
-#[cfg(not(feature = "tracing"))]
-fn emit_eviction_warn(_name: &str) {}
 
 use http::{HeaderMap, HeaderName, Request, Response};
 use pin_project_lite::pin_project;
@@ -131,7 +96,7 @@ where
 	let (parts, body) = req.into_parts();
 
 	#[cfg(feature = "tracing")]
-	let _span_guard = span_for(&parts.method, parts.uri.path()).entered();
+	let _span_guard = crate::trace::span_for(&parts.method, parts.uri.path()).entered();
 
 	if is_whitelisted(&shared.settings, &parts) {
 		return GovernorFuture::admit(inner.call(Request::from_parts(parts, body)), HeaderMap::new());
@@ -167,7 +132,7 @@ where
 	type BoxedFut<E> = Pin<Box<dyn Future<Output = Result<Response<axum::body::Body>, E>> + Send>>;
 
 	#[cfg(feature = "tracing")]
-	let _async_span = span_for(&parts.method, parts.uri.path());
+	let _async_span = crate::trace::span_for(&parts.method, parts.uri.path());
 
 	let inner_fut = async move {
 		if is_whitelisted(&shared.settings, &parts) {
@@ -212,7 +177,7 @@ enum Decision {
 fn is_whitelisted(settings: &Settings, parts: &http::request::Parts) -> bool {
 	settings.whitelist_methods.contains(&parts.method)
 		|| settings.whitelist_paths.iter().any(|p| crate::glob::path_matches(p, parts.uri.path()))
-		|| peer_ip_from(parts).is_some_and(|ip| settings.whitelist_ips.iter().any(|n| n.contains(&ip)))
+		|| crate::extractor::ip::peer_ip(parts).is_some_and(|ip| settings.whitelist_ips.iter().any(|n| n.contains(&ip)))
 }
 
 fn merge_headers(resp: &mut Response<axum::body::Body>, extra: HeaderMap) {
@@ -237,7 +202,7 @@ where
 	let outcome = match outcome {
 		Ok(o) => o,
 		Err(err) => {
-			emit_extraction_failed_event(&err);
+			crate::trace::extraction_failed(&err);
 			return Decision::Reject(build_base_response(cfg, RejectionReason::KeyExtractionFailed(err)));
 		}
 	};
@@ -248,7 +213,7 @@ where
 
 	if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
 		let key_repr = crate::util::format_key(&outcome.key, cfg.redact_keys);
-		emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
+		crate::trace::reject(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
 		let label = Arc::clone(&shared.default_label);
 		let reason = RejectionReason::QuotaExceeded {
 			wait,
@@ -277,7 +242,7 @@ where
 	for entry in shared.stack.iter() {
 		match entry.check(parts, cfg.redact_keys) {
 			StackedResult::ExtractionFailed(err) => {
-				emit_extraction_failed_event(&err);
+				crate::trace::extraction_failed(&err);
 				return Decision::Reject(build_base_response(
 					cfg,
 					RejectionReason::KeyExtractionFailed(err),
@@ -286,7 +251,7 @@ where
 			StackedResult::Reject { wait, key_repr } => {
 				let quota = entry.quota();
 				let name = entry.name_arc();
-				emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), &name);
+				crate::trace::reject(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), &name);
 				let reason = RejectionReason::QuotaExceeded {
 					wait,
 					snapshot: synthetic_snapshot(quota),
@@ -382,7 +347,7 @@ where
 		if let Some(tracker) = self.tracker
 			&& tracker.touch(key) == Some(EvictionReason::MaxKeys)
 		{
-			emit_eviction_warn("default");
+			crate::trace::eviction("default");
 			self.limiter.as_ref().retain_recent();
 		}
 		outcome
@@ -481,10 +446,6 @@ fn synthetic_snapshot(quota: Quota) -> governor::middleware::StateSnapshot {
 		.with_middleware::<StateInformationMiddleware>()
 		.check()
 		.expect("fresh direct limiter always allows first check")
-}
-
-fn peer_ip_from(parts: &http::request::Parts) -> Option<std::net::IpAddr> {
-	parts.extensions.get::<axum::extract::ConnectInfo<SocketAddr>>().map(|ci| ci.0.ip())
 }
 
 fn build_admit_headers<K>(

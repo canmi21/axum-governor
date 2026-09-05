@@ -69,6 +69,7 @@ pub mod quota;
 pub mod response;
 pub mod service;
 pub mod snapshot;
+mod trace;
 mod tracker;
 mod util;
 
