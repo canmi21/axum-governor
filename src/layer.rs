@@ -11,7 +11,7 @@ use http::HeaderValue;
 use http::Method;
 
 use crate::Quota;
-use crate::builder::GovernorConfig;
+use crate::builder::{ExtractorSlot, GovernorConfig, Settings};
 use crate::headers::{PolicyDescriptor, render_policy_value};
 use crate::limiters::{LimiterCache, StackedRunner};
 use crate::tracker::KeyTracker;
@@ -40,7 +40,8 @@ pub(crate) struct LimiterShared<K>
 where
 	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
-	pub config: GovernorConfig<K>,
+	pub extractor: ExtractorSlot<K>,
+	pub settings: Settings,
 	pub default_limiter: Option<KeyedRateLimiter<K>>,
 	pub default_tracker: Option<KeyTracker<K>>,
 	/// Per-method limiters built from `config.quota_methods` at layer construction.
@@ -111,14 +112,15 @@ where
 	}
 
 	pub fn new(config: GovernorConfig<K>) -> Self {
-		let max_keys = config.max_keys;
+		let GovernorConfig { extractor, stack, settings } = config;
+		let max_keys = settings.max_keys;
 
-		let default_limiter = config.quota_default.map(|q: Quota| {
+		let default_limiter = settings.quota_default.map(|q: Quota| {
 			governor::RateLimiter::keyed(q.inner()).with_middleware::<StateInformationMiddleware>()
 		});
 		let default_tracker = default_limiter.as_ref().map(|_| KeyTracker::new(max_keys));
 
-		let method_limiters: Vec<(Method, KeyedRateLimiter<K>)> = config
+		let method_limiters: Vec<(Method, KeyedRateLimiter<K>)> = settings
 			.quota_methods
 			.iter()
 			.map(|(method, q)| {
@@ -127,17 +129,15 @@ where
 				(method.clone(), limiter)
 			})
 			.collect();
-		let method_trackers: Vec<(Method, KeyTracker<K>)> = config
+		let method_trackers: Vec<(Method, KeyTracker<K>)> = settings
 			.quota_methods
 			.iter()
 			.map(|(method, _)| (method.clone(), KeyTracker::new(max_keys)))
 			.collect();
 
-		// Consume the stack factories, building each StackedRunner. Each runner gets
-		// its own KeyTracker primed with the same max_keys cap, since stack entries
-		// have an independent state store from the primary limiter.
-		let stack: Vec<Box<dyn StackedRunner>> =
-			config.stack.into_iter().map(|f| f.build(max_keys)).collect();
+		// Each stack entry has its own state store, so each gets its own tracker under the
+		// same max_keys cap.
+		let stack: Vec<Box<dyn StackedRunner>> = stack.into_iter().map(|f| f.build(max_keys)).collect();
 
 		let default_label: Arc<str> = Arc::from("default");
 
@@ -150,13 +150,13 @@ where
 			.collect();
 
 		let policy_default = build_policy_entry(
-			config
+			settings
 				.quota_default
 				.map(|q| PolicyDescriptorOwned { name: Arc::clone(&default_label), quota: q }),
 			&stack_descriptors,
 		);
 
-		let policy_per_method: Vec<(Method, PolicyEntry)> = config
+		let policy_per_method: Vec<(Method, PolicyEntry)> = settings
 			.quota_methods
 			.iter()
 			.filter_map(|(method, q)| {
@@ -168,34 +168,14 @@ where
 			})
 			.collect();
 
-		// Rebuild config without the consumed stack field.
-		let config_rebuilt = GovernorConfig {
-			extractor: config.extractor,
-			quota_default: config.quota_default,
-			quota_methods: config.quota_methods,
-			stack: Vec::new(),
-			whitelist_methods: config.whitelist_methods,
-			whitelist_paths: config.whitelist_paths,
-			whitelist_ips: config.whitelist_ips,
-			body_preset: config.body_preset,
-			error_handler: config.error_handler,
-			gc_interval: config.gc_interval,
-			gc_disabled: config.gc_disabled,
-			max_keys: config.max_keys,
-			legacy_reset_epoch: config.legacy_reset_epoch,
-			redact_keys: config.redact_keys,
-		};
-
-		let gc_interval = config_rebuilt.gc_interval;
-		let gc_disabled = config_rebuilt.gc_disabled;
-
 		let shared = Arc::new_cyclic(|weak: &std::sync::Weak<LimiterShared<K>>| {
-			let gc_handle = match (gc_interval, gc_disabled) {
+			let gc_handle = match (settings.gc_interval, settings.gc_disabled) {
 				(Some(every), false) => crate::gc::spawn_gc_inner(weak.clone(), every),
 				_ => None,
 			};
 			LimiterShared {
-				config: config_rebuilt,
+				extractor,
+				settings,
 				default_limiter,
 				default_tracker,
 				method_limiters,

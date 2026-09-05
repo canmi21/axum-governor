@@ -73,22 +73,8 @@ impl BoxedGovernorLayer {
 			}
 		};
 
-		let string_config = GovernorConfig {
-			extractor: erased_extractor,
-			quota_default: config.quota_default,
-			quota_methods: config.quota_methods,
-			stack: config.stack,
-			whitelist_methods: config.whitelist_methods,
-			whitelist_paths: config.whitelist_paths,
-			whitelist_ips: config.whitelist_ips,
-			body_preset: config.body_preset,
-			error_handler: config.error_handler,
-			gc_interval: config.gc_interval,
-			gc_disabled: config.gc_disabled,
-			max_keys: config.max_keys,
-			legacy_reset_epoch: config.legacy_reset_epoch,
-			redact_keys: config.redact_keys,
-		};
+		let string_config =
+			GovernorConfig { extractor: erased_extractor, stack: config.stack, settings: config.settings };
 
 		Self { inner: GovernorLayer::new(string_config) }
 	}

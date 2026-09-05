@@ -109,7 +109,7 @@ where
 	}
 
 	fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
-		match &self.shared.config.extractor {
+		match &self.shared.extractor {
 			ExtractorSlot::Async(_) => {
 				call_async_dispatch(Arc::clone(&self.shared), self.inner.clone(), req)
 			}
@@ -137,7 +137,7 @@ where
 	#[cfg(feature = "tracing")]
 	let _span_guard = span_for(&parts.method, parts.uri.path()).entered();
 
-	let cfg = &shared.config;
+	let cfg = &shared.settings;
 
 	// 1. Whitelist precedence — any hit bypasses the limiter with no header injection.
 	if cfg.whitelist_methods.contains(&parts.method)
@@ -149,7 +149,7 @@ where
 	}
 
 	// 2. Extract rate-limit key.
-	let outcome = match &cfg.extractor {
+	let outcome = match &shared.extractor {
 		ExtractorSlot::Sync(e) => e.extract(&parts),
 		ExtractorSlot::Async(_) => unreachable!("call_sync dispatched for sync extractor only"),
 		ExtractorSlot::None => unreachable!("guarded at GovernorConfigBuilder::finish"),
@@ -285,7 +285,7 @@ where
 	let _async_span = span_for(&parts.method, parts.uri.path());
 
 	let inner_fut = async move {
-		let cfg = &shared.config;
+		let cfg = &shared.settings;
 
 		// 1. Whitelist check.
 		if cfg.whitelist_methods.contains(&parts.method)
@@ -297,7 +297,7 @@ where
 		}
 
 		// 2. Extract key asynchronously.
-		let outcome = match &cfg.extractor {
+		let outcome = match &shared.extractor {
 			ExtractorSlot::Async(e) => e.extract(&parts).await,
 			_ => unreachable!("call_async_dispatch dispatched for async extractor only"),
 		};
@@ -472,7 +472,7 @@ where
 	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
 	if let Some(method_quota) =
-		shared.config.quota_methods.iter().find(|(m, _)| m == method).map(|(_, q)| *q)
+		shared.settings.quota_methods.iter().find(|(m, _)| m == method).map(|(_, q)| *q)
 	{
 		let limiter = shared
 			.method_limiters
@@ -502,7 +502,7 @@ where
 	}
 
 	if let Some(limiter) = shared.default_limiter.as_ref() {
-		let q = shared.config.quota_default.expect("default_limiter present => quota_default Some");
+		let q = shared.settings.quota_default.expect("default_limiter present => quota_default Some");
 		return Some(Dispatch {
 			limiter: LimiterRef::Borrowed(limiter),
 			tracker: shared.default_tracker.as_ref(),
@@ -594,7 +594,7 @@ where
 }
 
 fn build_reject_response<K>(
-	cfg: &crate::builder::GovernorConfig<K>,
+	cfg: &crate::builder::Settings,
 	quota: Quota,
 	wait: Duration,
 	reason: RejectionReason,
@@ -663,15 +663,15 @@ fn insert_policy_header<K>(
 	}
 }
 
-fn build_reject_no_headers<K>(
-	cfg: &crate::builder::GovernorConfig<K>,
+fn build_reject_no_headers(
+	cfg: &crate::builder::Settings,
 	reason: RejectionReason,
 ) -> Response<axum::body::Body> {
 	build_base_response(cfg, reason)
 }
 
-fn build_base_response<K>(
-	cfg: &crate::builder::GovernorConfig<K>,
+fn build_base_response(
+	cfg: &crate::builder::Settings,
 	reason: RejectionReason,
 ) -> Response<axum::body::Body> {
 	if let Some(handler) = &cfg.error_handler {

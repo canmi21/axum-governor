@@ -20,22 +20,48 @@ pub(crate) enum ExtractorSlot<K> {
 	Async(Arc<dyn AsyncKeyExtractor<Key = K>>),
 }
 
+/// Everything in a config that does not depend on the key type. Kept apart from the
+/// generic fields so builder type-state transitions, `GovernorLayer::new` and the boxed
+/// adapter can move the whole block in one expression instead of naming every field.
+pub(crate) struct Settings {
+	pub quota_default: Option<Quota>,
+	pub quota_methods: Vec<(Method, Quota)>,
+	pub whitelist_methods: Vec<Method>,
+	pub whitelist_paths: Vec<String>,
+	pub whitelist_ips: Vec<IpNet>,
+	pub body_preset: BodyPreset,
+	pub error_handler: Option<ErrorHandler>,
+	pub gc_interval: Option<Duration>,
+	pub gc_disabled: bool,
+	pub max_keys: Option<usize>,
+	pub legacy_reset_epoch: bool,
+	pub redact_keys: bool,
+}
+
+impl Default for Settings {
+	fn default() -> Self {
+		Self {
+			quota_default: None,
+			quota_methods: Vec::new(),
+			whitelist_methods: Vec::new(),
+			whitelist_paths: Vec::new(),
+			whitelist_ips: Vec::new(),
+			body_preset: BodyPreset::default(),
+			error_handler: None,
+			gc_interval: Some(Duration::from_secs(60)),
+			gc_disabled: false,
+			max_keys: None,
+			legacy_reset_epoch: false,
+			redact_keys: false,
+		}
+	}
+}
+
 /// Validated rate-limit configuration produced by [`GovernorConfigBuilder::finish`].
 pub struct GovernorConfig<K> {
 	pub(crate) extractor: ExtractorSlot<K>,
-	pub(crate) quota_default: Option<Quota>,
-	pub(crate) quota_methods: Vec<(Method, Quota)>,
 	pub(crate) stack: Vec<Box<dyn StackEntryFactory>>,
-	pub(crate) whitelist_methods: Vec<Method>,
-	pub(crate) whitelist_paths: Vec<String>,
-	pub(crate) whitelist_ips: Vec<IpNet>,
-	pub(crate) body_preset: BodyPreset,
-	pub(crate) error_handler: Option<ErrorHandler>,
-	pub(crate) gc_interval: Option<Duration>,
-	pub(crate) gc_disabled: bool,
-	pub(crate) max_keys: Option<usize>,
-	pub(crate) legacy_reset_epoch: bool,
-	pub(crate) redact_keys: bool,
+	pub(crate) settings: Settings,
 }
 
 // ExtractorSlot contains Arc<dyn ...> which isn't Debug; minimal impl avoids K: Debug bound.
@@ -53,21 +79,10 @@ impl<K> std::fmt::Debug for GovernorConfig<K> {
 pub struct GovernorConfigBuilder<K = ()> {
 	extractor: ExtractorSlot<K>,
 	requires_connect_info: bool,
-	quota_default: Option<Quota>,
-	quota_methods: Vec<(Method, Quota)>,
+	connect_info_acknowledged: bool,
 	stack: Vec<Box<dyn StackEntryFactory>>,
 	empty_chain_names: Vec<&'static str>,
-	whitelist_methods: Vec<Method>,
-	whitelist_paths: Vec<String>,
-	whitelist_ips: Vec<IpNet>,
-	body_preset: BodyPreset,
-	error_handler: Option<ErrorHandler>,
-	gc_interval: Option<Duration>,
-	gc_disabled: bool,
-	max_keys: Option<usize>,
-	connect_info_acknowledged: bool,
-	legacy_reset_epoch: bool,
-	redact_keys: bool,
+	settings: Settings,
 }
 
 impl Default for GovernorConfigBuilder<()> {
@@ -75,21 +90,10 @@ impl Default for GovernorConfigBuilder<()> {
 		Self {
 			extractor: ExtractorSlot::None,
 			requires_connect_info: false,
-			quota_default: None,
-			quota_methods: Vec::new(),
+			connect_info_acknowledged: false,
 			stack: Vec::new(),
 			empty_chain_names: Vec::new(),
-			whitelist_methods: Vec::new(),
-			whitelist_paths: Vec::new(),
-			whitelist_ips: Vec::new(),
-			body_preset: BodyPreset::default(),
-			error_handler: None,
-			gc_interval: Some(Duration::from_secs(60)),
-			gc_disabled: false,
-			max_keys: None,
-			connect_info_acknowledged: false,
-			legacy_reset_epoch: false,
-			redact_keys: false,
+			settings: Settings::default(),
 		}
 	}
 }
@@ -100,26 +104,8 @@ impl GovernorConfigBuilder<()> {
 	/// Only callable on a fresh (`K = ()`) builder — type-state prevents a second call.
 	#[must_use]
 	pub fn with_extractor<E: KeyExtractor>(self, e: E) -> GovernorConfigBuilder<E::Key> {
-		let needs_ci = e.requires_connect_info();
-		GovernorConfigBuilder {
-			extractor: ExtractorSlot::Sync(Arc::new(e)),
-			requires_connect_info: needs_ci,
-			quota_default: self.quota_default,
-			quota_methods: self.quota_methods,
-			stack: self.stack,
-			empty_chain_names: self.empty_chain_names,
-			whitelist_methods: self.whitelist_methods,
-			whitelist_paths: self.whitelist_paths,
-			whitelist_ips: self.whitelist_ips,
-			body_preset: self.body_preset,
-			error_handler: self.error_handler,
-			gc_interval: self.gc_interval,
-			gc_disabled: self.gc_disabled,
-			max_keys: self.max_keys,
-			connect_info_acknowledged: self.connect_info_acknowledged,
-			legacy_reset_epoch: self.legacy_reset_epoch,
-			redact_keys: self.redact_keys,
-		}
+		let requires_connect_info = e.requires_connect_info();
+		self.with_slot(ExtractorSlot::Sync(Arc::new(e)), requires_connect_info)
 	}
 
 	/// Set an async key extractor; transitions the builder's key type to `E::Key`.
@@ -127,24 +113,21 @@ impl GovernorConfigBuilder<()> {
 	/// Only callable on a fresh (`K = ()`) builder.
 	#[must_use]
 	pub fn with_async_extractor<E: AsyncKeyExtractor>(self, e: E) -> GovernorConfigBuilder<E::Key> {
+		self.with_slot(ExtractorSlot::Async(Arc::new(e)), false)
+	}
+
+	fn with_slot<K>(
+		self,
+		extractor: ExtractorSlot<K>,
+		requires_connect_info: bool,
+	) -> GovernorConfigBuilder<K> {
 		GovernorConfigBuilder {
-			extractor: ExtractorSlot::Async(Arc::new(e)),
-			requires_connect_info: false,
-			quota_default: self.quota_default,
-			quota_methods: self.quota_methods,
+			extractor,
+			requires_connect_info,
+			connect_info_acknowledged: self.connect_info_acknowledged,
 			stack: self.stack,
 			empty_chain_names: self.empty_chain_names,
-			whitelist_methods: self.whitelist_methods,
-			whitelist_paths: self.whitelist_paths,
-			whitelist_ips: self.whitelist_ips,
-			body_preset: self.body_preset,
-			error_handler: self.error_handler,
-			gc_interval: self.gc_interval,
-			gc_disabled: self.gc_disabled,
-			max_keys: self.max_keys,
-			connect_info_acknowledged: self.connect_info_acknowledged,
-			legacy_reset_epoch: self.legacy_reset_epoch,
-			redact_keys: self.redact_keys,
+			settings: self.settings,
 		}
 	}
 }
@@ -153,14 +136,14 @@ impl<K> GovernorConfigBuilder<K> {
 	/// Set the default quota applied when no per-method quota matches.
 	#[must_use]
 	pub fn quota_default(mut self, q: Quota) -> Self {
-		self.quota_default = Some(q);
+		self.settings.quota_default = Some(q);
 		self
 	}
 
 	/// Add a per-HTTP-method quota; overrides the default for that method only.
 	#[must_use]
 	pub fn quota_for(mut self, method: Method, q: Quota) -> Self {
-		self.quota_methods.push((method, q));
+		self.settings.quota_methods.push((method, q));
 		self
 	}
 
@@ -211,7 +194,7 @@ impl<K> GovernorConfigBuilder<K> {
 	/// Bypass rate limiting for requests using any of the given HTTP methods.
 	#[must_use]
 	pub fn whitelist_methods(mut self, methods: impl IntoIterator<Item = Method>) -> Self {
-		self.whitelist_methods.extend(methods);
+		self.settings.whitelist_methods.extend(methods);
 		self
 	}
 
@@ -220,21 +203,21 @@ impl<K> GovernorConfigBuilder<K> {
 	/// `*` matches one path segment; `**` matches any number of segments.
 	#[must_use]
 	pub fn whitelist_paths(mut self, paths: impl IntoIterator<Item = impl Into<String>>) -> Self {
-		self.whitelist_paths.extend(paths.into_iter().map(Into::into));
+		self.settings.whitelist_paths.extend(paths.into_iter().map(Into::into));
 		self
 	}
 
 	/// Bypass rate limiting for requests originating from any of the given IP CIDRs.
 	#[must_use]
 	pub fn whitelist_ips(mut self, ips: impl IntoIterator<Item = IpNet>) -> Self {
-		self.whitelist_ips.extend(ips);
+		self.settings.whitelist_ips.extend(ips);
 		self
 	}
 
 	/// Select the response body format used for 429 responses.
 	#[must_use]
 	pub fn body_preset(mut self, preset: BodyPreset) -> Self {
-		self.body_preset = preset;
+		self.settings.body_preset = preset;
 		self
 	}
 
@@ -244,7 +227,7 @@ impl<K> GovernorConfigBuilder<K> {
 		mut self,
 		f: impl Fn(crate::RejectionReason) -> http::Response<axum::body::Body> + Send + Sync + 'static,
 	) -> Self {
-		self.error_handler = Some(Arc::new(f));
+		self.settings.error_handler = Some(Arc::new(f));
 		self
 	}
 
@@ -253,21 +236,21 @@ impl<K> GovernorConfigBuilder<K> {
 	/// Most APIs use delta; flip this if you need to match GitHub-style epoch wire format.
 	#[must_use]
 	pub fn legacy_reset_epoch(mut self, on: bool) -> Self {
-		self.legacy_reset_epoch = on;
+		self.settings.legacy_reset_epoch = on;
 		self
 	}
 
 	/// Override the GC sweep interval (default: 60 s).
 	#[must_use]
 	pub fn gc_interval(mut self, interval: Duration) -> Self {
-		self.gc_interval = Some(interval);
+		self.settings.gc_interval = Some(interval);
 		self
 	}
 
 	/// Disable the background GC task entirely.
 	#[must_use]
 	pub fn gc_disable(mut self) -> Self {
-		self.gc_disabled = true;
+		self.settings.gc_disabled = true;
 		self
 	}
 
@@ -278,7 +261,7 @@ impl<K> GovernorConfigBuilder<K> {
 	/// underlying limiter. Fresh governor entries may remain until they become stale.
 	#[must_use]
 	pub fn max_keys(mut self, n: usize) -> Self {
-		self.max_keys = Some(n);
+		self.settings.max_keys = Some(n);
 		self
 	}
 
@@ -297,7 +280,7 @@ impl<K> GovernorConfigBuilder<K> {
 	/// values such as API keys or session tokens.
 	#[must_use]
 	pub fn redact_keys(mut self, on: bool) -> Self {
-		self.redact_keys = on;
+		self.settings.redact_keys = on;
 		self
 	}
 
@@ -316,8 +299,8 @@ impl<K> GovernorConfigBuilder<K> {
 		}
 
 		// Whitelisting every v4 and every v6 address makes the limiter a no-op.
-		let any_v4 = self.whitelist_ips.iter().any(|n| matches!(n, IpNet::V4(v) if v.prefix_len() == 0));
-		let any_v6 = self.whitelist_ips.iter().any(|n| matches!(n, IpNet::V6(v) if v.prefix_len() == 0));
+		let any_v4 = self.settings.whitelist_ips.iter().any(|n| matches!(n, IpNet::V4(v) if v.prefix_len() == 0));
+		let any_v6 = self.settings.whitelist_ips.iter().any(|n| matches!(n, IpNet::V6(v) if v.prefix_len() == 0));
 		if any_v4 && any_v6 {
 			return Err(ConfigError::ContradictoryWhitelist);
 		}
@@ -326,22 +309,7 @@ impl<K> GovernorConfigBuilder<K> {
 			return Err(ConfigError::MissingConnectInfoAcknowledgement);
 		}
 
-		Ok(GovernorConfig {
-			extractor: self.extractor,
-			quota_default: self.quota_default,
-			quota_methods: self.quota_methods,
-			stack: self.stack,
-			whitelist_methods: self.whitelist_methods,
-			whitelist_paths: self.whitelist_paths,
-			whitelist_ips: self.whitelist_ips,
-			body_preset: self.body_preset,
-			error_handler: self.error_handler,
-			gc_interval: self.gc_interval,
-			gc_disabled: self.gc_disabled,
-			max_keys: self.max_keys,
-			legacy_reset_epoch: self.legacy_reset_epoch,
-			redact_keys: self.redact_keys,
-		})
+		Ok(GovernorConfig { extractor: self.extractor, stack: self.stack, settings: self.settings })
 	}
 }
 
@@ -478,9 +446,9 @@ mod tests {
 			.quota_for(Method::POST, q1m())
 			.finish()
 			.unwrap();
-		assert_eq!(cfg.quota_methods.len(), 2);
-		assert_eq!(cfg.quota_methods[0].0, Method::GET);
-		assert_eq!(cfg.quota_methods[1].0, Method::POST);
+		assert_eq!(cfg.settings.quota_methods.len(), 2);
+		assert_eq!(cfg.settings.quota_methods[0].0, Method::GET);
+		assert_eq!(cfg.settings.quota_methods[1].0, Method::POST);
 	}
 
 	#[test]
@@ -534,7 +502,7 @@ mod tests {
 			.whitelist_methods([Method::OPTIONS, Method::HEAD])
 			.finish()
 			.unwrap();
-		assert_eq!(cfg.whitelist_methods, [Method::OPTIONS, Method::HEAD]);
+		assert_eq!(cfg.settings.whitelist_methods, [Method::OPTIONS, Method::HEAD]);
 	}
 
 	#[test]
@@ -544,7 +512,7 @@ mod tests {
 			.whitelist_paths(["/health", "/metrics"])
 			.finish()
 			.unwrap();
-		assert_eq!(cfg.whitelist_paths, ["/health", "/metrics"]);
+		assert_eq!(cfg.settings.whitelist_paths, ["/health", "/metrics"]);
 	}
 
 	#[test]
@@ -554,7 +522,7 @@ mod tests {
 			.whitelist_ips([net("127.0.0.0/8")])
 			.finish()
 			.unwrap();
-		assert_eq!(cfg.whitelist_ips, [net("127.0.0.0/8")]);
+		assert_eq!(cfg.settings.whitelist_ips, [net("127.0.0.0/8")]);
 	}
 
 	#[test]
@@ -564,21 +532,21 @@ mod tests {
 			.gc_interval(Duration::from_secs(30))
 			.finish()
 			.unwrap();
-		assert_eq!(cfg.gc_interval, Some(Duration::from_secs(30)));
+		assert_eq!(cfg.settings.gc_interval, Some(Duration::from_secs(30)));
 	}
 
 	#[test]
 	fn gc_disable_stored() {
 		let cfg =
 			GovernorConfigBuilder::default().with_extractor(Global).gc_disable().finish().unwrap();
-		assert!(cfg.gc_disabled);
+		assert!(cfg.settings.gc_disabled);
 	}
 
 	#[test]
 	fn max_keys_stored() {
 		let cfg =
 			GovernorConfigBuilder::default().with_extractor(Global).max_keys(50_000).finish().unwrap();
-		assert_eq!(cfg.max_keys, Some(50_000));
+		assert_eq!(cfg.settings.max_keys, Some(50_000));
 	}
 
 	#[test]
@@ -588,7 +556,7 @@ mod tests {
 			.body_preset(BodyPreset::Text)
 			.finish()
 			.unwrap();
-		assert_eq!(cfg.body_preset, BodyPreset::Text);
+		assert_eq!(cfg.settings.body_preset, BodyPreset::Text);
 	}
 
 	#[test]
@@ -598,27 +566,27 @@ mod tests {
 			.error_handler(|_| http::Response::new(axum::body::Body::empty()))
 			.finish()
 			.unwrap();
-		assert!(cfg.error_handler.is_some());
+		assert!(cfg.settings.error_handler.is_some());
 	}
 
 	#[test]
 	fn gc_interval_defaults_to_60s() {
 		let cfg = GovernorConfigBuilder::default().with_extractor(Global).finish().unwrap();
-		assert_eq!(cfg.gc_interval, Some(Duration::from_secs(60)));
-		assert!(!cfg.gc_disabled);
+		assert_eq!(cfg.settings.gc_interval, Some(Duration::from_secs(60)));
+		assert!(!cfg.settings.gc_disabled);
 	}
 
 	#[test]
 	fn legacy_reset_epoch_defaults_false_and_round_trips() {
 		let cfg = GovernorConfigBuilder::default().with_extractor(Global).finish().unwrap();
-		assert!(!cfg.legacy_reset_epoch);
+		assert!(!cfg.settings.legacy_reset_epoch);
 
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(Global)
 			.legacy_reset_epoch(true)
 			.finish()
 			.unwrap();
-		assert!(cfg.legacy_reset_epoch);
+		assert!(cfg.settings.legacy_reset_epoch);
 	}
 
 	// --- KeyExtractor::requires_connect_info ---
@@ -641,9 +609,9 @@ mod tests {
 	#[test]
 	fn redact_keys_default_false_and_round_trips() {
 		let cfg = GovernorConfigBuilder::default().with_extractor(Global).finish().unwrap();
-		assert!(!cfg.redact_keys);
+		assert!(!cfg.settings.redact_keys);
 		let cfg =
 			GovernorConfigBuilder::default().with_extractor(Global).redact_keys(true).finish().unwrap();
-		assert!(cfg.redact_keys);
+		assert!(cfg.settings.redact_keys);
 	}
 }
