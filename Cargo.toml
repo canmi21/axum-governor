@@ -4,7 +4,7 @@
 
 [package]
 name = "axum-governor"
-version = "2.0.7"
+version = "2.0.8"
 categories = ["network-programming", "web-programming"]
 edition = "2024"
 keywords = ["axum", "middleware", "ratelimit", "governor", "tower"]
