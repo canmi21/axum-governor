@@ -611,44 +611,27 @@ where
 
 #[cfg(test)]
 mod tests {
-	use std::convert::Infallible;
-	use std::net::SocketAddr;
-
-	use axum::extract::ConnectInfo;
 	use http::{Method, Request, Response, StatusCode, header::AUTHORIZATION};
 	use ipnet::IpNet;
-	use tower::ServiceExt as _;
 
-	use tower::Layer as _;
-
-	use super::*;
 	use crate::builder::GovernorConfigBuilder;
 	use crate::extractor::{
-		AsyncExtractFuture, AsyncKeyExtractor, Global, Header, KeyOutcome, PeerIp,
+		AsyncExtractFuture, AsyncKeyExtractor, Global, Header, KeyExtractor, KeyOutcome, PeerIp,
 	};
 	use crate::layer::GovernorLayer;
+	use crate::test_utils::{drive_response, request, request_with_peer};
 	use crate::{Quota, nz};
 
-	fn ok_inner() -> impl tower::Service<
-		Request<axum::body::Body>,
-		Response = Response<axum::body::Body>,
-		Error = Infallible,
-		Future = impl Future<Output = Result<Response<axum::body::Body>, Infallible>>,
-	> + Clone {
-		tower::service_fn(|_req: Request<axum::body::Body>| async {
-			Ok::<_, Infallible>(Response::builder().status(200).body(axum::body::Body::empty()).unwrap())
-		})
-	}
-
 	fn req(method: Method, path: &str) -> Request<axum::body::Body> {
-		Request::builder().method(method).uri(path).body(axum::body::Body::empty()).unwrap()
+		request(method, path)
 	}
 
 	fn req_with_peer(method: Method, path: &str, peer: &str) -> Request<axum::body::Body> {
-		let addr: SocketAddr = peer.parse().unwrap();
-		let mut r = req(method, path);
-		r.extensions_mut().insert(ConnectInfo::<SocketAddr>(addr));
-		r
+		request_with_peer(method, path, peer.parse().unwrap())
+	}
+
+	fn policy_header(resp: &Response<axum::body::Body>) -> Option<&str> {
+		resp.headers().get("ratelimit-policy").map(|v| v.to_str().unwrap())
 	}
 
 	#[tokio::test]
@@ -660,18 +643,17 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// exhaust the single token
-		let r1 = svc.clone().oneshot(req(Method::POST, "/")).await.unwrap();
+		let r1 = drive_response(&layer, req(Method::POST, "/")).await;
 		assert_eq!(r1.status(), StatusCode::OK);
 
 		// confirm bucket is exhausted
-		let r2 = svc.clone().oneshot(req(Method::POST, "/")).await.unwrap();
+		let r2 = drive_response(&layer, req(Method::POST, "/")).await;
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 
 		// OPTIONS is whitelisted — must pass even though bucket is empty
-		let r3 = svc.clone().oneshot(req(Method::OPTIONS, "/")).await.unwrap();
+		let r3 = drive_response(&layer, req(Method::OPTIONS, "/")).await;
 		assert_eq!(r3.status(), StatusCode::OK);
 		assert!(r3.headers().get("ratelimit-policy").is_none());
 	}
@@ -685,13 +667,12 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// exhaust the bucket
-		let _ = svc.clone().oneshot(req(Method::GET, "/api")).await.unwrap();
+		let _ = drive_response(&layer, req(Method::GET, "/api")).await;
 
 		// whitelisted path passes even though bucket is empty
-		let r = svc.clone().oneshot(req(Method::GET, "/health")).await.unwrap();
+		let r = drive_response(&layer, req(Method::GET, "/health")).await;
 		assert_eq!(r.status(), StatusCode::OK);
 		assert!(r.headers().get("ratelimit-policy").is_none());
 	}
@@ -706,13 +687,12 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// exhaust the bucket from a non-whitelisted IP
-		let _ = svc.clone().oneshot(req_with_peer(Method::GET, "/", "1.2.3.4:1234")).await.unwrap();
+		let _ = drive_response(&layer, req_with_peer(Method::GET, "/", "1.2.3.4:1234")).await;
 
 		// localhost is whitelisted
-		let r = svc.clone().oneshot(req_with_peer(Method::GET, "/", "127.0.0.1:1234")).await.unwrap();
+		let r = drive_response(&layer, req_with_peer(Method::GET, "/", "127.0.0.1:1234")).await;
 		assert_eq!(r.status(), StatusCode::OK);
 		assert!(r.headers().get("ratelimit-policy").is_none());
 	}
@@ -725,9 +705,8 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
-		let r = svc.oneshot(req(Method::GET, "/")).await.unwrap();
+		let r = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r.status(), StatusCode::OK);
 		assert!(r.headers().get("ratelimit-policy").is_some());
 		assert!(r.headers().get("ratelimit").is_some());
@@ -744,14 +723,13 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// first request succeeds
-		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r1 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r1.status(), StatusCode::OK);
 
 		// second request is rejected
-		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r2 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 		assert!(r2.headers().get("retry-after").is_some());
 		assert!(r2.headers().get("ratelimit-policy").is_some());
@@ -770,10 +748,9 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// request has no ConnectInfo → PeerIp fails with MissingConnectInfo → 500
-		let r = svc.oneshot(req(Method::GET, "/")).await.unwrap();
+		let r = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r.status(), StatusCode::INTERNAL_SERVER_ERROR);
 		assert!(r.headers().get("ratelimit-policy").is_none());
 	}
@@ -787,9 +764,8 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
-		let r = svc.oneshot(req(Method::GET, "/")).await.unwrap();
+		let r = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r.status(), StatusCode::OK);
 
 		let reset_val: u64 =
@@ -809,13 +785,12 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// exhaust bucket
-		let _ = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let _ = drive_response(&layer, req(Method::GET, "/")).await;
 
 		// second request triggers handler
-		let r = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r.status(), StatusCode::from_u16(418).unwrap());
 		// rate-limit headers are still injected on top of the custom response
 		assert!(r.headers().get("ratelimit-policy").is_some());
@@ -834,22 +809,21 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// First GET passes.
-		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r1 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r1.status(), StatusCode::OK);
 
 		// Second GET is rejected.
-		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r2 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 
 		// POST uses default quota (100/s) — passes.
-		let r3 = svc.clone().oneshot(req(Method::POST, "/")).await.unwrap();
+		let r3 = drive_response(&layer, req(Method::POST, "/")).await;
 		assert_eq!(r3.status(), StatusCode::OK);
 
 		// GET still rejected.
-		let r4 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r4 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r4.status(), StatusCode::TOO_MANY_REQUESTS);
 	}
 
@@ -864,14 +838,13 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// First request passes.
-		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r1 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r1.status(), StatusCode::OK);
 
 		// Second: peer (1/s) exhausted — 429.
-		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r2 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 
 		// RateLimit: header names the triggering entry.
@@ -897,14 +870,13 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// First request passes.
-		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r1 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r1.status(), StatusCode::OK);
 
 		// Second request: peer:1s exhausted → 429.
-		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r2 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 
 		// Policy header lists both windows.
@@ -913,21 +885,20 @@ mod tests {
 		assert!(policy.contains("\"peer:1m\""), "expected peer:1m in policy, got: {policy}");
 	}
 
+	#[derive(Clone)]
+	struct TierExtractor;
+	impl KeyExtractor for TierExtractor {
+		type Key = ();
+		fn extract(
+			&self,
+			_parts: &http::request::Parts,
+		) -> Result<KeyOutcome<()>, crate::ExtractionError> {
+			Ok(KeyOutcome { key: (), quota_override: Some(Quota::requests_per_second(nz!(100u32))) })
+		}
+	}
+
 	#[tokio::test]
 	async fn per_tier_quota_override_admits_burst() {
-		use crate::extractor::KeyExtractor;
-		use http::request::Parts;
-
-		// Extractor returns quota_override = Some(100/s), bypassing the default 1/s.
-		#[derive(Clone)]
-		struct TierExtractor;
-		impl KeyExtractor for TierExtractor {
-			type Key = ();
-			fn extract(&self, _parts: &Parts) -> Result<KeyOutcome<()>, crate::ExtractionError> {
-				Ok(KeyOutcome { key: (), quota_override: Some(Quota::requests_per_second(nz!(100u32))) })
-			}
-		}
-
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(TierExtractor)
 			// Default very tight; override allows more.
@@ -935,12 +906,11 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// With default 1/s the second would fail; with override 100/s it passes.
-		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r1 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r1.status(), StatusCode::OK);
-		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r2 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r2.status(), StatusCode::OK, "override quota should admit second request");
 	}
 
@@ -964,14 +934,13 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// First request: 200.
-		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r1 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r1.status(), StatusCode::OK);
 
 		// Second request: 429.
-		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r2 = drive_response(&layer, req(Method::GET, "/")).await;
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 	}
 
@@ -987,7 +956,6 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		let make_req = || {
 			Request::builder()
@@ -999,11 +967,11 @@ mod tests {
 		};
 
 		// First request passes.
-		let r1 = svc.clone().oneshot(make_req()).await.unwrap();
+		let r1 = drive_response(&layer, make_req()).await;
 		assert_eq!(r1.status(), StatusCode::OK);
 
 		// Second request: auth (1/s) exhausted → 429 naming "auth".
-		let r2 = svc.clone().oneshot(make_req()).await.unwrap();
+		let r2 = drive_response(&layer, make_req()).await;
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 		let rl = r2.headers().get("ratelimit").unwrap().to_str().unwrap();
 		assert!(rl.contains("\"auth\""), "expected 'auth' in RateLimit header, got: {rl}");
@@ -1022,10 +990,9 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		for ip in ["1.1.1.1:1", "2.2.2.2:1", "3.3.3.3:1"] {
-			let r = svc.clone().oneshot(req_with_peer(Method::GET, "/", ip)).await.unwrap();
+			let r = drive_response(&layer, req_with_peer(Method::GET, "/", ip)).await;
 			assert_eq!(r.status(), StatusCode::OK);
 		}
 
@@ -1051,6 +1018,106 @@ mod tests {
 		assert_eq!(s.len(), "hash:".len() + 16);
 	}
 
+	#[tokio::test]
+	async fn tier_override_renders_its_own_quota_in_the_policy_header() {
+		// The precomputed "default" policy header carries the default quota; a tier
+		// override must fall back to inline rendering so the header tells the truth.
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(TierExtractor)
+			.quota_default(Quota::requests_per_second(nz!(1u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+
+		let r = drive_response(&layer, req(Method::GET, "/")).await;
+		assert_eq!(r.status(), StatusCode::OK);
+		assert_eq!(policy_header(&r), Some("\"default\";q=100;w=1"));
+		assert_eq!(r.headers()["x-ratelimit-limit"], "100");
+	}
+
+	#[tokio::test]
+	async fn stack_only_admit_names_the_first_entry() {
+		// No primary quota: the RateLimit: header still has to name one policy, and the
+		// first advertised stack entry is the one a client would want to pace against.
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.stack("peer", Global, Quota::requests_per_second(nz!(10u32)))
+			.stack("auth", Global, Quota::requests_per_minute(nz!(600u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+
+		let r = drive_response(&layer, req(Method::GET, "/")).await;
+		assert_eq!(r.status(), StatusCode::OK);
+		let rl = r.headers()["ratelimit"].to_str().unwrap();
+		assert!(rl.starts_with("\"peer\";r=9;"), "got {rl}");
+		assert_eq!(policy_header(&r), Some("\"peer\";q=10;w=1, \"auth\";q=600;w=60"));
+	}
+
+	#[tokio::test]
+	async fn stack_extraction_failure_rejects_with_extraction_status() {
+		// A stack entry whose extractor fails is a request problem, not a quota problem:
+		// 400 for a missing header, and no rate-limit headers because nothing was counted.
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.quota_default(Quota::requests_per_second(nz!(10u32)))
+			.stack("auth", Header(&AUTHORIZATION), Quota::requests_per_second(nz!(10u32)))
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+
+		let r = drive_response(&layer, req(Method::GET, "/")).await;
+		assert_eq!(r.status(), StatusCode::BAD_REQUEST);
+		assert!(policy_header(&r).is_none());
+	}
+
+	#[tokio::test]
+	async fn error_handler_sees_key_extraction_failed() {
+		use std::sync::Mutex;
+		use std::sync::Arc;
+
+		let seen: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
+		let sink = Arc::clone(&seen);
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(PeerIp::default())
+			.expect_connect_info()
+			.quota_default(Quota::requests_per_second(nz!(10u32)))
+			.error_handler(move |reason| {
+				*sink.lock().unwrap() = Some(format!("{reason:?}"));
+				Response::builder().status(503).body(axum::body::Body::empty()).unwrap()
+			})
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+
+		let r = drive_response(&layer, req(Method::GET, "/")).await;
+		assert_eq!(r.status(), StatusCode::SERVICE_UNAVAILABLE);
+		let seen = seen.lock().unwrap().clone().expect("handler was called");
+		assert!(seen.contains("KeyExtractionFailed(MissingConnectInfo)"), "got {seen}");
+	}
+
+	#[tokio::test]
+	async fn whitelist_ip_is_judged_on_the_peer_not_forwarded_headers() {
+		// The whitelist runs before extraction and only ever sees ConnectInfo, so an
+		// X-Forwarded-For naming a whitelisted address must not bypass the limiter.
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.quota_default(Quota::requests_per_second(nz!(1u32)))
+			.whitelist_ips(["127.0.0.0/8".parse::<IpNet>().unwrap()])
+			.finish()
+			.unwrap();
+		let layer = GovernorLayer::new(cfg);
+
+		let spoofed = || {
+			let mut r = req_with_peer(Method::GET, "/", "8.8.8.8:1");
+			r.headers_mut().insert("x-forwarded-for", "127.0.0.1".parse().unwrap());
+			r
+		};
+		drive_response(&layer, spoofed()).await;
+		let r = drive_response(&layer, spoofed()).await;
+		assert_eq!(r.status(), StatusCode::TOO_MANY_REQUESTS);
+	}
+
 	#[cfg(feature = "tracing")]
 	#[tokio::test]
 	async fn tracing_smoke_compiles_and_runs() {
@@ -1060,8 +1127,7 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
-		let _ = svc.clone().oneshot(req(Method::GET, "/")).await;
-		let _ = svc.clone().oneshot(req(Method::GET, "/")).await;
+		drive_response(&layer, req(Method::GET, "/")).await;
+		drive_response(&layer, req(Method::GET, "/")).await;
 	}
 }

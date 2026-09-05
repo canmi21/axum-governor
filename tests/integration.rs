@@ -1,23 +1,17 @@
-// Integration tests run only with --features test-utils.
-// To include these in the test suite: cargo nextest run --features test-utils
-
-use std::net::SocketAddr;
+// Through a real axum Router, so what is asserted is what a client sees. Needs the
+// `test-utils` feature, which `mise run verify` turns on.
 
 use axum::Router;
-use axum::extract::ConnectInfo;
 use axum::routing::get;
 use http::header::AUTHORIZATION;
 use http::{Method, Request, StatusCode};
 use tower::{Layer as _, ServiceExt as _};
 
 use axum_governor::extractor::{Global, Header, PeerIp};
+use axum_governor::test_utils::{request as req, request_with_peer};
 use axum_governor::{
 	BodyPreset, BoxedGovernorLayer, GovernorConfigBuilder, GovernorLayer, Quota, nz,
 };
-
-fn req(method: Method, path: &str) -> Request<axum::body::Body> {
-	Request::builder().method(method).uri(path).body(axum::body::Body::empty()).unwrap()
-}
 
 fn req_with_peer_and_auth(
 	method: Method,
@@ -25,14 +19,8 @@ fn req_with_peer_and_auth(
 	peer: &str,
 	token: &str,
 ) -> Request<axum::body::Body> {
-	let addr: SocketAddr = peer.parse().unwrap();
-	let mut r = Request::builder()
-		.method(method)
-		.uri(path)
-		.header(AUTHORIZATION, token)
-		.body(axum::body::Body::empty())
-		.unwrap();
-	r.extensions_mut().insert(ConnectInfo::<SocketAddr>(addr));
+	let mut r = request_with_peer(method, path, peer.parse().unwrap());
+	r.headers_mut().insert(AUTHORIZATION, token.parse().unwrap());
 	r
 }
 

@@ -73,6 +73,17 @@ mod tests {
 	}
 
 	#[test]
+	fn cookie_in_second_header_line_matched() {
+		let req = Request::builder()
+			.header("cookie", "foo=bar")
+			.header("cookie", "session=abc123")
+			.body(())
+			.unwrap();
+		let (parts, _) = req.into_parts();
+		assert_eq!(Cookie("session").extract(&parts).unwrap().key, "abc123");
+	}
+
+	#[test]
 	fn absent_cookie_returns_other() {
 		let (parts, _) = Request::new(()).into_parts();
 		assert!(matches!(Cookie("session").extract(&parts), Err(ExtractionError::Other(_))));

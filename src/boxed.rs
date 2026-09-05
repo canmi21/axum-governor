@@ -103,39 +103,15 @@ where
 
 #[cfg(test)]
 mod tests {
+	use std::net::SocketAddr;
+
+	use http::{Method, StatusCode};
+
 	use super::*;
 	use crate::builder::GovernorConfigBuilder;
 	use crate::extractor::{Global, PeerIp};
+	use crate::test_utils::{drive_boxed, drive_response, request};
 	use crate::{Quota, nz};
-	use axum::extract::ConnectInfo;
-	use http::{Method, Request, Response, StatusCode};
-	use std::convert::Infallible;
-	use std::net::SocketAddr;
-	use tower::{Layer as _, ServiceExt as _};
-
-	fn ok_inner() -> impl tower::Service<
-		Request<axum::body::Body>,
-		Response = Response<axum::body::Body>,
-		Error = Infallible,
-		Future = impl std::future::Future<Output = Result<Response<axum::body::Body>, Infallible>> + Send,
-	> + Clone
-	+ Send
-	+ 'static {
-		tower::service_fn(|_req: Request<axum::body::Body>| async {
-			Ok::<_, Infallible>(Response::builder().status(200).body(axum::body::Body::empty()).unwrap())
-		})
-	}
-
-	fn req_with_peer(method: Method, path: &str, peer: SocketAddr) -> Request<axum::body::Body> {
-		let mut r =
-			Request::builder().method(method).uri(path).body(axum::body::Body::empty()).unwrap();
-		r.extensions_mut().insert(ConnectInfo::<SocketAddr>(peer));
-		r
-	}
-
-	fn req(method: Method, path: &str) -> Request<axum::body::Body> {
-		Request::builder().method(method).uri(path).body(axum::body::Body::empty()).unwrap()
-	}
 
 	#[tokio::test]
 	async fn boxed_constructs_from_global_config_ok() {
@@ -148,6 +124,24 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn boxed_limiter_handle_reports_string_keys() {
+		let cfg = GovernorConfigBuilder::default()
+			.with_extractor(PeerIp::default())
+			.expect_connect_info()
+			.quota_default(Quota::requests_per_second(nz!(10u32)))
+			.finish()
+			.unwrap();
+		let layer = BoxedGovernorLayer::from_config(cfg);
+		let peer: SocketAddr = "9.9.9.9:1".parse().unwrap();
+		assert_eq!(drive_boxed(&layer, Method::GET, "/", Some(peer)).await, StatusCode::OK);
+
+		let snap = layer.limiter().snapshot();
+		assert_eq!(snap.key_count, 1);
+		// The erased key is the Debug form of the IpAddr, itself Debug-formatted as a String.
+		assert!(snap.top_n[0].0.contains("9.9.9.9"), "got {:?}", snap.top_n);
+	}
+
+	#[tokio::test]
 	async fn boxed_rate_limits_correctly() {
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(Global)
@@ -155,10 +149,9 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = BoxedGovernorLayer::from_config(cfg);
-		let svc = layer.layer(ok_inner());
-		let r1 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r1 = drive_response(&layer, request(Method::GET, "/")).await;
 		assert_eq!(r1.status(), StatusCode::OK);
-		let r2 = svc.clone().oneshot(req(Method::GET, "/")).await.unwrap();
+		let r2 = drive_response(&layer, request(Method::GET, "/")).await;
 		assert_eq!(r2.status(), StatusCode::TOO_MANY_REQUESTS);
 	}
 
@@ -171,14 +164,13 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = BoxedGovernorLayer::from_config(cfg);
-		let svc = layer.layer(ok_inner());
 		let peer_a: SocketAddr = "1.2.3.4:1234".parse().unwrap();
 		let peer_b: SocketAddr = "5.6.7.8:1234".parse().unwrap();
-		let r1 = svc.clone().oneshot(req_with_peer(Method::GET, "/", peer_a)).await.unwrap();
+		let r1 = drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_a)).await;
 		assert_eq!(r1.status(), StatusCode::OK);
-		let r2 = svc.clone().oneshot(req_with_peer(Method::GET, "/", peer_b)).await.unwrap();
+		let r2 = drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_b)).await;
 		assert_eq!(r2.status(), StatusCode::OK);
-		let r3 = svc.clone().oneshot(req_with_peer(Method::GET, "/", peer_a)).await.unwrap();
+		let r3 = drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_a)).await;
 		assert_eq!(r3.status(), StatusCode::TOO_MANY_REQUESTS);
 	}
 }

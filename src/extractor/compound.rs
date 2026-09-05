@@ -47,6 +47,27 @@ mod tests {
 	}
 
 	#[test]
+	fn a_override_wins_over_b() {
+		use crate::{Quota, nz};
+
+		struct Fixed(Option<Quota>);
+		impl KeyExtractor for Fixed {
+			type Key = ();
+			fn extract(&self, _parts: &Parts) -> Result<KeyOutcome<()>, ExtractionError> {
+				Ok(KeyOutcome { key: (), quota_override: self.0 })
+			}
+		}
+
+		let a = Quota::requests_per_second(nz!(1u32));
+		let b = Quota::requests_per_second(nz!(2u32));
+		let (parts, _) = Request::new(()).into_parts();
+		let both = Compound(Fixed(Some(a)), Fixed(Some(b))).extract(&parts).unwrap();
+		assert_eq!(both.quota_override, Some(a));
+		let only_b = Compound(Fixed(None), Fixed(Some(b))).extract(&parts).unwrap();
+		assert_eq!(only_b.quota_override, Some(b));
+	}
+
+	#[test]
 	fn a_fails_returns_a_error() {
 		let (parts, _) = Request::new(()).into_parts();
 		assert!(matches!(

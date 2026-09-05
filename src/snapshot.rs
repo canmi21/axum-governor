@@ -93,40 +93,20 @@ where
 
 #[cfg(test)]
 mod tests {
-	use std::convert::Infallible;
-	use std::future::Future;
-	use std::net::SocketAddr;
-
-	use axum::extract::ConnectInfo;
-	use http::{Method, Request, Response};
-	use tower::Layer as _;
-	use tower::ServiceExt as _;
+	use http::Method;
 
 	use crate::builder::GovernorConfigBuilder;
 	use crate::extractor::{Global, PeerIp};
 	use crate::layer::GovernorLayer;
+	use crate::test_utils::{drive_response, request, request_with_peer};
 	use crate::{Quota, nz};
 
-	fn ok_inner() -> impl tower::Service<
-		Request<axum::body::Body>,
-		Response = Response<axum::body::Body>,
-		Error = Infallible,
-		Future = impl Future<Output = Result<Response<axum::body::Body>, Infallible>>,
-	> + Clone {
-		tower::service_fn(|_req: Request<axum::body::Body>| async {
-			Ok::<_, Infallible>(Response::builder().status(200).body(axum::body::Body::empty()).unwrap())
-		})
+	fn req(method: Method, path: &str) -> http::Request<axum::body::Body> {
+		request(method, path)
 	}
 
-	fn req(method: Method, path: &str) -> Request<axum::body::Body> {
-		Request::builder().method(method).uri(path).body(axum::body::Body::empty()).unwrap()
-	}
-
-	fn req_with_peer(method: Method, path: &str, peer: &str) -> Request<axum::body::Body> {
-		let addr: SocketAddr = peer.parse().unwrap();
-		let mut r = req(method, path);
-		r.extensions_mut().insert(ConnectInfo::<SocketAddr>(addr));
-		r
+	fn req_with_peer(method: Method, path: &str, peer: &str) -> http::Request<axum::body::Body> {
+		request_with_peer(method, path, peer.parse().unwrap())
 	}
 
 	#[tokio::test]
@@ -137,9 +117,8 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
-		let _ = svc.oneshot(req(Method::GET, "/")).await.unwrap();
+		drive_response(&layer, req(Method::GET, "/")).await;
 
 		let snap = layer.limiter().snapshot();
 		assert!(snap.key_count >= 1, "expected at least one key, got {}", snap.key_count);
@@ -157,11 +136,10 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
-		let _ = svc.clone().oneshot(req_with_peer(Method::GET, "/", "1.2.3.4:1234")).await.unwrap();
-		let _ = svc.clone().oneshot(req_with_peer(Method::GET, "/", "5.6.7.8:1234")).await.unwrap();
-		let _ = svc.clone().oneshot(req_with_peer(Method::GET, "/", "9.10.11.12:1234")).await.unwrap();
+		drive_response(&layer, req_with_peer(Method::GET, "/", "1.2.3.4:1234")).await;
+		drive_response(&layer, req_with_peer(Method::GET, "/", "5.6.7.8:1234")).await;
+		drive_response(&layer, req_with_peer(Method::GET, "/", "9.10.11.12:1234")).await;
 
 		let snap = layer.limiter().snapshot();
 		assert_eq!(snap.key_count, 3, "expected 3 distinct IP keys, got {}", snap.key_count);
@@ -178,21 +156,24 @@ mod tests {
 			.finish()
 			.unwrap();
 		let layer = GovernorLayer::new(cfg);
-		let svc = layer.layer(ok_inner());
 
 		// 5x ip1, 2x ip2, 1x ip3 — top should be ip1 then ip2 then ip3.
 		for _ in 0..5 {
-			let _ = svc.clone().oneshot(req_with_peer(Method::GET, "/", "1.1.1.1:1")).await.unwrap();
+			drive_response(&layer, req_with_peer(Method::GET, "/", "1.1.1.1:1")).await;
 		}
 		for _ in 0..2 {
-			let _ = svc.clone().oneshot(req_with_peer(Method::GET, "/", "2.2.2.2:1")).await.unwrap();
+			drive_response(&layer, req_with_peer(Method::GET, "/", "2.2.2.2:1")).await;
 		}
-		let _ = svc.clone().oneshot(req_with_peer(Method::GET, "/", "3.3.3.3:1")).await.unwrap();
+		drive_response(&layer, req_with_peer(Method::GET, "/", "3.3.3.3:1")).await;
 
 		let snap = layer.limiter().snapshot();
 		assert!(snap.top_n.len() >= 3);
 		assert_eq!(snap.top_n[0].1, 5);
 		assert_eq!(snap.top_n[1].1, 2);
 		assert_eq!(snap.top_n[2].1, 1);
+
+		let two = layer.limiter().snapshot_top_n(2);
+		assert_eq!(two.top_n.len(), 2);
+		assert_eq!(two.key_count, snap.key_count, "top_n size must not change the key count");
 	}
 }
