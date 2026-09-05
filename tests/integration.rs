@@ -40,10 +40,6 @@ async fn handler() -> &'static str {
 	"ok"
 }
 
-// ---------------------------------------------------------------------------
-// Test 1: basic admit/reject with byte-level header verification
-// ---------------------------------------------------------------------------
-
 #[tokio::test]
 async fn admit_then_reject_through_router() {
 	let cfg = GovernorConfigBuilder::default()
@@ -66,10 +62,6 @@ async fn admit_then_reject_through_router() {
 	assert_eq!(r2.headers().get("x-ratelimit-remaining").unwrap(), "0");
 }
 
-// ---------------------------------------------------------------------------
-// Test 2: ConnectInfo missing returns 500 when PeerIp is the extractor
-// ---------------------------------------------------------------------------
-
 #[tokio::test]
 async fn connect_info_missing_returns_500_through_router() {
 	let cfg = GovernorConfigBuilder::default()
@@ -90,10 +82,6 @@ async fn connect_info_missing_returns_500_through_router() {
 	let body = std::str::from_utf8(&bytes).unwrap().to_lowercase();
 	assert!(body.contains("connect"), "body: {body}");
 }
-
-// ---------------------------------------------------------------------------
-// Test 3: problem+json 429 body round-trips correctly via serde_json
-// ---------------------------------------------------------------------------
 
 #[tokio::test]
 async fn problem_json_reject_body_round_trips() {
@@ -124,10 +112,6 @@ async fn problem_json_reject_body_round_trips() {
 	assert!(detail.contains("retry"), "detail: {detail}");
 }
 
-// ---------------------------------------------------------------------------
-// Test 4: BoxedGovernorLayer stored in an AppState pattern (Clone, no Arc)
-// ---------------------------------------------------------------------------
-
 #[derive(Clone)]
 struct AppState {
 	rate_limit: BoxedGovernorLayer,
@@ -146,10 +130,6 @@ async fn boxed_layer_in_app_state_pattern() {
 	assert_eq!(r.status(), StatusCode::OK);
 }
 
-// ---------------------------------------------------------------------------
-// Test 5: test_utils::drive works from outside-the-crate code
-// ---------------------------------------------------------------------------
-
 #[tokio::test]
 async fn drive_helper_works_from_outside_crate() {
 	use axum_governor::test_utils::drive;
@@ -165,10 +145,6 @@ async fn drive_helper_works_from_outside_crate() {
 	let s2 = drive(&layer, Method::GET, "/", None).await;
 	assert_eq!(s2, StatusCode::TOO_MANY_REQUESTS);
 }
-
-// ---------------------------------------------------------------------------
-// Test 6: stacked reject emits correct policy in ratelimit header
-// ---------------------------------------------------------------------------
 
 #[tokio::test]
 async fn stacked_reject_emits_correct_policy_in_ratelimit_header() {

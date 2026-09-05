@@ -8,10 +8,6 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-// ---------------------------------------------------------------------------
-// Tracing helpers (feature-gated)
-// ---------------------------------------------------------------------------
-
 #[cfg(feature = "tracing")]
 fn span_for(method: &http::Method, path: &str) -> tracing::Span {
 	tracing::debug_span!(target: "axum_governor::layer",
@@ -121,10 +117,6 @@ where
 		}
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Sync dispatch
-// ---------------------------------------------------------------------------
 
 fn call_sync<S, K, ReqBody>(
 	inner: &mut S,
@@ -271,10 +263,6 @@ where
 	GovernorFuture::admit(inner.call(req), headers)
 }
 
-// ---------------------------------------------------------------------------
-// Async dispatch
-// ---------------------------------------------------------------------------
-
 fn call_async_dispatch<S, K, ReqBody>(
 	shared: Arc<LimiterShared<K>>,
 	mut inner: S,
@@ -420,10 +408,6 @@ where
 
 	GovernorFuture { state: GovernorFutureState::Boxed { fut: Some(fut) } }
 }
-
-// ---------------------------------------------------------------------------
-// Helper types and functions
-// ---------------------------------------------------------------------------
 
 enum LimiterOutcome {
 	Admit { remaining: u32 },
@@ -709,10 +693,6 @@ fn build_base_response<K>(
 	}
 }
 
-// ---------------------------------------------------------------------------
-// GovernorFuture constructors and Future impl
-// ---------------------------------------------------------------------------
-
 impl<F, E> GovernorFuture<F, E> {
 	fn admit(inner: F, headers: HeaderMap) -> Self {
 		Self { state: GovernorFutureState::Admit { inner, headers: Some(headers) } }
@@ -973,8 +953,6 @@ mod tests {
 		let body_bytes = axum::body::to_bytes(r.into_body(), usize::MAX).await.unwrap();
 		assert!(body_bytes.starts_with(b"custom-body"));
 	}
-
-	// Stage 6b tests
 
 	#[tokio::test]
 	async fn per_method_quota_get_exhausted_post_passes() {

@@ -6,10 +6,6 @@ use crate::builder::{ExtractorSlot, GovernorConfig};
 use crate::extractor::{AsyncExtractFuture, AsyncKeyExtractor, KeyExtractor, KeyOutcome};
 use crate::layer::GovernorLayer;
 
-// ---------------------------------------------------------------------------
-// Sync adapter
-// ---------------------------------------------------------------------------
-
 struct StringKeyAdapter<K> {
 	inner: Arc<dyn KeyExtractor<Key = K>>,
 }
@@ -33,10 +29,6 @@ where
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Async adapter
-// ---------------------------------------------------------------------------
-
 struct AsyncStringKeyAdapter<K> {
 	inner: Arc<dyn AsyncKeyExtractor<Key = K>>,
 }
@@ -55,10 +47,6 @@ where
 		})
 	}
 }
-
-// ---------------------------------------------------------------------------
-// BoxedGovernorLayer
-// ---------------------------------------------------------------------------
 
 /// A type-erased wrapper around `GovernorLayer<String>`.
 ///
@@ -127,10 +115,6 @@ where
 		self.inner.layer(inner)
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

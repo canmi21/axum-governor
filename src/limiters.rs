@@ -1,11 +1,9 @@
-//! Per-request limiter primitives: StackedRunner, LimiterCache, and StackEntryFactory.
+//! Per-request limiter primitives: `StackedRunner`, `LimiterCache`, and `StackEntryFactory`.
 //!
-//! Structural choice (option a): the builder constructs stack entries immediately at
-//! stack()/quotas() call time for the factory objects, and the actual RateLimiter is
-//! constructed when Layer::new() is called (via StackEntryFactory::build()). This
-//! avoids storing `Arc<dyn ErasedSyncExtractor>` and re-extracting the key type at build
-//! time, keeping type information alive through the factory pattern until the moment the
-//! layer is finalized.
+//! The builder stores a typed factory per stack entry and the `RateLimiter` is only built
+//! inside `GovernorLayer::new`. Building eagerly would force the builder to hold a
+//! type-erased extractor and recover `E::Key` later; the factory keeps the key type until
+//! the layer is finalized.
 
 use std::hash::Hash;
 use std::sync::Arc;
@@ -18,20 +16,12 @@ use crate::extractor::KeyExtractor;
 use crate::layer::KeyedRateLimiter;
 use crate::tracker::{EvictionReason, KeyTracker};
 
-// ---------------------------------------------------------------------------
-// StackedResult
-// ---------------------------------------------------------------------------
-
 /// Outcome of checking one stacked limiter entry.
 pub(crate) enum StackedResult {
 	Admit { remaining: u32 },
 	Reject { wait: Duration, key_repr: String },
 	ExtractionFailed(crate::ExtractionError),
 }
-
-// ---------------------------------------------------------------------------
-// StackedRunner
-// ---------------------------------------------------------------------------
 
 /// Object-safe trait for one entry in the ordered stack of limiters.
 ///
@@ -46,10 +36,6 @@ pub(crate) trait StackedRunner: Send + Sync + 'static {
 	fn len(&self) -> usize;
 	fn top_n(&self, n: usize) -> Vec<(String, u64)>;
 }
-
-// ---------------------------------------------------------------------------
-// StackedEntry<E>
-// ---------------------------------------------------------------------------
 
 /// Concrete implementation of `StackedRunner` for a given `KeyExtractor`.
 pub(crate) struct StackedEntry<E: KeyExtractor> {
@@ -118,10 +104,6 @@ fn emit_eviction_warn(name: &str) {
 #[cfg(not(feature = "tracing"))]
 fn emit_eviction_warn(_name: &str) {}
 
-// ---------------------------------------------------------------------------
-// StackEntryFactory
-// ---------------------------------------------------------------------------
-
 /// Type-erased factory that builds one `Box<dyn StackedRunner>` when the Layer is
 /// finalized. The builder stores `Vec<Box<dyn StackEntryFactory>>` and calls `build()`
 /// inside `Layer::new()`.
@@ -151,15 +133,11 @@ impl<E: KeyExtractor> StackEntryFactory for TypedStackFactory<E> {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// LimiterCache<K>
-// ---------------------------------------------------------------------------
-//
-// limitation: state stores are NOT shared across cached limiters.  A user
-// upgrading tier mid-session gets a fresh bucket keyed on the new quota.  This
-// is acceptable because the key itself stays the same; only the quota wrapper
-// changes, and the new limiter starts with a full burst for the new tier.
-
+/// Per-quota limiter cache for tier overrides.
+///
+/// State is not shared across quotas: a key that changes tier mid-session starts a fresh
+/// bucket with a full burst for the new quota. Acceptable because the key itself is
+/// unchanged and only the wrapper differs.
 #[cfg(feature = "dashmap")]
 pub(crate) struct LimiterCache<K>
 where
