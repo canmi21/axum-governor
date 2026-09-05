@@ -111,6 +111,12 @@ where
 		crate::snapshot::LimiterHandle { shared: Arc::clone(&self.shared) }
 	}
 
+	/// Build the limiters described by `config` and start the background GC task.
+	///
+	/// Every `Service` produced by this layer shares one set of limiters, so construct
+	/// the layer once per process and clone it; a layer per request is a limiter per
+	/// request, which limits nothing. The GC task needs a Tokio runtime to be current;
+	/// without one it is skipped, which only ever happens in synchronous tests.
 	pub fn new(config: GovernorConfig<K>) -> Self {
 		let GovernorConfig { extractor, stack, settings } = config;
 		let max_keys = settings.max_keys;

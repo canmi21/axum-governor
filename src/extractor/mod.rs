@@ -16,6 +16,21 @@ pub struct KeyOutcome<K> {
 	pub quota_override: Option<crate::Quota>,
 }
 
+impl<K> KeyOutcome<K> {
+	/// A key that uses whatever quota the layer would otherwise apply.
+	pub const fn new(key: K) -> Self {
+		Self { key, quota_override: None }
+	}
+
+	/// Replace the layer's quota for this request only; the usual shape for "this
+	/// caller is on a paid tier".
+	#[must_use]
+	pub const fn with_quota_override(mut self, quota: crate::Quota) -> Self {
+		self.quota_override = Some(quota);
+		self
+	}
+}
+
 /// Synchronous key extractor. Object-safe; the layer holds
 /// `Arc<dyn KeyExtractor<Key = K>>`.
 pub trait KeyExtractor: Send + Sync + 'static {

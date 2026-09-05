@@ -8,6 +8,17 @@ use super::{ExtractionError, KeyExtractor, KeyOutcome};
 /// Extracts a named header value as the rate-limit key.
 ///
 /// Missing headers return `MissingHeader`; non-UTF-8 values return `MalformedHeader`.
+///
+/// The name is a `&'static HeaderName` so the error can carry it without allocating.
+/// The constants in `http::header` qualify directly; a custom header needs a `static`:
+///
+/// ```rust
+/// use axum_governor::extractor::Header;
+/// use http::HeaderName;
+///
+/// static API_KEY: HeaderName = HeaderName::from_static("x-api-key");
+/// let by_api_key = Header(&API_KEY);
+/// ```
 #[derive(Clone, Copy, Debug)]
 pub struct Header(pub &'static HeaderName);
 

@@ -38,6 +38,7 @@ impl<K> LimiterHandle<K>
 where
 	K: std::hash::Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 {
+	/// Point-in-time view of the limiter state with the ten hottest keys.
 	pub fn snapshot(&self) -> LimiterSnapshot {
 		self.snapshot_top_n(10)
 	}

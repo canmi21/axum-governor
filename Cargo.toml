@@ -44,3 +44,12 @@ tower = { version = "0.5", features = ["util"] }
 [[test]]
 name = "integration"
 required-features = ["test-utils"]
+
+# Both use serde_json, which only ships with the `json` feature.
+[[example]]
+name = "app_state"
+required-features = ["json"]
+
+[[example]]
+name = "proxy"
+required-features = ["json"]
