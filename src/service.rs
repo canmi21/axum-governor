@@ -46,7 +46,8 @@ use http::{HeaderMap, HeaderName, Request, Response};
 use pin_project_lite::pin_project;
 
 use crate::Quota;
-use crate::builder::ExtractorSlot;
+use crate::builder::{ExtractorSlot, Settings};
+use crate::extractor::KeyOutcome;
 use crate::error::RejectionReason;
 use crate::headers::{
 	PolicyDescriptor, render_policy_value, write_ietf_rate_limit, write_legacy_rate_limit,
@@ -124,143 +125,30 @@ fn call_sync<S, K, ReqBody>(
 	req: Request<ReqBody>,
 ) -> GovernorFuture<S::Future, S::Error>
 where
-	S: tower::Service<Request<ReqBody>, Response = Response<axum::body::Body>>
-		+ Clone
-		+ Send
-		+ 'static,
-	S::Future: Send + 'static,
+	S: tower::Service<Request<ReqBody>, Response = Response<axum::body::Body>>,
 	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
-	ReqBody: Send + 'static,
 {
 	let (parts, body) = req.into_parts();
 
 	#[cfg(feature = "tracing")]
 	let _span_guard = span_for(&parts.method, parts.uri.path()).entered();
 
-	let cfg = &shared.settings;
-
-	// 1. Whitelist precedence — any hit bypasses the limiter with no header injection.
-	if cfg.whitelist_methods.contains(&parts.method)
-		|| cfg.whitelist_paths.iter().any(|p| crate::glob::path_matches(p, parts.uri.path()))
-		|| peer_ip_from(&parts).is_some_and(|ip| cfg.whitelist_ips.iter().any(|n| n.contains(&ip)))
-	{
-		let req = Request::from_parts(parts, body);
-		return GovernorFuture::admit(inner.call(req), HeaderMap::new());
+	if is_whitelisted(&shared.settings, &parts) {
+		return GovernorFuture::admit(inner.call(Request::from_parts(parts, body)), HeaderMap::new());
 	}
 
-	// 2. Extract rate-limit key.
 	let outcome = match &shared.extractor {
 		ExtractorSlot::Sync(e) => e.extract(&parts),
 		ExtractorSlot::Async(_) => unreachable!("call_sync dispatched for sync extractor only"),
 		ExtractorSlot::None => unreachable!("guarded at GovernorConfigBuilder::finish"),
 	};
-	let outcome = match outcome {
-		Ok(o) => o,
-		Err(err) => {
-			emit_extraction_failed_event(&err);
-			let reason = RejectionReason::KeyExtractionFailed(err);
-			return GovernorFuture::reject(build_reject_no_headers(cfg, reason));
-		}
-	};
 
-	let dispatch = pick_primary(shared, &parts.method, outcome.quota_override);
-	let primary_result = dispatch.as_ref().map(|d| d.run(&outcome.key));
-
-	let active_quota: Option<Quota> = dispatch.as_ref().map(|d| d.quota);
-
-	if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
-		let key_repr = crate::util::format_key(&outcome.key, cfg.redact_keys);
-		emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
-		let policy_entry = pick_policy_entry(shared, &parts.method, outcome.quota_override.is_some());
-		let label = Arc::clone(&shared.default_label);
-		let reason = RejectionReason::QuotaExceeded {
-			wait,
-			snapshot: synthetic_snapshot(quota),
-			key: Box::new(outcome.key.clone()) as Box<dyn std::any::Any + Send>,
-			policy_name: Arc::clone(&label),
-		};
-		return GovernorFuture::reject(build_reject_response(
-			cfg,
-			quota,
-			wait,
-			reason,
-			&label,
-			policy_entry,
-			shared,
-		));
-	}
-
-	let primary_remaining = primary_result.as_ref().and_then(|r| {
-		if let LimiterOutcome::Admit { remaining } = r { Some(*remaining) } else { None }
-	});
-
-	// 4. Walk the stack in order; first reject wins.
-	let policy_entry = pick_policy_entry(shared, &parts.method, outcome.quota_override.is_some());
-	let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
-
-	for entry in shared.stack.iter() {
-		match entry.check(&parts, cfg.redact_keys) {
-			StackedResult::ExtractionFailed(err) => {
-				emit_extraction_failed_event(&err);
-				let reason = RejectionReason::KeyExtractionFailed(err);
-				return GovernorFuture::reject(build_reject_no_headers(cfg, reason));
-			}
-			StackedResult::Reject { wait, key_repr } => {
-				let quota = entry.quota();
-				let name = entry.name_arc();
-				emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), &name);
-				let reason = RejectionReason::QuotaExceeded {
-					wait,
-					snapshot: synthetic_snapshot(quota),
-					key: Box::new(()) as Box<dyn std::any::Any + Send>,
-					policy_name: Arc::clone(&name),
-				};
-				return GovernorFuture::reject(build_reject_response(
-					cfg,
-					quota,
-					wait,
-					reason,
-					&name,
-					policy_entry,
-					shared,
-				));
-			}
-			StackedResult::Admit { remaining } => {
-				if remaining < lowest_remaining {
-					lowest_remaining = remaining;
-				}
-			}
+	match decide(shared, &parts, outcome) {
+		Decision::Reject(response) => GovernorFuture::reject(response),
+		Decision::Admit(headers) => {
+			GovernorFuture::admit(inner.call(Request::from_parts(parts, body)), headers)
 		}
 	}
-
-	// 5. Everything admitted.
-	if dispatch.is_none() && shared.stack.is_empty() {
-		let req = Request::from_parts(parts, body);
-		return GovernorFuture::admit(inner.call(req), HeaderMap::new());
-	}
-
-	let (admit_quota, admit_name) = if let Some(q) = active_quota {
-		(q, Arc::clone(&shared.default_label))
-	} else if let Some(entry) = policy_entry.as_ref().filter(|e| !e.descriptors.is_empty()) {
-		let first = &entry.descriptors[0];
-		(first.quota, Arc::clone(&first.name))
-	} else {
-		let req = Request::from_parts(parts, body);
-		return GovernorFuture::admit(inner.call(req), HeaderMap::new());
-	};
-
-	let final_remaining = if lowest_remaining == u32::MAX { 0 } else { lowest_remaining };
-	let headers = build_admit_headers(
-		cfg.legacy_reset_epoch,
-		admit_quota,
-		&admit_name,
-		final_remaining,
-		policy_entry,
-		shared,
-		outcome.quota_override,
-	);
-	let req = Request::from_parts(parts, body);
-	GovernorFuture::admit(inner.call(req), headers)
 }
 
 fn call_async_dispatch<S, K, ReqBody>(
@@ -269,10 +157,7 @@ fn call_async_dispatch<S, K, ReqBody>(
 	req: Request<ReqBody>,
 ) -> GovernorFuture<S::Future, S::Error>
 where
-	S: tower::Service<Request<ReqBody>, Response = Response<axum::body::Body>>
-		+ Clone
-		+ Send
-		+ 'static,
+	S: tower::Service<Request<ReqBody>, Response = Response<axum::body::Body>> + Send + 'static,
 	S::Future: Send + 'static,
 	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
 	ReqBody: Send + 'static,
@@ -285,117 +170,23 @@ where
 	let _async_span = span_for(&parts.method, parts.uri.path());
 
 	let inner_fut = async move {
-		let cfg = &shared.settings;
-
-		// 1. Whitelist check.
-		if cfg.whitelist_methods.contains(&parts.method)
-			|| cfg.whitelist_paths.iter().any(|p| crate::glob::path_matches(p, parts.uri.path()))
-			|| peer_ip_from(&parts).is_some_and(|ip| cfg.whitelist_ips.iter().any(|n| n.contains(&ip)))
-		{
-			let req = Request::from_parts(parts, body);
-			return inner.call(req).await;
+		if is_whitelisted(&shared.settings, &parts) {
+			return inner.call(Request::from_parts(parts, body)).await;
 		}
 
-		// 2. Extract key asynchronously.
 		let outcome = match &shared.extractor {
 			ExtractorSlot::Async(e) => e.extract(&parts).await,
 			_ => unreachable!("call_async_dispatch dispatched for async extractor only"),
 		};
-		let outcome = match outcome {
-			Ok(o) => o,
-			Err(err) => {
-				emit_extraction_failed_event(&err);
-				let reason = RejectionReason::KeyExtractionFailed(err);
-				return Ok(build_reject_no_headers(cfg, reason));
-			}
-		};
 
-		let dispatch = pick_primary(&shared, &parts.method, outcome.quota_override);
-		let primary_result = dispatch.as_ref().map(|d| d.run(&outcome.key));
-		let active_quota: Option<Quota> = dispatch.as_ref().map(|d| d.quota);
-
-		if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
-			let key_repr = crate::util::format_key(&outcome.key, cfg.redact_keys);
-			emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
-			let policy_entry =
-				pick_policy_entry(&shared, &parts.method, outcome.quota_override.is_some());
-			let label = Arc::clone(&shared.default_label);
-			let reason = RejectionReason::QuotaExceeded {
-				wait,
-				snapshot: synthetic_snapshot(quota),
-				key: Box::new(outcome.key.clone()) as Box<dyn std::any::Any + Send>,
-				policy_name: Arc::clone(&label),
-			};
-			return Ok(build_reject_response(cfg, quota, wait, reason, &label, policy_entry, &shared));
-		}
-
-		let primary_remaining = primary_result.as_ref().and_then(|r| {
-			if let LimiterOutcome::Admit { remaining } = r { Some(*remaining) } else { None }
-		});
-
-		let policy_entry = pick_policy_entry(&shared, &parts.method, outcome.quota_override.is_some());
-		let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
-
-		for entry in shared.stack.iter() {
-			match entry.check(&parts, cfg.redact_keys) {
-				StackedResult::ExtractionFailed(err) => {
-					emit_extraction_failed_event(&err);
-					let reason = RejectionReason::KeyExtractionFailed(err);
-					return Ok(build_reject_no_headers(cfg, reason));
-				}
-				StackedResult::Reject { wait, key_repr } => {
-					let quota = entry.quota();
-					let name = entry.name_arc();
-					emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), &name);
-					let reason = RejectionReason::QuotaExceeded {
-						wait,
-						snapshot: synthetic_snapshot(quota),
-						key: Box::new(()) as Box<dyn std::any::Any + Send>,
-						policy_name: Arc::clone(&name),
-					};
-					return Ok(build_reject_response(cfg, quota, wait, reason, &name, policy_entry, &shared));
-				}
-				StackedResult::Admit { remaining } => {
-					if remaining < lowest_remaining {
-						lowest_remaining = remaining;
-					}
-				}
+		match decide(&shared, &parts, outcome) {
+			Decision::Reject(response) => Ok(response),
+			Decision::Admit(headers) => {
+				let mut resp = inner.call(Request::from_parts(parts, body)).await?;
+				merge_headers(&mut resp, headers);
+				Ok(resp)
 			}
 		}
-
-		if dispatch.is_none() && shared.stack.is_empty() {
-			let req = Request::from_parts(parts, body);
-			return inner.call(req).await;
-		}
-
-		let (admit_quota, admit_name) = if let Some(q) = active_quota {
-			(q, Arc::clone(&shared.default_label))
-		} else if let Some(entry) = policy_entry.as_ref().filter(|e| !e.descriptors.is_empty()) {
-			let first = &entry.descriptors[0];
-			(first.quota, Arc::clone(&first.name))
-		} else {
-			let req = Request::from_parts(parts, body);
-			return inner.call(req).await;
-		};
-
-		let final_remaining = if lowest_remaining == u32::MAX { 0 } else { lowest_remaining };
-		let headers = build_admit_headers(
-			cfg.legacy_reset_epoch,
-			admit_quota,
-			&admit_name,
-			final_remaining,
-			policy_entry,
-			&shared,
-			outcome.quota_override,
-		);
-		let req = Request::from_parts(parts, body);
-		let mut resp = inner.call(req).await?;
-		for (name, value) in headers {
-			if let Some(n) = name {
-				resp.headers_mut().insert(n, value);
-			}
-		}
-		Ok(resp)
 	};
 
 	#[cfg(feature = "tracing")]
@@ -407,6 +198,141 @@ where
 	let fut: BoxedFut<S::Error> = Box::pin(inner_fut);
 
 	GovernorFuture { state: GovernorFutureState::Boxed { fut: Some(fut) } }
+}
+
+/// What the limiter decided for one request, once the key is known. Shared by the sync
+/// and async paths so the precedence rules exist in exactly one place.
+enum Decision {
+	Reject(Response<axum::body::Body>),
+	/// Headers to copy onto the inner response; empty when no policy applies.
+	Admit(HeaderMap),
+}
+
+/// A whitelist hit bypasses the limiter with no header injection.
+fn is_whitelisted(settings: &Settings, parts: &http::request::Parts) -> bool {
+	settings.whitelist_methods.contains(&parts.method)
+		|| settings.whitelist_paths.iter().any(|p| crate::glob::path_matches(p, parts.uri.path()))
+		|| peer_ip_from(parts).is_some_and(|ip| settings.whitelist_ips.iter().any(|n| n.contains(&ip)))
+}
+
+fn merge_headers(resp: &mut Response<axum::body::Body>, extra: HeaderMap) {
+	let dst = resp.headers_mut();
+	for (name, value) in extra {
+		if let Some(n) = name {
+			dst.insert(n, value);
+		}
+	}
+}
+
+fn decide<K>(
+	shared: &LimiterShared<K>,
+	parts: &http::request::Parts,
+	outcome: Result<KeyOutcome<K>, crate::ExtractionError>,
+) -> Decision
+where
+	K: Hash + Eq + Clone + std::fmt::Debug + Send + Sync + 'static,
+{
+	let cfg = &shared.settings;
+
+	let outcome = match outcome {
+		Ok(o) => o,
+		Err(err) => {
+			emit_extraction_failed_event(&err);
+			return Decision::Reject(build_base_response(cfg, RejectionReason::KeyExtractionFailed(err)));
+		}
+	};
+
+	let policy_entry = pick_policy_entry(shared, &parts.method, outcome.quota_override.is_some());
+	let dispatch = pick_primary(shared, &parts.method, outcome.quota_override);
+	let primary_result = dispatch.as_ref().map(|d| d.run(&outcome.key));
+
+	if let Some(LimiterOutcome::Reject { wait, quota }) = primary_result {
+		let key_repr = crate::util::format_key(&outcome.key, cfg.redact_keys);
+		emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), "default");
+		let label = Arc::clone(&shared.default_label);
+		let reason = RejectionReason::QuotaExceeded {
+			wait,
+			snapshot: synthetic_snapshot(quota),
+			key: Box::new(outcome.key.clone()) as Box<dyn std::any::Any + Send>,
+			policy_name: Arc::clone(&label),
+		};
+		return Decision::Reject(build_reject_response(
+			cfg,
+			quota,
+			wait,
+			reason,
+			&label,
+			policy_entry,
+			shared,
+		));
+	}
+
+	let primary_remaining = match primary_result {
+		Some(LimiterOutcome::Admit { remaining }) => Some(remaining),
+		_ => None,
+	};
+	let mut lowest_remaining = primary_remaining.unwrap_or(u32::MAX);
+
+	// Walk the stack in order; the first reject wins.
+	for entry in shared.stack.iter() {
+		match entry.check(parts, cfg.redact_keys) {
+			StackedResult::ExtractionFailed(err) => {
+				emit_extraction_failed_event(&err);
+				return Decision::Reject(build_base_response(
+					cfg,
+					RejectionReason::KeyExtractionFailed(err),
+				));
+			}
+			StackedResult::Reject { wait, key_repr } => {
+				let quota = entry.quota();
+				let name = entry.name_arc();
+				emit_reject_event(&key_repr, quota.inner().burst_size().get(), wait.as_millis(), &name);
+				let reason = RejectionReason::QuotaExceeded {
+					wait,
+					snapshot: synthetic_snapshot(quota),
+					// Stack entries are type-erased, so the key itself cannot be carried
+					// here; the formatted key is in the tracing event.
+					key: Box::new(()) as Box<dyn std::any::Any + Send>,
+					policy_name: Arc::clone(&name),
+				};
+				return Decision::Reject(build_reject_response(
+					cfg,
+					quota,
+					wait,
+					reason,
+					&name,
+					policy_entry,
+					shared,
+				));
+			}
+			StackedResult::Admit { remaining } => lowest_remaining = lowest_remaining.min(remaining),
+		}
+	}
+
+	if dispatch.is_none() && shared.stack.is_empty() {
+		return Decision::Admit(HeaderMap::new());
+	}
+
+	// The RateLimit: header names one policy: the primary when there is one, otherwise the
+	// first advertised stack entry.
+	let (admit_quota, admit_name) = if let Some(d) = dispatch.as_ref() {
+		(d.quota, Arc::clone(&shared.default_label))
+	} else if let Some(first) = policy_entry.and_then(|e| e.descriptors.first()) {
+		(first.quota, Arc::clone(&first.name))
+	} else {
+		return Decision::Admit(HeaderMap::new());
+	};
+
+	let final_remaining = if lowest_remaining == u32::MAX { 0 } else { lowest_remaining };
+	Decision::Admit(build_admit_headers(
+		cfg.legacy_reset_epoch,
+		admit_quota,
+		&admit_name,
+		final_remaining,
+		policy_entry,
+		shared,
+		outcome.quota_override,
+	))
 }
 
 enum LimiterOutcome {
@@ -663,13 +589,6 @@ fn insert_policy_header<K>(
 	}
 }
 
-fn build_reject_no_headers(
-	cfg: &crate::builder::Settings,
-	reason: RejectionReason,
-) -> Response<axum::body::Body> {
-	build_base_response(cfg, reason)
-}
-
 fn build_base_response(
 	cfg: &crate::builder::Settings,
 	reason: RejectionReason,
@@ -710,12 +629,7 @@ where
 			StateProj::Admit { inner, headers } => match inner.poll(cx) {
 				Poll::Ready(Ok(mut resp)) => {
 					if let Some(extra) = headers.take() {
-						let dst = resp.headers_mut();
-						for (name, value) in extra {
-							if let Some(n) = name {
-								dst.insert(n, value);
-							}
-						}
+						merge_headers(&mut resp, extra);
 					}
 					Poll::Ready(Ok(resp))
 				}
