@@ -115,7 +115,8 @@ typically support.
 
 `finish()` returns `Result<GovernorConfig, ConfigError>`. The variants:
 
-- `ConfigError::ZeroBurst` — burst override of zero.
+- `ConfigError::ZeroBurst` — deprecated and never produced; see
+  [`api-stability.md`](../api-stability.md).
 - `ConfigError::EmptyChain` — `stack(...)` was called once with no entries.
 - `ConfigError::ContradictoryWhitelist` — e.g. an IP is in `whitelist_ips` and is also
   the only key the configured extractor could produce.

@@ -72,7 +72,7 @@ See [`architecture/06-runtime-and-lifecycle.md`](architecture/06-runtime-and-lif
 
 - `tracing` event on every reject, carrying key, configured quota, and wait duration.
 - `tracing` span around middleware execution, opt-out via the `tracing` feature.
-- `Limiter::snapshot()` — current key count, rough memory estimate, and top-N hottest
+- `LimiterHandle::snapshot()` — current key count, rough memory estimate, and top-N hottest
   keys (default N=10, configurable via `snapshot_top_n(n)`). Hits are tracked by the
   same sidecar that powers `max_keys`, so keys appear once they have been touched at
   least once and counts saturate at `u64::MAX`. Without `max_keys`, the sidecar still
@@ -100,6 +100,19 @@ See [`architecture/07-ergonomics-and-testing.md`](architecture/07-ergonomics-and
   rendered per response. Tier overrides are also rendered per response because their
   policy quota is request-time data. Legacy `X-RateLimit-*` headers and `Retry-After`
   use integer `HeaderValue` conversions instead of `format!` + `String`.
+
+## 2.1
+
+Maintainability release; no behaviour change.
+
+- `KeyOutcome::new` and `with_quota_override` so custom extractors read as prose.
+- `test_utils::drive_response`, `request`, `request_with_peer`, `OkService`; `drive` and
+  `drive_boxed` become wrappers. See [`architecture/07`](architecture/07-ergonomics-and-testing.md).
+- `ConfigError::ZeroBurst` deprecated. See [`api-stability.md`](api-stability.md) for the
+  policy and the list of what waits for 3.0.
+- `mise run verify` lints and tests at both feature extremes. See [`testing.md`](testing.md).
+- Examples for a reverse-proxy deployment, per-user tiered buckets and a limiter held in
+  `AppState` with a snapshot endpoint.
 
 ## Deferred
 

@@ -45,6 +45,10 @@ A `tokio::time::sleep(N)` used as a happens-before barrier between an async prod
 
 For tests that depend on time (rate-limit windows, GC cadence), use deterministic time control rather than wall-clock sleeps. Our own GC tests use `tokio::time::pause` + `advance` (see `src/gc.rs`); downstream tests of governor-level math can use `governor::clock::FakeRelativeClock`, re-exported as `axum_governor::MockClock`. Threading a `Clock` through our `GovernorLayer` is deferred for v2.0 — see [`spec/architecture/07-ergonomics-and-testing.md`](architecture/07-ergonomics-and-testing.md).
 
+**The one place a real sleep is correct: the GC sweep test.** Tokio's paused clock drives the interval, but governor decides staleness on the wall clock, so a test that wants to see `retain_recent` drop a key has to let a few real milliseconds pass before advancing tokio time. It is a `std::thread::sleep` on purpose, small, and with a comment naming the two clocks; a `tokio::time::sleep` there would advance nothing governor can see. The other trap in that test: the GC task registers its interval on its first poll, so the test yields once after building the layer, or advancing the clock fires nothing.
+
+Layer-level tests, in-crate or downstream, go through `test_utils` (`drive_response` and the request builders) rather than a private `oneshot` wrapper. See [`architecture/07`](architecture/07-ergonomics-and-testing.md) for why the helper returns the whole response.
+
 When a wall-clock loop is genuinely needed, the trigger-loop idiom — `Option<Instant>` avoids `clippy::unchecked_time_subtraction` and fires on the first iteration:
 
 ```rust

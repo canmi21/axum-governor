@@ -6,12 +6,17 @@ app state, builder validation, and the deterministic-time test infrastructure.
 ## `BoxedGovernorLayer`
 
 ```rust
-pub struct BoxedGovernorLayer(/* private */);
+pub struct BoxedGovernorLayer { /* GovernorLayer<String> */ }
 
-impl<K> GovernorLayer<K> {
-    pub fn boxed(self) -> BoxedGovernorLayer where K: 'static + Send + Sync;
+impl BoxedGovernorLayer {
+    pub fn from_config<K>(config: GovernorConfig<K>) -> Self where K: /* key bounds */;
+    pub fn limiter(&self) -> LimiterHandle<String>;
 }
 ```
+
+It takes the config rather than a built layer because erasure has to wrap the extractor,
+and the extractor is only reachable before `GovernorLayer::new` moves it into the shared
+state.
 
 Why it exists: a typical app has
 
@@ -83,20 +88,24 @@ crate enables it implicitly):
 
 ```rust
 pub use crate::MockClock;
-pub use axum::body::Body;
-pub use http::{Method, Request, StatusCode};
 
-pub fn drive(
-    layer: &GovernorLayer<...>,
-    method: Method,
-    path: &str,
-    peer: Option<SocketAddr>,
-) -> StatusCode { /* ... */ }
+pub struct OkService;                       // inner service: always 200, empty body
+pub fn request(method, path) -> Request<Body>;
+pub fn request_with_peer(method, path, peer: SocketAddr) -> Request<Body>;
+pub async fn drive_response<L: Layer<OkService>>(layer: &L, req) -> Response<Body>;
+pub async fn drive(layer: &GovernorLayer<K>, method, path, peer: Option<SocketAddr>) -> StatusCode;
+pub async fn drive_boxed(layer: &BoxedGovernorLayer, ..) -> StatusCode;
 ```
 
-The test utility surface deliberately stops at "send a synthetic request and read
-back the StatusCode". Anything more is a real integration test (`tests/`); the
-helper exists to remove `tower::Service::oneshot` boilerplate from unit tests.
+The surface stops at "build a request, push it through the layer, read the response".
+Anything that needs a router or a socket is an integration test in `tests/`.
+
+`drive_response` returns the whole response, not a status, and takes any layer. The
+first version returned only a `StatusCode`, and the consequence was that every test
+that wanted to look at a header (most of them) wrote its own `oneshot` wrapper, so the
+crate ended up with five private copies of the same three helpers. A helper that
+cannot answer the common question is not used, and then it is not a helper. Being
+generic over the layer is what lets `drive_boxed` stop being a second copy of `drive`.
 
 ## Test redundancy rule
 
@@ -127,15 +136,18 @@ Worth noting because it appears in user-visible signatures (Tower service
 composition):
 
 ```rust
-use pin_project_lite::pin_project;
-
 pin_project! {
-    pub struct GovernorFuture<F> {
-        #[pin] inner: F,
-        // pre-computed header data so the future allocates nothing once polled
-    }
+    pub struct GovernorFuture<F, E> { #[pin] state: GovernorFutureState<F, E> }
 }
+// state is one of:
+//   Admit  { inner: F, headers: Option<HeaderMap> }   sync path, headers merged on Ready
+//   Reject { response: Option<Response> }              sync path, resolved immediately
+//   Boxed  { fut: Pin<Box<dyn Future + Send>> }        async-extractor path
 ```
+
+Only the async-extractor path boxes; a sync extractor pays no allocation for the future.
+Both paths hand their extraction result to one `decide()` in `service.rs`, so the
+precedence rules (whitelist, per-method, tier override, default, stack) are written once.
 
 `pin-project-lite` over `pin-project` because the future shape is small enough for
 the macro-free form, and the proc-macro dep would lose the only place we currently

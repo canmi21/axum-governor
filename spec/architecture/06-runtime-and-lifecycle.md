@@ -97,7 +97,7 @@ Two emission points:
 The span is _around_ the inner Service call, so downstream tracing fields (status
 code, latency) attach to it naturally.
 
-## `Limiter::snapshot()`
+## `LimiterHandle::snapshot()`
 
 Live introspection without scraping logs:
 
