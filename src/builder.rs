@@ -34,7 +34,6 @@ pub struct GovernorConfig<K> {
 	pub(crate) gc_interval: Option<Duration>,
 	pub(crate) gc_disabled: bool,
 	pub(crate) max_keys: Option<usize>,
-	pub(crate) connect_info_required: bool,
 	pub(crate) legacy_reset_epoch: bool,
 	pub(crate) redact_keys: bool,
 }
@@ -305,38 +304,24 @@ impl<K> GovernorConfigBuilder<K> {
 	/// Validate the configuration and produce a [`GovernorConfig`].
 	///
 	/// Checks are applied in order:
-	/// `NoExtractor` → `ZeroBurst` → `EmptyChain` → `ContradictoryWhitelist` →
+	/// `NoExtractor` → `EmptyChain` → `ContradictoryWhitelist` →
 	/// `MissingConnectInfoAcknowledgement`.
 	pub fn finish(self) -> Result<GovernorConfig<K>, ConfigError> {
-		// 1. NoExtractor
 		if matches!(self.extractor, ExtractorSlot::None) {
 			return Err(ConfigError::NoExtractor);
 		}
 
-		// 2. ZeroBurst — governor enforces NonZeroU32 on burst, so this is a defensive guard.
-		// Stack entries are type-erased factories; quota is validated when each factory was
-		// created (the extractor API only accepts NonZeroU32). Check the explicitly-stored
-		// quota fields.
-		let explicit_q = self.quota_default.iter().chain(self.quota_methods.iter().map(|(_, q)| q));
-		for q in explicit_q {
-			if q.inner().burst_size().get() == 0 {
-				return Err(ConfigError::ZeroBurst);
-			}
-		}
-
-		// 3. EmptyChain
 		if !self.empty_chain_names.is_empty() {
 			return Err(ConfigError::EmptyChain);
 		}
 
-		// 4. ContradictoryWhitelist — universal IP coverage makes the limiter a no-op.
-		let any_v4_any = self.whitelist_ips.iter().any(|n| n.to_string() == "0.0.0.0/0");
-		let any_v6_any = self.whitelist_ips.iter().any(|n| n.to_string() == "::/0");
-		if any_v4_any && any_v6_any {
+		// Whitelisting every v4 and every v6 address makes the limiter a no-op.
+		let any_v4 = self.whitelist_ips.iter().any(|n| matches!(n, IpNet::V4(v) if v.prefix_len() == 0));
+		let any_v6 = self.whitelist_ips.iter().any(|n| matches!(n, IpNet::V6(v) if v.prefix_len() == 0));
+		if any_v4 && any_v6 {
 			return Err(ConfigError::ContradictoryWhitelist);
 		}
 
-		// 5. MissingConnectInfoAcknowledgement
 		if self.requires_connect_info && !self.connect_info_acknowledged {
 			return Err(ConfigError::MissingConnectInfoAcknowledgement);
 		}
@@ -354,7 +339,6 @@ impl<K> GovernorConfigBuilder<K> {
 			gc_interval: self.gc_interval,
 			gc_disabled: self.gc_disabled,
 			max_keys: self.max_keys,
-			connect_info_required: self.requires_connect_info,
 			legacy_reset_epoch: self.legacy_reset_epoch,
 			redact_keys: self.redact_keys,
 		})
@@ -615,27 +599,6 @@ mod tests {
 			.finish()
 			.unwrap();
 		assert!(cfg.error_handler.is_some());
-	}
-
-	#[test]
-	fn connect_info_required_propagated_to_config() {
-		let cfg = GovernorConfigBuilder::default()
-			.with_extractor(PeerIp::default())
-			.expect_connect_info()
-			.quota_default(q1s())
-			.finish()
-			.unwrap();
-		assert!(cfg.connect_info_required);
-	}
-
-	#[test]
-	fn global_connect_info_not_required() {
-		let cfg = GovernorConfigBuilder::default()
-			.with_extractor(Global)
-			.quota_default(q1s())
-			.finish()
-			.unwrap();
-		assert!(!cfg.connect_info_required);
 	}
 
 	#[test]

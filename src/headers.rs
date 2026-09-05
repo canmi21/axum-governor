@@ -48,21 +48,6 @@ pub(crate) fn write_ietf_rate_limit(
 	);
 }
 
-/// Render and insert a `RateLimit-Policy` header from descriptors. Currently only
-/// exercised in tests — the hot path uses `render_policy_value` once at layer
-/// construction and then clones the cached `HeaderValue`.
-#[cfg(test)]
-pub(crate) fn write_ietf_policy_set(headers: &mut HeaderMap, policies: &[PolicyDescriptor<'_>]) {
-	if policies.is_empty() {
-		return;
-	}
-	let value = render_policy_set(policies);
-	headers.insert(
-		HeaderName::from_static("ratelimit-policy"),
-		HeaderValue::from_str(&value).expect("ratelimit-policy header value is always valid"),
-	);
-}
-
 /// Pre-render a policy set to a `HeaderValue`. Layer construction calls this once
 /// per static configuration so the hot path can `.clone()` the resulting
 /// `HeaderValue` (cheap — internally a `Bytes`-backed buffer) instead of rebuilding
@@ -140,45 +125,21 @@ mod tests {
 	}
 
 	#[test]
-	fn write_ietf_policy_set_one_policy() {
-		let mut headers = HeaderMap::new();
-		write_ietf_policy_set(
-			&mut headers,
-			&[PolicyDescriptor { name: "peer", quota: crate::Quota::requests_per_second(nz!(10u32)) }],
-		);
-		assert_eq!(headers["ratelimit-policy"], "\"peer\";q=10;w=1");
+	fn render_policy_value_one_policy() {
+		let v = render_policy_value(&[PolicyDescriptor {
+			name: "peer",
+			quota: crate::Quota::requests_per_second(nz!(10u32)),
+		}]);
+		assert_eq!(v.unwrap(), "\"peer\";q=10;w=1");
 	}
 
 	#[test]
-	fn write_ietf_policy_set_two_policies() {
-		let mut headers = HeaderMap::new();
-		write_ietf_policy_set(
-			&mut headers,
-			&[
-				PolicyDescriptor { name: "peer", quota: crate::Quota::requests_per_second(nz!(10u32)) },
-				PolicyDescriptor { name: "auth", quota: crate::Quota::requests_per_minute(nz!(600u32)) },
-			],
-		);
-		assert_eq!(headers["ratelimit-policy"], "\"peer\";q=10;w=1, \"auth\";q=600;w=60");
-	}
-
-	#[test]
-	fn write_ietf_policy_set_empty_writes_nothing() {
-		let mut headers = HeaderMap::new();
-		write_ietf_policy_set(&mut headers, &[]);
-		assert!(headers.get("ratelimit-policy").is_none());
-	}
-
-	#[test]
-	fn render_policy_value_round_trips_through_set_writer() {
-		let policies = [
+	fn render_policy_value_two_policies_comma_joined() {
+		let v = render_policy_value(&[
 			PolicyDescriptor { name: "peer", quota: crate::Quota::requests_per_second(nz!(10u32)) },
 			PolicyDescriptor { name: "auth", quota: crate::Quota::requests_per_minute(nz!(600u32)) },
-		];
-		let pre = render_policy_value(&policies).expect("non-empty policies render to a value");
-		let mut headers = HeaderMap::new();
-		write_ietf_policy_set(&mut headers, &policies);
-		assert_eq!(headers["ratelimit-policy"], pre);
+		]);
+		assert_eq!(v.unwrap(), "\"peer\";q=10;w=1, \"auth\";q=600;w=60");
 	}
 
 	#[test]

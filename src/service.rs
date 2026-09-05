@@ -424,7 +424,6 @@ where
 {
 	limiter: LimiterRef<'a, K>,
 	tracker: Option<&'a KeyTracker<K>>,
-	policy_label: &'a str,
 	quota: Quota,
 }
 
@@ -454,12 +453,11 @@ where
 {
 	fn run(&self, key: &K) -> LimiterOutcome {
 		let outcome = check_limiter(self.limiter.as_ref(), key, self.quota);
-		if let Some(tracker) = self.tracker {
-			let touch = tracker.touch(key);
-			if touch.reason == Some(EvictionReason::MaxKeys) {
-				emit_eviction_warn(self.policy_label);
-				self.limiter.as_ref().retain_recent();
-			}
+		if let Some(tracker) = self.tracker
+			&& tracker.touch(key) == Some(EvictionReason::MaxKeys)
+		{
+			emit_eviction_warn("default");
+			self.limiter.as_ref().retain_recent();
 		}
 		outcome
 	}
@@ -486,7 +484,6 @@ where
 		return Some(Dispatch {
 			limiter: LimiterRef::Borrowed(limiter),
 			tracker,
-			policy_label: &shared.default_label,
 			quota: method_quota,
 		});
 	}
@@ -500,7 +497,6 @@ where
 		return Some(Dispatch {
 			limiter: LimiterRef::Owned(limiter),
 			tracker: shared.default_tracker.as_ref(),
-			policy_label: &shared.default_label,
 			quota: override_quota,
 		});
 	}
@@ -510,7 +506,6 @@ where
 		return Some(Dispatch {
 			limiter: LimiterRef::Borrowed(limiter),
 			tracker: shared.default_tracker.as_ref(),
-			policy_label: &shared.default_label,
 			quota: q,
 		});
 	}

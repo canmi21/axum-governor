@@ -72,8 +72,7 @@ impl<E: KeyExtractor> StackedRunner for StackedEntry<E> {
 						StackedResult::Reject { wait: not_until.wait_time_from(now), key_repr }
 					}
 				};
-				let touch = self.tracker.touch(&outcome.key);
-				if touch.reason == Some(EvictionReason::MaxKeys) {
+				if self.tracker.touch(&outcome.key) == Some(EvictionReason::MaxKeys) {
 					emit_eviction_warn(&self.name);
 					self.limiter.retain_recent();
 				}

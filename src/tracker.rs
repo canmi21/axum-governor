@@ -45,13 +45,6 @@ struct KeyState {
 	hits: u64,
 }
 
-/// Outcome of a single `touch`. `reason` lets callers distinguish a
-/// user-configured `max_keys` shed from an internal observability-budget eviction.
-pub(crate) struct TouchOutcome<K> {
-	pub reason: Option<EvictionReason>,
-	_marker: std::marker::PhantomData<K>,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EvictionReason {
 	MaxKeys,
@@ -75,11 +68,11 @@ where
 		}
 	}
 
-	/// Record an access for `key`. Returns the key evicted from the tracker when the
-	/// LRU is over its cap. Configured `max_keys` evictions are surfaced separately
-	/// from internal observability-budget evictions so callers know when to warn and
-	/// force a governor cleanup pass.
-	pub(crate) fn touch(&self, key: &K) -> TouchOutcome<K> {
+	/// Record an access for `key`. Returns why an entry was evicted, if one was: a
+	/// configured `max_keys` shed is surfaced separately from an internal
+	/// observability-budget eviction so callers know when to warn and force a governor
+	/// cleanup pass.
+	pub(crate) fn touch(&self, key: &K) -> Option<EvictionReason> {
 		let mut g = self.inner.lock().expect("KeyTracker mutex poisoned");
 		let seq = g.next_seq;
 		g.next_seq = g.next_seq.wrapping_add(1);
@@ -100,19 +93,15 @@ where
 			}
 		}
 
-		let reason = if g.by_key.len() > self.tracker_cap {
-			let reason = if self.max_keys.is_some() {
-				EvictionReason::MaxKeys
-			} else {
-				EvictionReason::TrackerBudget
-			};
-			let _ = pop_oldest(&mut g);
-			Some(reason)
+		if g.by_key.len() <= self.tracker_cap {
+			return None;
+		}
+		pop_oldest(&mut g);
+		Some(if self.max_keys.is_some() {
+			EvictionReason::MaxKeys
 		} else {
-			None
-		};
-
-		TouchOutcome { reason, _marker: std::marker::PhantomData }
+			EvictionReason::TrackerBudget
+		})
 	}
 
 	#[cfg(test)]
@@ -141,14 +130,13 @@ where
 	}
 }
 
-fn pop_oldest<K>(g: &mut TrackerInner<K>) -> Option<Arc<K>>
+fn pop_oldest<K>(g: &mut TrackerInner<K>)
 where
 	K: Hash + Eq,
 {
-	let oldest_seq = *g.by_seq.keys().next()?;
-	let oldest_key = g.by_seq.remove(&oldest_seq)?;
-	g.by_key.remove(&oldest_key);
-	Some(oldest_key)
+	if let Some((_, oldest)) = g.by_seq.pop_first() {
+		g.by_key.remove(&oldest);
+	}
 }
 
 #[cfg(test)]
@@ -159,11 +147,9 @@ mod tests {
 	fn touch_without_max_keys_uses_internal_budget() {
 		let t: KeyTracker<u32> = KeyTracker::new(None);
 		for k in 0..DEFAULT_TRACKER_CAP as u32 {
-			let out = t.touch(&k);
-			assert!(out.reason.is_none());
+			assert!(t.touch(&k).is_none());
 		}
-		let out = t.touch(&(DEFAULT_TRACKER_CAP as u32));
-		assert_eq!(out.reason, Some(EvictionReason::TrackerBudget));
+		assert_eq!(t.touch(&(DEFAULT_TRACKER_CAP as u32)), Some(EvictionReason::TrackerBudget));
 		assert_eq!(t.key_count(), DEFAULT_TRACKER_CAP);
 		assert!(!t.top_n(DEFAULT_TRACKER_CAP).iter().any(|(k, _)| k == "0"));
 	}
@@ -176,8 +162,7 @@ mod tests {
 		t.touch(&3);
 		// Re-touching 1 promotes it; the next insertion should evict 2 (now oldest).
 		t.touch(&1);
-		let out = t.touch(&4);
-		assert_eq!(out.reason, Some(EvictionReason::MaxKeys));
+		assert_eq!(t.touch(&4), Some(EvictionReason::MaxKeys));
 		assert_eq!(t.key_count(), 3);
 		assert!(
 			!t.top_n(3).iter().any(|(k, _)| k == "2"),
@@ -218,16 +203,14 @@ mod tests {
 		t.forget(&1);
 		assert_eq!(t.key_count(), 1);
 		// 1 is gone, so adding 3 should not evict anything.
-		let out = t.touch(&3);
-		assert!(out.reason.is_none());
+		assert!(t.touch(&3).is_none());
 	}
 
 	#[test]
 	fn cap_zero_evicts_every_insertion() {
 		// Edge case: max_keys = 0 keeps no sidecar entries.
 		let t: KeyTracker<u32> = KeyTracker::new(Some(0));
-		let out = t.touch(&1);
-		assert_eq!(out.reason, Some(EvictionReason::MaxKeys));
+		assert_eq!(t.touch(&1), Some(EvictionReason::MaxKeys));
 		assert_eq!(t.key_count(), 0);
 	}
 }

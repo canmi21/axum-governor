@@ -37,6 +37,9 @@ impl std::error::Error for ExtractionError {
 /// Failure modes surfaced by `GovernorConfigBuilder::finish`.
 #[derive(Debug)]
 pub enum ConfigError {
+	/// Never produced: every `Quota` constructor takes a `NonZeroU32`, so a zero burst
+	/// cannot be expressed. Kept so downstream matches keep compiling; removed in 3.0.
+	#[deprecated(since = "2.1.0", note = "unreachable; Quota cannot carry a zero burst")]
 	ZeroBurst,
 	EmptyChain,
 	ContradictoryWhitelist,
@@ -47,6 +50,7 @@ pub enum ConfigError {
 impl std::fmt::Display for ConfigError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
 		match self {
+			#[allow(deprecated)]
 			Self::ZeroBurst => write!(f, "burst capacity must be non-zero"),
 			Self::EmptyChain => write!(f, "stacked limiter chain has no entries"),
 			Self::ContradictoryWhitelist => {

@@ -86,7 +86,6 @@ impl BoxedGovernorLayer {
 			gc_interval: config.gc_interval,
 			gc_disabled: config.gc_disabled,
 			max_keys: config.max_keys,
-			connect_info_required: config.connect_info_required,
 			legacy_reset_epoch: config.legacy_reset_epoch,
 			redact_keys: config.redact_keys,
 		};
