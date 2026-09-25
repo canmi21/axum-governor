@@ -198,8 +198,11 @@ mod tests {
 
 	#[test]
 	fn peer_in_trusted_forwarded_used_when_no_xff_or_real_ip() {
-		let parts =
-			parts_with_peer_and_header("10.0.0.1:0", "forwarded", "for=192.0.2.60;proto=http;by=203.0.113.43");
+		let parts = parts_with_peer_and_header(
+			"10.0.0.1:0",
+			"forwarded",
+			"for=192.0.2.60;proto=http;by=203.0.113.43",
+		);
 		let key = SmartIp::new().with_trusted_proxies([net("10.0.0.0/8")]).extract(&parts).unwrap().key;
 		assert_eq!(key, "192.0.2.60".parse::<IpAddr>().unwrap());
 	}
@@ -220,7 +223,8 @@ mod tests {
 
 	#[test]
 	fn ipv6_prefix_setter_is_applied_to_the_selected_address() {
-		let parts = parts_with_peer_and_header("10.0.0.1:0", "x-forwarded-for", "2001:db8:1234:5678::1");
+		let parts =
+			parts_with_peer_and_header("10.0.0.1:0", "x-forwarded-for", "2001:db8:1234:5678::1");
 		let key = SmartIp::new()
 			.with_trusted_proxies([net("10.0.0.0/8")])
 			.ipv6_prefix(48)

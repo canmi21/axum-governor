@@ -37,13 +37,13 @@ async fn main() {
 
 Runnable programs in `examples/`:
 
-| Example        | Shows                                                                          |
-| -------------- | ------------------------------------------------------------------------------ |
-| `basic`        | per-IP limit, the smallest useful setup                                        |
-| `stacked`      | two policies in one layer, first reject wins                                   |
-| `per_tier`     | per-user buckets whose size follows the plan, via `KeyOutcome::with_quota_override` |
-| `proxy`        | `SmartIp` behind trusted proxies, a whitelisted health check, problem+json bodies |
-| `app_state`    | `BoxedGovernorLayer` in `AppState`, a `/metrics` snapshot endpoint, a custom reject body |
+| Example     | Shows                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| `basic`     | per-IP limit, the smallest useful setup                                                  |
+| `stacked`   | two policies in one layer, first reject wins                                             |
+| `per_tier`  | per-user buckets whose size follows the plan, via `KeyOutcome::with_quota_override`      |
+| `proxy`     | `SmartIp` behind trusted proxies, a whitelisted health check, problem+json bodies        |
+| `app_state` | `BoxedGovernorLayer` in `AppState`, a `/metrics` snapshot endpoint, a custom reject body |
 
 ## Features
 
@@ -70,11 +70,11 @@ Runnable programs in `examples/`:
 
 ## Cargo features
 
-| Feature      | Default | Description                                                      |
-| ------------ | ------- | ---------------------------------------------------------------- |
-| `dashmap`    | Yes     | Concurrent `DashMapStateStore` for the per-key limiter cache     |
-| `tracing`    | Yes     | Per-request span and per-reject tracing event                    |
-| `json`       | Yes     | `BodyPreset::ProblemJson` for RFC 9457 reject bodies             |
+| Feature      | Default | Description                                                            |
+| ------------ | ------- | ---------------------------------------------------------------------- |
+| `dashmap`    | Yes     | Concurrent `DashMapStateStore` for the per-key limiter cache           |
+| `tracing`    | Yes     | Per-request span and per-reject tracing event                          |
+| `json`       | Yes     | `BodyPreset::ProblemJson` for RFC 9457 reject bodies                   |
 | `test-utils` | No      | `test_utils::drive_response` and request builders for downstream tests |
 
 Build without default features (`--no-default-features`) to get a minimal binary that

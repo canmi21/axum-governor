@@ -299,8 +299,10 @@ impl<K> GovernorConfigBuilder<K> {
 		}
 
 		// Whitelisting every v4 and every v6 address makes the limiter a no-op.
-		let any_v4 = self.settings.whitelist_ips.iter().any(|n| matches!(n, IpNet::V4(v) if v.prefix_len() == 0));
-		let any_v6 = self.settings.whitelist_ips.iter().any(|n| matches!(n, IpNet::V6(v) if v.prefix_len() == 0));
+		let any_v4 =
+			self.settings.whitelist_ips.iter().any(|n| matches!(n, IpNet::V4(v) if v.prefix_len() == 0));
+		let any_v6 =
+			self.settings.whitelist_ips.iter().any(|n| matches!(n, IpNet::V6(v) if v.prefix_len() == 0));
 		if any_v4 && any_v6 {
 			return Err(ConfigError::ContradictoryWhitelist);
 		}

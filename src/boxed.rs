@@ -73,8 +73,11 @@ impl BoxedGovernorLayer {
 			}
 		};
 
-		let string_config =
-			GovernorConfig { extractor: erased_extractor, stack: config.stack, settings: config.settings };
+		let string_config = GovernorConfig {
+			extractor: erased_extractor,
+			stack: config.stack,
+			settings: config.settings,
+		};
 
 		Self { inner: GovernorLayer::new(string_config) }
 	}
@@ -166,11 +169,14 @@ mod tests {
 		let layer = BoxedGovernorLayer::from_config(cfg);
 		let peer_a: SocketAddr = "1.2.3.4:1234".parse().unwrap();
 		let peer_b: SocketAddr = "5.6.7.8:1234".parse().unwrap();
-		let r1 = drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_a)).await;
+		let r1 =
+			drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_a)).await;
 		assert_eq!(r1.status(), StatusCode::OK);
-		let r2 = drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_b)).await;
+		let r2 =
+			drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_b)).await;
 		assert_eq!(r2.status(), StatusCode::OK);
-		let r3 = drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_a)).await;
+		let r3 =
+			drive_response(&layer, crate::test_utils::request_with_peer(Method::GET, "/", peer_a)).await;
 		assert_eq!(r3.status(), StatusCode::TOO_MANY_REQUESTS);
 	}
 }

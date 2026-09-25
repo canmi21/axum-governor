@@ -12,8 +12,8 @@ use pin_project_lite::pin_project;
 
 use crate::Quota;
 use crate::builder::{ExtractorSlot, Settings};
-use crate::extractor::KeyOutcome;
 use crate::error::RejectionReason;
+use crate::extractor::KeyOutcome;
 use crate::headers::{
 	PolicyDescriptor, render_policy_value, write_ietf_rate_limit, write_legacy_rate_limit,
 	write_retry_after,
@@ -177,7 +177,8 @@ enum Decision {
 fn is_whitelisted(settings: &Settings, parts: &http::request::Parts) -> bool {
 	settings.whitelist_methods.contains(&parts.method)
 		|| settings.whitelist_paths.iter().any(|p| crate::glob::path_matches(p, parts.uri.path()))
-		|| crate::extractor::ip::peer_ip(parts).is_some_and(|ip| settings.whitelist_ips.iter().any(|n| n.contains(&ip)))
+		|| crate::extractor::ip::peer_ip(parts)
+			.is_some_and(|ip| settings.whitelist_ips.iter().any(|n| n.contains(&ip)))
 }
 
 fn merge_headers(resp: &mut Response<axum::body::Body>, extra: HeaderMap) {
@@ -372,11 +373,7 @@ where
 			.map(|(_, l)| l)
 			.expect("method_limiters and quota_methods are built in parallel");
 		let tracker = shared.method_trackers.iter().find(|(m, _)| m == method).map(|(_, t)| t);
-		return Some(Dispatch {
-			limiter: LimiterRef::Borrowed(limiter),
-			tracker,
-			quota: method_quota,
-		});
+		return Some(Dispatch { limiter: LimiterRef::Borrowed(limiter), tracker, quota: method_quota });
 	}
 
 	if let Some(override_quota) = quota_override {
@@ -1073,8 +1070,8 @@ mod tests {
 
 	#[tokio::test]
 	async fn error_handler_sees_key_extraction_failed() {
-		use std::sync::Mutex;
 		use std::sync::Arc;
+		use std::sync::Mutex;
 
 		let seen: Arc<Mutex<Option<String>>> = Arc::new(Mutex::new(None));
 		let sink = Arc::clone(&seen);

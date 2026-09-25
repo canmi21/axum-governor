@@ -57,10 +57,10 @@ pub trait AsyncKeyExtractor: Send + Sync + 'static {
 
 mod compound;
 mod cookie;
-pub(crate) mod ip;
 mod extension;
 mod global;
 mod header;
+pub(crate) mod ip;
 mod peer_ip;
 mod smart_ip;
 

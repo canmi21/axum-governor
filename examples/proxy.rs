@@ -10,12 +10,15 @@ use std::net::SocketAddr;
 
 use axum::Router;
 use axum::routing::get;
-use axum_governor::{BodyPreset, GovernorConfigBuilder, GovernorLayer, Quota, extractor::SmartIp, nz};
+use axum_governor::{
+	BodyPreset, GovernorConfigBuilder, GovernorLayer, Quota, extractor::SmartIp, nz,
+};
 use ipnet::IpNet;
 
 #[tokio::main]
 async fn main() {
-	let proxies: Vec<IpNet> = ["10.0.0.0/8", "127.0.0.0/8"].iter().map(|n| n.parse().unwrap()).collect();
+	let proxies: Vec<IpNet> =
+		["10.0.0.0/8", "127.0.0.0/8"].iter().map(|n| n.parse().unwrap()).collect();
 
 	let cfg = GovernorConfigBuilder::default()
 		.with_extractor(SmartIp::new().with_trusted_proxies(proxies))

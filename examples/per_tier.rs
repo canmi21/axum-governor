@@ -51,7 +51,10 @@ impl KeyExtractor for ByUser {
 }
 
 /// Stand-in for real authentication: a header picks the tier, the id is fixed.
-async fn fake_auth(mut req: axum::extract::Request, next: axum::middleware::Next) -> axum::response::Response {
+async fn fake_auth(
+	mut req: axum::extract::Request,
+	next: axum::middleware::Next,
+) -> axum::response::Response {
 	let tier = match req.headers().get("x-plan").and_then(|v| v.to_str().ok()) {
 		Some("pro") => Tier::Pro,
 		_ => Tier::Free,
