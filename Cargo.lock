@@ -68,7 +68,7 @@ dependencies = [
 
 [[package]]
 name = "axum-governor"
-version = "2.1.1"
+version = "2.1.2"
 dependencies = [
  "axum",
  "dashmap",
