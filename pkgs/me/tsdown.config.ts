@@ -9,6 +9,7 @@ export default defineConfig({
 		'identity/src/index.ts',
 		'locales/src/index.ts',
 		'locales/src/format.ts',
+		'robots/src/index.ts',
 	],
 	unbundle: true,
 	// The package's own directory, so `dist/` mirrors it whatever the entries have in common.

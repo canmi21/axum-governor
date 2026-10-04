@@ -1,7 +1,7 @@
 {
 	"name": "@canmi/me",
 	"version": "0.0.0",
-	"description": "The author's own facts: their sites' addresses and the world's, their identity, the languages they write in",
+	"description": "The author's own facts: their sites' addresses and the world's, their identity, the languages they write in, what their hosts say to crawlers",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -33,6 +33,10 @@
 		"./locales/format": {
 			"types": "./dist/locales/src/format.d.ts",
 			"default": "./dist/locales/src/format.js"
+		},
+		"./robots": {
+			"types": "./dist/robots/src/index.d.ts",
+			"default": "./dist/robots/src/index.js"
 		}
 	},
 	"scripts": {
