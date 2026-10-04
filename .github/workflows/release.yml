@@ -10,7 +10,9 @@ on:
   workflow_dispatch:
     inputs:
       day:
-        description: "Which UTC day the version names: today or yesterday"
+        description: "Which UTC day the version names"
+        type: choice
+        options: [today, yesterday]
         default: today
 
 permissions:

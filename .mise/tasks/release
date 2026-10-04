@@ -86,6 +86,9 @@ def release(package, version, dry):
 def main(argv):
 	dry = "--dry-run" in argv
 	day = argv[argv.index("--day") + 1] if "--day" in argv else "today"
+	# Anything else is refused rather than read as one of the two: a release cannot be taken back.
+	if day not in ("today", "yesterday"):
+		sys.exit(f"release: --day is today or yesterday, not {day!r}")
 	today = datetime.datetime.now(datetime.timezone.utc).date()
 	version = version_of(today if day == "today" else today - datetime.timedelta(days=1))
 	print(f"release: {version}" + (" (dry run)" if dry else ""))
