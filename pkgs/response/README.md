@@ -1,4 +1,4 @@
-# @canmi/response
+# Response
 
 One JSON response envelope for TypeScript APIs, shared with the
 [`response`](https://crates.io/crates/response) crate on the Rust side.
@@ -39,4 +39,4 @@ Every answer is one of two shapes:
 
 ## License
 
-Released under the MIT License © 2026 [Canmi](https://canmi.net)
+Released under the MIT License © 2024 [Canmi](https://canmi.net)

@@ -51,4 +51,4 @@ GeoLite2 asks anything built on it to credit MaxMind where the data is shown.
 
 ## License
 
-Released under the MIT License © 2026 [Canmi](https://canmi.net)
+Released under the MIT License © 2024 [Canmi](https://canmi.net)

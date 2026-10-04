@@ -53,4 +53,4 @@ Version 2 is a rewrite; 1.x was an unrelated crate of mine under the same name.
 
 ## License
 
-Released under the MIT License © 2026 [Canmi](https://canmi.net)
+Released under the MIT License © 2024 [Canmi](https://canmi.net)
