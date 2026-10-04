@@ -184,18 +184,19 @@ importers:
 
   pkgs/kit:
     dependencies:
-      '@stylexjs/stylex':
-        specifier: ^0.19.1
-        version: 0.19.1
       motion:
         specifier: ^14.0.0
         version: 14.0.0
-      svelte:
-        specifier: ^5.57.1
-        version: 5.57.1
       thumbhash:
         specifier: ^0.1.1
         version: 0.1.1
+    devDependencies:
+      '@stylexjs/stylex':
+        specifier: ^0.19.1
+        version: 0.19.1
+      svelte:
+        specifier: ^5.57.1
+        version: 5.57.1
 
   pkgs/me: {}
 

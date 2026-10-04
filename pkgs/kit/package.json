@@ -75,9 +75,23 @@
 		"build": "tsdown"
 	},
 	"dependencies": {
-		"@stylexjs/stylex": "^0.19.1",
 		"motion": "^14.0.0",
-		"svelte": "^5.57.1",
 		"thumbhash": "^0.1.1"
+	},
+	"devDependencies": {
+		"@stylexjs/stylex": "^0.19.1",
+		"svelte": "^5.57.1"
+	},
+	"peerDependencies": {
+		"@stylexjs/stylex": "^0.19.1",
+		"svelte": "^5.57.1"
+	},
+	"peerDependenciesMeta": {
+		"@stylexjs/stylex": {
+			"optional": true
+		},
+		"svelte": {
+			"optional": true
+		}
 	}
 }
