@@ -2,7 +2,7 @@
  * a video frame rather than the page, so the player brings its own ground instead of asking what
  * theme the page is in. Values are `oklch` with an alpha, like the rest of the tokens, and are
  * deliberately not derived from any `--color-*` -- a derivation would re-introduce the theme this
- * file exists to escape. See web's spec/styling/player.md, "The player brings its own colours,
+ * file exists to escape. See web's spec/styling/player.md, "The player brings its own colors,
  * because it cannot know what is behind them" for the scheme and why each piece is shaped as it is.
  */
 
