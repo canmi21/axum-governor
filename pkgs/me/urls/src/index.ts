@@ -5,26 +5,10 @@
  * the addresses whose names are the author's".
  */
 
-/** Stated by a build for a runtime with no environment to read: a worker, a page. */
-declare const STATED_PORT_OFFSET: number | undefined;
-
-/**
- * How far the sandbox shifts every pinned port, and 0 everywhere else. Read from the environment
- * where there is one, and stated by the build where there is not; production states nothing and
- * gets 0. See web's spec/architecture/modes.md, "Every port is shifted by one hundred".
- */
-export const PORT_OFFSET: number =
-	typeof STATED_PORT_OFFSET === 'number'
-		? STATED_PORT_OFFSET
-		: Number(
-				(globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env
-					?.LATTICE_PORT_OFFSET || 0,
-			);
-
 /** The author's site. */
 export const SITE = 'https://canmi.net';
 
-/** The port the site's development server answers on, before the sandbox shifts it. */
+/** The port the site's development server answers on. */
 export const SITE_PORT = 26511;
 
 /**
