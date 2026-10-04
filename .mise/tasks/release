@@ -84,12 +84,17 @@ def release(package, version, dry):
 	packed = run("pnpm", "pack", "--pack-destination", str(OUT), capture=True, cwd=ROOT / package["npm"])
 	tarball = packed.stdout.strip().splitlines()[-1]
 	run("npm", "publish", tarball, "--access", "public", *(["--dry-run"] if dry else []))
+	tags = [f"{name}@{version}"]
 	if "crate" in package:
 		crate = pathlib.Path(package["crate"]).name
 		run("cargo", "publish", "-p", crate, "--allow-dirty", *(["--dry-run"] if dry else []))
+		# Each registry's package has a tag under its own name, as a semver pair's halves do; the
+		# npm name's is the one changes and numbers are read from.
+		tags.append(f"{crate}@{version}")
 	if not dry:
-		run("git", "tag", f"{name}@{version}")
-		run("git", "push", "origin", f"{name}@{version}")
+		for tag in tags:
+			run("git", "tag", tag)
+		run("git", "push", "origin", *tags)
 
 
 def main(argv):

@@ -32,7 +32,8 @@ version. The earlier `2026.10.3` and `2026.10.4` were `YYYY.M.D`, and sort below
 
 **A push to main that changes a package publishes it**: `.github/workflows/release.yml` runs
 `.mise/tasks/release`, which publishes each package whose directory changed since its last tag,
-`<name>@<version>`, and tags it as it goes. Runs queue in the order pushed and none is cancelled
+`<name>@<version>`, and tags it as it goes -- the `canmi` crate under its own name too, beside
+`@canmi/me`'s. Runs queue in the order pushed and none is cancelled
 or dropped, since each numbers the day from the tags the one before pushed.
 
 **npm's copy is packed by pnpm and published by npm**: `pnpm pack` writes the versions `workspace:`
