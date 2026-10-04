@@ -1,5 +1,6 @@
-//! @generated from pkgs/me/urls/src/index.ts by `mise run urls`; do not edit.
-//! The author's own addresses, for Rust -- see spec/architecture/layers.md.
+//! @generated from pkgs/me/urls/src/index.ts and pkgs/me/identity/author.json by
+//! `mise run urls`; do not edit.
+//! The author's own addresses and identity, for Rust -- see spec/architecture/layers.md.
 
 pub const SITE: &str = "https://canmi.net";
 pub const SOURCE: &str = "https://github.com/canmi21/lattice";
@@ -41,3 +42,14 @@ pub const EXTERNAL_UMAMI_GATEWAY: &str = "https://gateway.umami.is";
 pub const EXTERNAL_OPENPANEL: &str = "https://api.openpanel.dev";
 pub const EXTERNAL_GOOGLE_FONTS_CSS: &str = "https://fonts.googleapis.com";
 pub const EXTERNAL_GOOGLE_FONTS_STATIC: &str = "https://fonts.gstatic.com";
+
+pub const AUTHOR_NAME: &str = "Canmi";
+pub const AUTHOR_FULL_NAME: &str = "Canmi Wu";
+pub const AUTHOR_ROLE: &str = "Systems Engineer";
+pub const AUTHOR_EMAIL: &str = "t@canmi.icu";
+pub const AUTHOR_TELEGRAM: &str = "canmi21";
+pub const AUTHOR_TELEGRAM_GROUP: &str = "canmimua";
+pub const AUTHOR_TWITTER: &str = "canmi21";
+pub const AUTHOR_GITHUB: &str = "canmi21";
+pub const AUTHOR_FEDIVERSE: &str = "canmi";
+pub const AUTHOR_BLUESKY: &str = "canmi.net";

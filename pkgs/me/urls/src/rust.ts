@@ -1,3 +1,4 @@
+import { author } from '../../identity/src/index.ts';
 import { CONTACT, EXTERNAL, SITE, SOURCE } from './index.ts';
 
 /**
@@ -19,6 +20,8 @@ function walk(value: unknown, path: string[], out: Array<[string, string]>): voi
 		out.push([name, value]);
 		return;
 	}
+	// Only strings become constants: a number such as `githubId` is a fact Rust has no use for yet.
+	if (typeof value !== 'object' || value === null) return;
 	for (const [key, child] of Object.entries(value as Record<string, unknown>)) {
 		walk(child, [...path, key], out);
 	}
@@ -27,14 +30,18 @@ function walk(value: unknown, path: string[], out: Array<[string, string]>): voi
 /**
  * This package's Rust half, the `canmi` crate: committed, because a checkout must compile without
  * a Node toolchain having run first. `mise run urls` rewrites it and `rust.test.ts` fails when the
- * two drift.
+ * two drift. The author's identity comes along as `AUTHOR_*`, so a Rust program reads it compiled
+ * in rather than from a path into this repository.
  */
 export function rustCanmi(): string {
 	return [
-		'//! @generated from pkgs/me/urls/src/index.ts by `mise run urls`; do not edit.',
-		"//! The author's own addresses, for Rust -- see spec/architecture/layers.md.",
+		'//! @generated from pkgs/me/urls/src/index.ts and pkgs/me/identity/author.json by',
+		'//! `mise run urls`; do not edit.',
+		"//! The author's own addresses and identity, for Rust -- see spec/architecture/layers.md.",
 		'',
 		rustConstants({ site: SITE, source: SOURCE, contact: CONTACT, external: EXTERNAL }),
+		'',
+		rustConstants({ author }),
 		'',
 	].join('\n');
 }
