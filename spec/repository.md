@@ -69,5 +69,5 @@ every npm package to it, changed or not and committed or not, under the `local` 
 **A local version is the next release's, with `-local.N` after it** -- `2026.1004.2-local.0`,
 `2.0.1-local.3` -- so it is never a version npm holds, and it sorts below the release it precedes.
 N is one past the highest the registry holds for that release. Nothing is tagged and no crate is
-published: a consumer takes the crates from this checkout by a `[patch]`, as lattice's
+published: a consumer takes the crates from this checkout by a `[patch]`, as web's
 `mise run lib-local` does.
