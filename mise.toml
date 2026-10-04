@@ -1,11 +1,11 @@
 [tasks.check]
-description = "Type-check the crate and its targets"
+description = "Type-check every crate and its targets"
 run = "cargo check --all-targets"
 
 # Both feature extremes are linted because every optional feature has a `not(feature)` twin
 # that only compiles when the feature is off; `--all-features` alone never sees those.
 [tasks.lint]
-description = "Lint the crate at both feature extremes, warnings denied"
+description = "Lint every crate at both feature extremes, warnings denied"
 run = [
 	"cargo clippy --all-targets --all-features -- -D warnings",
 	"cargo clippy --all-targets --no-default-features -- -D warnings",
@@ -19,13 +19,14 @@ run = ["cargo test --all-features", "cargo test --no-default-features"]
 description = "Everything a change has to pass"
 depends = ["check", "lint", "test"]
 
-# Reached from the workspace as `mise run publish governor`. It depends on verify because a
+# Reached from the workspace as `mise run publish lib`, for axum-governor alone until the release
+# pipeline publishes each package; see spec/repository.md. It depends on verify because a
 # release is the one thing that cannot be taken back: crates.io accepts a version once and
 # yanking leaves it downloadable. `--dry-run` threads through to cargo's own.
 [tasks.publish]
-description = "Publish the crate to crates.io: `publish [--dry-run]`"
+description = "Publish axum-governor to crates.io: `publish [--dry-run]`"
 depends = ["verify"]
-run = "cargo publish"
+run = "cargo publish -p axum-governor"
 
 # The verbs the workspace one directory up dispatches to: `mise run update|clean|fmt [name]`.
 # Each takes --dry-run and keeps the promises the workspace's spec/architecture/repos.md lists
