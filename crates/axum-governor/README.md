@@ -55,7 +55,7 @@ Runnable programs in `examples/`:
   `quota_for(method, quota)`.
 - **Stacked / multi-window limits** — ordered chain of named policies, each with its own
   extractor and quota; the first reject wins. `quotas()` expands a slice of quotas into
-  labelled entries automatically.
+  labeled entries automatically.
 - **Per-tier override** — `KeyOutcome::quota_override` lets an extractor select a different
   quota per request (e.g. free vs pro tier) without separate policy registries.
 - **IETF draft-ietf-httpapi-ratelimit-headers** — structured-field `RateLimit:` and
@@ -74,7 +74,7 @@ Runnable programs in `examples/`:
 | ------------ | ------- | ---------------------------------------------------------------------- |
 | `dashmap`    | Yes     | Concurrent `DashMapStateStore` for the per-key limiter cache           |
 | `tracing`    | Yes     | Per-request span and per-reject tracing event                          |
-| `json`       | Yes     | `BodyPreset::ProblemJson` for RFC 9457 reject bodies                   |
+| `json`       | Yes     | `BodyPreset::Json` and `BodyPreset::ProblemJson` (RFC 9457) bodies     |
 | `test-utils` | No      | `test_utils::drive_response` and request builders for downstream tests |
 
 Build without default features (`--no-default-features`) to get a minimal binary that

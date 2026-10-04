@@ -68,7 +68,7 @@ Three presets selectable on the builder; default is plain text.
 .body_preset(BodyPreset::ProblemJson)  // application/problem+json (RFC 9457)
 ```
 
-- **`Text`** — `Too Many Requests, retry in {N}s` (delta-seconds, no localisation).
+- **`Text`** — `Too Many Requests, retry in {N}s` (delta-seconds, no localization).
 - **`Json`** — `{"error":"too_many_requests","retry_after_seconds":5}`. Matches the
   conventional axum-style JSON error body; predictable for dashboards.
 - **`ProblemJson`** — RFC 9457 (which obsoletes RFC 7807). Default `type` is
@@ -109,7 +109,7 @@ pub enum RejectionReason {
         wait: Duration,
         snapshot: StateSnapshot,
         key: Box<dyn std::any::Any + Send>,   // erased; layer knows its K
-        policy_name: &'static str,
+        policy_name: Arc<str>,
     },
     KeyExtractionFailed(ExtractionError),
 }

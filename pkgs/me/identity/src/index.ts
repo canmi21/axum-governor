@@ -16,7 +16,7 @@ export interface Author {
 	role: string;
 	/** A person's address, and the one the feed names as its author. */
 	email: string;
-	// Handles, not URLs: where each is reached is platform/libs/sdk'.
+	// Handles, not URLs: where each is reached is `EXTERNAL.social` in `@canmi/me/urls`.
 	/** The author's own account. */
 	telegram: string;
 	/** The group the author runs, which the row of links points at; the handle is theirs too. */

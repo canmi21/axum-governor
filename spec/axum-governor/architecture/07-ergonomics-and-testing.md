@@ -69,7 +69,7 @@ clock.advance(Duration::from_secs(60));
 
 Re-exporting under a non-vendor-name keeps the public surface stable across governor
 versions and matches the project's naming rule
-([`spec/naming.md`](../naming.md): names describe what the thing does, not which crate
+([`spec/axum-governor/naming.md`](../naming.md): names describe what the thing does, not which crate
 provided it).
 
 Threading a custom `Clock` through `GovernorLayer` would require making `Clock` a
@@ -109,7 +109,7 @@ generic over the layer is what lets `drive_boxed` stop being a second copy of `d
 
 ## Test redundancy rule
 
-Already in [`spec/testing.md`](../testing.md). Repeated here in shorthand because it
+Already in [`spec/axum-governor/testing.md`](../testing.md). Repeated here in shorthand because it
 shapes what we put in `test_utils`:
 
 - We do not re-test `governor`'s GCRA math.
@@ -146,7 +146,7 @@ pin_project! {
 ```
 
 Only the async-extractor path boxes; a sync extractor pays no allocation for the future.
-Both paths hand their extraction result to one `decide()` in `service.rs`, so the
+Both paths hand their extraction result to one `decide()` in `service/decide.rs`, so the
 precedence rules (whitelist, per-method, tier override, default, stack) are written once.
 
 `pin-project-lite` over `pin-project` because the future shape is small enough for

@@ -1,7 +1,7 @@
 # Prior art and gap analysis
 
 This document is the receipt for the choices in [`01-overview.md`](01-overview.md). It
-catalogues what `governor`, `tower-governor`, and `actix-governor` do, where they diverge
+catalogs what `governor`, `tower-governor`, and `actix-governor` do, where they diverge
 from what a 2026 Axum middleware should look like, and which patterns we copy from outside
 the Rust ecosystem.
 
@@ -9,7 +9,7 @@ the Rust ecosystem.
 
 What we use as-is:
 
-- The GCRA limiter and its `RateLimiter<K, S, C, MW>` parameterisation.
+- The GCRA limiter and its `RateLimiter<K, S, C, MW>` parameterization.
 - `Quota::per_*` math (we wrap with renamed constructors, see
   [`04-quota-and-policy.md`](04-quota-and-policy.md)).
 - `clock::Clock` and `clock::Reference` traits, `DefaultClock`, `MonotonicClock`,
@@ -59,8 +59,8 @@ Five concrete defects we fix:
 
 What we keep from `tower-governor`:
 
-- The `default()` / `secure()` preset idea (burst 8 / 500 ms, burst 2 / 4 s) is
-  reasonable enough to copy as named presets on `GovernorConfigBuilder`.
+- The `default()` / `secure()` preset idea (burst 8 / 500 ms, burst 2 / 4 s) was considered
+  and not shipped.
 - `SmartIpKeyExtractor` walking `X-Forwarded-For` → `X-Real-IP` → `Forwarded` → peer is
   the right priority order. We tighten it with a trusted-proxy whitelist by default.
 - `use_headers()` opt-in for `X-RateLimit-*` was the right instinct; v2 makes it the

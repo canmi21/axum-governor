@@ -35,7 +35,6 @@ See [`architecture/04-quota-and-policy.md`](architecture/04-quota-and-policy.md)
   wins.
 - Same-key multi-window sugar — one extractor, several quotas (`10/s` + `1k/m` + `100k/d`).
 - Method / path / IP whitelists bypass the limiter entirely.
-- Builder methods are `const fn` where the underlying types allow.
 
 ### Response and headers
 
@@ -43,7 +42,7 @@ See [`architecture/05-response-and-headers.md`](architecture/05-response-and-hea
 
 - Default 429 with `Retry-After`, IETF structured-fields `RateLimit:` and `RateLimit-Policy:`
   per draft-ietf-httpapi-ratelimit-headers-10, and legacy `X-RateLimit-Limit` / `-Remaining`
-  / `-Reset` (delta-seconds by default; epoch via `legacy_reset_epoch()`).
+  / `-Reset` (delta-seconds by default; epoch via `legacy_reset_epoch(true)`).
 - Same headers on successful responses, reflecting post-decrement remaining capacity.
 - Three body presets selectable on the builder: plain text (default), JSON, RFC 9457
   `application/problem+json`.
@@ -103,7 +102,7 @@ See [`architecture/07-ergonomics-and-testing.md`](architecture/07-ergonomics-and
 
 ## 2.1
 
-Maintainability release; no behaviour change.
+Maintainability release; no behavior change.
 
 - `KeyOutcome::new` and `with_quota_override` so custom extractors read as prose.
 - `test_utils::drive_response`, `request`, `request_with_peer`, `OkService`; `drive` and
@@ -115,6 +114,8 @@ Maintainability release; no behaviour change.
   `AppState` with a snapshot endpoint.
 
 ## Deferred
+
+- Builder methods as `const fn`, so a configuration can be a `const`.
 
 - `metrics` crate integration as an optional feature: `requests_total{outcome}` counter
   and `wait_time_seconds` histogram.

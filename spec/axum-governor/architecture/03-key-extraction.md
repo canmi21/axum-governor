@@ -73,7 +73,7 @@ All of these implement `KeyExtractor` (sync) unless noted.
   `PeerIp::ipv6_prefix(u8)`.
 - **`SmartIp`** — header walk in priority order: `X-Forwarded-For` → `X-Real-IP` →
   `Forwarded` (`for=`) → peer. Honors a configurable trusted-proxy CIDR list:
-  `SmartIp::with_trusted_proxies([&"10.0.0.0/8".parse()?])`. Without an explicit
+  `SmartIp::with_trusted_proxies(["10.0.0.0/8".parse()?])`. Without an explicit
   whitelist, only the peer IP is consulted — header spoofing is otherwise trivial.
 - **`Global`** — `type Key = ();`. One bucket for the whole Layer; useful for hard caps
   on total HTTP load.

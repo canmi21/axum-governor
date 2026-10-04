@@ -25,6 +25,22 @@ placed.
 hold different facts and version independently, and a step written for one running against the
 other is the failure the mechanism exists to prevent.
 
+**A collection is the exception to flat and dotted.** `video.at` is one key holding a map from
+clip reference to position, because its keys are not names a site chooses: they are whatever its
+articles refer to. The rule is about names, not about depth, and one fact whose shape is a map is
+not a group of facts that wanted a prefix. It also makes the collection readable and clearable in
+one go, where a scatter of `video.at.<reference>` would not be.
+
+**The collection is not capped, and that is a decision rather than an omission.** An entry carries
+a position and a still of about a kilobyte, so a thousand clips is about a megabyte -- a
+single-digit fraction of a quota measured in megabytes -- and a tab is short: the number of
+distinct clips a reader opens in one sitting is nowhere near a thousand.
+
+**The store is passed in rather than reached for**, so the tests hand over a plain object and no
+global is installed to reach this. The record and the store are named separately at every call
+site for the same reason: in production they always pair, and a test is the place where they do
+not.
+
 **A fallback names the kind of thing wanted, and `undefined` is not a kind.** The container compares
 what it found against the kind it was asked for, so a read whose fallback is `undefined` discards
 every stored value; ask with `{}` for an object, and let the caller's own check refuse what is not

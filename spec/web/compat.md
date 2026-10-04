@@ -13,8 +13,9 @@ hundred bytes, core-js is in none of its static chunks, a current browser fetche
 browser below the line fetches the stable set once, before hydration.
 
 **The canaries grow one at a time, each an edge case met in production.** `toSorted` was the first.
-`URL.canParse` is the second: Chrome 120, above the floor, so a Chrome 110 to 119 reader passes the
-first canary and loads nothing, and a Chrome 99 reader crashed on it. Either missing loads core-js.
+`URL.canParse` is the second: Chrome 120, above the floor, so a Chrome 110 to 119 reader would pass
+the first canary and load nothing; a Chrome 99 reader of web's status page, which did not yet run
+the check, crashed on it. Either missing loads core-js.
 The floor itself does not move for a canary: it is where the syntax must parse, and a canary is only
 a cheaper way of noticing a browser that needs the rest. A new one is one line in `src/index.ts` and
 one in `canaries.test.ts`.

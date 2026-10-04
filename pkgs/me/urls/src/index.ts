@@ -108,7 +108,7 @@ export const EXTERNAL = {
 	// participants agree to forward what they receive, so submitting here reaches all of
 	// them and picking one would be choosing which of them to tell. See web's spec/indexing.md.
 	indexnow: 'https://api.indexnow.org/IndexNow',
-	// Bases for social profile links. Handles are canmi/identity's; these are only where a
+	// Bases for social profile links. Handles are `@canmi/me/identity`'s; these are only where a
 	// handle is reachable.
 	//
 	// `twitter.com` rather than `x.com`, on both. The service renamed itself and kept the

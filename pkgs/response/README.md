@@ -9,5 +9,5 @@ code means the same message on either side.
 { "status": "error", "code": "no_such_route", "message": "No route answers this path" }
 ```
 
-`ApiResponse<T>` is the shape and `Code` a code from the catalogue; `success` and `failure` build a
+`ApiResponse<T>` is the shape and `Code` a code from the catalog; `success` and `failure` build a
 `Response`, `errorBody` the body of one, and `unwrap` reads a body back into its data or throws.

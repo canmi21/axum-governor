@@ -8,8 +8,8 @@
  * here and two Chinese, and each is written in its own script.
  *
  * The site's language picker was the first consumer and the desktop client's segment view was
- * the second, which is what moved this out of `apps/site/src/lib/locale/switcher.ts`. That client
- * is archived and the surface replacing it inherits the same need, so the move still stands.
+ * the second, which is what moved this out of web's `apps/site/src/lib/locale/switcher.ts`. That
+ * client is archived and the surface replacing it inherits the same need, so the move still stands.
  */
 export const LOCALE_TAGS = [
 	'en-US',

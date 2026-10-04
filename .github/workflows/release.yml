@@ -40,7 +40,7 @@ jobs:
       - working-directory: repos/lib
         run: |
           pnpm install --frozen-lockfile
-          pnpm exec vitest run
+          mise run verify
       - id: crates
         uses: rust-lang/crates-io-auth-action@v1
       - working-directory: repos/lib

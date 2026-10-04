@@ -12,7 +12,7 @@ drawn. How each package is versioned and published is below.
 
 ## A package's rules are here, and a site's are its own
 
-Each package's spec is under a directory of its name: [me/](me/), [kit/](kit/), [web/](web/),
+Each package that has rules of its own keeps them under a directory of its name: [me/](me/), [kit/](kit/), [web/](web/),
 [response/](response/) and [axum-governor/](axum-governor/). A section that rules on how a package
 behaves is here, whoever uses it. One that rules on how a site uses a package -- which palette it
 draws, which canaries it has met, what its pages remember -- stays with that site, and a comment
@@ -28,11 +28,13 @@ releases as it needs, so a change is never held back for the date to turn. `@can
 `@canmi/kit`, `@canmi/ui` and `@canmi/web` are dated, and the `canmi` crate takes `@canmi/me`'s
 version. The earlier `2026.10.3` and `2026.10.4` were `YYYY.M.D`, and sort below every one since.
 
-**A push to main that changes a package publishes it**: `.github/workflows/release.yml` runs
+**A push to main that changes a dated package publishes it**: `.github/workflows/release.yml` runs
 `.mise/tasks/release`, which publishes each package whose directory changed since its last tag,
 `<name>@<version>`, and tags it as it goes -- the `canmi` crate under its own name too, beside
 `@canmi/me`'s. Runs queue in the order pushed and none is cancelled
-or dropped, since each numbers the day from the tags the one before pushed.
+or dropped, up to GitHub's hundred waiting, since each numbers the day from the tags the one before
+pushed. The workflow runs `mise run verify` first, because a release is the one thing that cannot
+be taken back.
 
 **npm's copy is packed by pnpm and published by npm**: `pnpm pack` writes the versions `workspace:`
 names, and `npm publish` of the tarball reaches trusted publishing, which `pnpm publish` does not.
@@ -42,16 +44,17 @@ The crate goes through `rust-lang/crates-io-auth-action`. No token is kept anywh
 trusted publisher only to a package that exists; the first dated version is the pipeline's.
 
 **A semver package -- `axum-governor`, `response` and `@canmi/response`, `whereabouts` -- is
-published by hand until it has a pipeline of its own**, its first version 1.0.0, or 2.0.0 for
-`response`, which redoes the crate of that name. The two halves of `response` share one version,
+published by hand until it has a pipeline of its own**: `whereabouts` began at 1.0.0, `response`
+and `@canmi/response` at 2.0.0, redoing the crate of that name, and `axum-governor` keeps the line
+it already had. The two halves of `response` share one version,
 since they share one `codes.json`.
 
 **A file two halves share lives in the npm package and is linked into the crate**: `cargo package`
 takes only what is under the crate's own directory, and follows a symbolic link to copy what it
 names. `crates/response/codes.json` is one, to `pkgs/response/codes.json`.
 
-**`whereabouts` is `geocode` renamed, with `geo`'s address lookup taken in beside it**, each
-behind a feature of its own and none on by default. Fetching the data stays with the caller.
+**`whereabouts` is `geocode` renamed, with the IP lookup from platform's `geo` app taken in beside
+it**, as the features `coordinates` and `ip`, none on by default. Fetching the data stays with the caller.
 
 **Each package is built by tsdown into `dist/`**, one output per source file, so a `.svelte.ts`
 stays a module Svelte compiles and a `.stylex.ts` one StyleX reads; CSS, JSON and Svelte components

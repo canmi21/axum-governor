@@ -29,8 +29,8 @@ fn spawn_gc(state: Arc<DashMapStateStore<K>>, every: Duration) -> AbortHandle {
 Default interval: 60 seconds. Configurable via `.gc_interval(Duration)`. Disable with
 `.gc_disable()`.
 
-The `AbortHandle` lives in `GovernorLayer`. Layer `Drop` calls `abort()` — the task
-terminates by the next yield. Users who construct one Layer per request leak a task
+The `AbortHandle` lives in `LimiterShared`, which every layer clone shares; its `Drop`
+calls `abort()` when the last clone goes, and the task terminates by the next yield. Users who construct one Layer per request leak a task
 per Layer, which is documented as an anti-pattern in
 [`07-ergonomics-and-testing.md`](07-ergonomics-and-testing.md); the `BoxedGovernorLayer`
 ergonomics aim to make the one-config-per-process pattern the obvious one.

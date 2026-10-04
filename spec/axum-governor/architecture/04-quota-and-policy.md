@@ -1,8 +1,7 @@
 # Quota and policy
 
 The policy surface is the builder API of `GovernorConfigBuilder`. Every knob below maps
-to exactly one builder method that returns `Self`, is `#[must_use]`, and (where the
-underlying operation allows) is `const fn`.
+to exactly one builder method that returns `Self` and is `#[must_use]`.
 
 ## Constructors
 
@@ -11,7 +10,7 @@ impl Quota {
     pub const fn requests_per_second(n: NonZeroU32) -> Self;
     pub const fn requests_per_minute(n: NonZeroU32) -> Self;
     pub const fn requests_per_hour(n: NonZeroU32) -> Self;
-    pub const fn seconds_per_request(n: NonZeroU32) -> Self;
+    pub fn seconds_per_request(n: NonZeroU32) -> Self;
 }
 ```
 
@@ -117,9 +116,9 @@ typically support.
 
 - `ConfigError::ZeroBurst` — deprecated and never produced; see
   [`api-stability.md`](../api-stability.md).
-- `ConfigError::EmptyChain` — `stack(...)` was called once with no entries.
-- `ConfigError::ContradictoryWhitelist` — e.g. an IP is in `whitelist_ips` and is also
-  the only key the configured extractor could produce.
+- `ConfigError::EmptyChain` — `quotas(...)` was given no quotas.
+- `ConfigError::ContradictoryWhitelist` — `whitelist_ips` covers every IPv4 and every IPv6
+  address, which turns the limiter off.
 - `ConfigError::NoExtractor` — the builder went straight to `finish()` without picking
   an extractor.
 - `ConfigError::MissingConnectInfoAcknowledgement` — `PeerIp` / `SmartIp` configured
@@ -130,18 +129,3 @@ The split between `finish()` errors (config-level, recoverable) and the construc
 panic (ConnectInfo missing at runtime, [`06`](06-runtime-and-lifecycle.md)) is
 deliberate: config errors are something the developer can fix with a different value;
 the runtime panic fires only when the deployment-level acknowledgement was lied about.
-
-## `const fn` reach
-
-Every builder method that does not allocate is `const fn`:
-
-```rust
-const CONFIG: GovernorConfig = GovernorConfigBuilder::default()
-    .quota_default(Quota::requests_per_second(nz!(50)))
-    .const_finish();
-```
-
-`const_finish` is the panicking variant of `finish` for const contexts; it inherits the
-same validation but turns errors into compile-time failures. Builder methods that take
-heap-allocated arguments (`whitelist_paths`, `stack` with custom extractors) are not
-`const fn`, but their absence does not block configurations that fit in const space.

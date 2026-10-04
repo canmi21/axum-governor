@@ -6,7 +6,7 @@
  * What both would otherwise write out separately is the timing.
  *
  * The site's disclosure was first and the desktop client's tab indicator was the second, which is
- * the pair that moved this out of `apps/site/src/lib/client/collapse.ts`.
+ * the pair that moved this out of web's `apps/site/src/lib/client/collapse.ts`.
  */
 
 /**

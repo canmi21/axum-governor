@@ -2,7 +2,7 @@
 
 axum-governor v2 is a `tower::Layer` that wraps the [`governor`] crate's GCRA rate-limiter
 into a fully-featured, modern Axum middleware. This document fixes the scope, the design
-principles, and the layered structure that the rest of `spec/architecture/` decomposes.
+principles, and the layered structure that the rest of `spec/axum-governor/architecture/` decomposes.
 
 [`governor`]: https://docs.rs/governor
 
@@ -67,8 +67,10 @@ Each box maps to a focused architecture document.
 ## Default Cargo features
 
 ```toml
-default = ["dashmap", "tracing"]
+default = ["dashmap", "tracing", "json"]
 ```
+
+`json` is on by default so the JSON reject presets are there without asking.
 
 `dashmap` is on because every Axum app runs on a multi-threaded tokio runtime; the
 `HashMapStateStore` fallback is preserved for `no-default-features` consumers but is not
