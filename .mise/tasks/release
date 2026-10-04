@@ -1,10 +1,16 @@
 #!/usr/bin/env python3
-#MISE description="Publish each dated package whose tree changed: `release [--dry-run]`"
+#MISE description="Publish each dated package whose tree changed, or every package to the local registry: `release [--dry-run] [--local]`"
 """A dated package is versioned `YYYY.MDD.N`: the UTC year, the month times a hundred plus the
 day, and the release's number within that day from 0 -- `2026.1004.0`, then `2026.1004.1`. It is
 published whenever its tree changed since its last tag, `<name>@<version>`, or has none yet; npm's
 copy is packed by pnpm, which writes the versions `workspace:` names, and published by npm, which
 reaches the registry's trusted publishing. See spec/repository.md, "Versions and publishing".
+
+`--local` publishes every npm package, changed or not and committed or not, to the registry `mise
+run registry` serves, as the version it would release next with `-local.N` after it: never one
+npm holds, and below the release it precedes. Nothing is tagged and no crate is published, since
+a consumer takes the crates from this checkout by path. See spec/repository.md, "Trying a change
+before it is released".
 """
 
 import datetime
@@ -16,6 +22,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 OUT = ROOT / "target" / "release-packs"
+LOCAL = "http://localhost:4873"
 
 # Each dated package: its npm directory, and the crate published beside it under one version.
 PACKAGES = [
@@ -24,6 +31,8 @@ PACKAGES = [
 	{"name": "@canmi/ui", "npm": "pkgs/ui"},
 	{"name": "@canmi/web", "npm": "pkgs/web"},
 ]
+# Published by hand to npm, so only `--local` publishes it: as its next patch.
+SEMVER = [{"name": "@canmi/response", "npm": "pkgs/response"}]
 
 
 def run(*command, check=True, capture=False, cwd=ROOT):
@@ -64,6 +73,37 @@ def published(name, version):
 	return answer.stdout.strip() == version
 
 
+def local_version_of(package, today):
+	"""The version `package` would release next, with `-local.N` one past the registry's highest."""
+	if package in SEMVER:
+		manifest = json.loads((ROOT / package["npm"] / "package.json").read_text())
+		major, minor, patch = manifest["version"].split("-")[0].split(".")
+		base = f"{major}.{minor}.{int(patch) + 1}"
+	else:
+		base = version_of(package["name"], today)
+	answer = run("npm", "view", package["name"], "versions", "--json", "--registry", LOCAL, check=False, capture=True)
+	held = json.loads(answer.stdout or "[]") if answer.returncode == 0 else []
+	held = [held] if isinstance(held, str) else held
+	numbers = [int(v.rsplit(".", 1)[1]) for v in held if v.startswith(f"{base}-local.")]
+	return f"{base}-local.{max(numbers) + 1 if numbers else 0}"
+
+
+def release_local(package, version):
+	"""Build, pack and publish `package` to the local registry, under the `local` tag rather than
+	`latest`, which npm requires of a prerelease."""
+	manifest = ROOT / package["npm"] / "package.json"
+	data = json.loads(manifest.read_text())
+	data["version"] = version
+	manifest.write_text(json.dumps(data, indent="\t") + "\n")
+	run("pnpm", "--filter", package["name"], "run", "build")
+	OUT.mkdir(parents=True, exist_ok=True)
+	packed = run("pnpm", "pack", "--pack-destination", str(OUT), capture=True, cwd=ROOT / package["npm"])
+	tarball = packed.stdout.strip().splitlines()[-1]
+	# Any token will do: the registry lets anybody on this machine publish, and npm will not
+	# publish without one.
+	run("npm", "publish", tarball, "--registry", LOCAL, "--tag", "local", f"--{LOCAL[5:]}/:_authToken=local")
+
+
 def stamp(package, version):
 	"""Write `version` into the package's manifest, and its crate's when it has one."""
 	manifest = ROOT / package["npm"] / "package.json"
@@ -97,9 +137,34 @@ def release(package, version, dry):
 		run("git", "push", "origin", *tags)
 
 
+def main_local(today):
+	if run("curl", "-sf", "-o", "/dev/null", f"{LOCAL}/-/ping", check=False).returncode != 0:
+		sys.exit(f"release: nothing answers at {LOCAL}; start it with `mise run registry`")
+	# The release CI made since the last fetch is the one the next version follows.
+	run("git", "fetch", "--tags", "--quiet", "origin", check=False)
+	packages = PACKAGES + SEMVER
+	manifests = [ROOT / package["npm"] / "package.json" for package in packages]
+	originals = {path: path.read_text() for path in manifests}
+	published_now = []
+	try:
+		for package in packages:
+			version = local_version_of(package, today)
+			release_local(package, version)
+			published_now.append(f"{package['name']}@{version}")
+	finally:
+		for path, text in originals.items():
+			path.write_text(text)
+	print("release: published to the local registry:")
+	for line in published_now:
+		print(f"  {line}")
+	return 0
+
+
 def main(argv):
 	dry = "--dry-run" in argv
 	today = datetime.datetime.now(datetime.timezone.utc).date()
+	if "--local" in argv:
+		return main_local(today)
 	print(f"release: {day_of(today)}" + (" (dry run)" if dry else ""))
 	# A dry run leaves every file as it found it; a real one leaves the stamped versions for the
 	# runner to discard, the tag pointing at the commit as it was.

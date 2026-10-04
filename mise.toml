@@ -26,6 +26,12 @@ description = "Everything a change has to pass"
 depends = ["check", "lint", "test", "build"]
 
 # The Rust half of `canmi` is rendered from its TypeScript, so an address is written once.
+# The local registry `release --local` publishes to and a consumer here installs from, in the
+# foreground; see spec/repository.md, "Trying a change before it is released".
+[tasks.registry]
+description = "Serve the local registry on localhost:4873, for changes not released yet"
+run = "pnpm exec verdaccio --config verdaccio.yaml"
+
 [tasks.urls]
 description = "Regenerate the canmi crate from the @canmi/me package's addresses"
 run = ["node pkgs/me/urls/scripts/rust.ts", "cargo fmt -- crates/canmi/src/lib.rs"]

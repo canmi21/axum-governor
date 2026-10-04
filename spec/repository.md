@@ -59,3 +59,17 @@ behind a feature of its own and none on by default. Fetching the data stays with
 stays a module Svelte compiles and a `.stylex.ts` one StyleX reads; CSS, JSON and Svelte components
 are copied as they are. A consumer that is not a bundler -- node, loading a Vite config -- does
 not strip types inside `node_modules`, so nothing is published as TypeScript.
+
+## Trying a change before it is released
+
+**A change is tried in a consumer through a local registry, before it is pushed**: `mise run
+registry` serves Verdaccio on `localhost:4873`, configured by `verdaccio.yaml` and keeping what it
+holds under `target/verdaccio/`, and fetches from npm whatever it does not hold, so a consumer
+pointed at it installs everything else as it would anyway. `mise run release --local` publishes
+every npm package to it, changed or not and committed or not, under the `local` tag.
+
+**A local version is the next release's, with `-local.N` after it** -- `2026.1004.2-local.0`,
+`2.0.1-local.3` -- so it is never a version npm holds, and it sorts below the release it precedes.
+N is one past the highest the registry holds for that release. Nothing is tagged and no crate is
+published: a consumer takes the crates from this checkout by a `[patch]`, as lattice's
+`mise run lib-local` does.

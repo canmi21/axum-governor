@@ -1,0 +1,29 @@
+# The local registry `mise run registry` serves on localhost, so a consumer here can install a
+# change to the library before it is released. Everything it does not hold it fetches from npm, so
+# a consumer pointed at it installs the rest as it would anyway. See spec/repository.md, "Trying
+# a change before it is released".
+storage: ./target/verdaccio/storage
+
+listen: localhost:4873
+
+# Reachable from this machine alone, so anybody who can reach it may publish: a token here would
+# guard nothing and cost a login on every machine.
+auth:
+  htpasswd:
+    file: ./target/verdaccio/htpasswd
+    max_users: -1
+
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+
+packages:
+  "@canmi/*":
+    access: $all
+    publish: $all
+    proxy: npmjs
+  "**":
+    access: $all
+    proxy: npmjs
+
+log: { type: stdout, format: pretty, level: warn }
