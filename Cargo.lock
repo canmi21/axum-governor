@@ -124,7 +124,7 @@ dependencies = [
 
 [[package]]
 name = "axum-governor"
-version = "2.1.2"
+version = "2.1.3"
 dependencies = [
  "axum",
  "dashmap",
@@ -692,7 +692,7 @@ dependencies = [
 
 [[package]]
 name = "response"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "axum",
  "serde",
@@ -1113,7 +1113,7 @@ dependencies = [
 
 [[package]]
 name = "whereabouts"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "maxminddb",
  "rstar",
