@@ -19,7 +19,7 @@ export type Span = { min: number; max: number; fallback: number };
 
 /** Where a remembered width is kept, and what it is written to. */
 export type Divider = {
-	/** The key in the `reader` record, flat and dotted: see spec/engagement.md. */
+	/** The key in the `reader` record, flat and dotted: see spec/kit/state.md. */
 	key: string;
 	/** The custom property the region reads, set on the root element. */
 	property: `--${string}`;

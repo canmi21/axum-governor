@@ -1,12 +1,12 @@
 /**
  * Where each clip had got to, for the length of one tab.
  *
- * Restores a position, never a stage and never playback -- see spec/architecture/video/player.md,
- * "A reload finds a clip where the tab left it".
+ * Restores a position, never a stage and never playback -- see web's
+ * spec/architecture/video/player.md, "A reload finds a clip where the tab left it".
  *
  * Lives in the `tab` record in `sessionStorage` (see `state.ts`), as one key holding a map rather
- * than one key per clip, and uncapped -- see spec/engagement.md, "What this site remembers is
- * two records and one mechanism", for why both hold here.
+ * than one key per clip, and uncapped -- see spec/kit/state.md for why both
+ * hold here.
  */
 
 import { rgbaToThumbHash, thumbHashToRGBA } from 'thumbhash';

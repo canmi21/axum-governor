@@ -3,7 +3,7 @@
  * core-js. A new one met in production is one more line here and one in canaries.test.ts.
  *
  * Why a list of met cases and not a complete one, why `stable` and not `es` or `actual` -- see
- * spec/compat.md, "The API floor".
+ * spec/web/compat.md, "The API floor: a short list of canaries, and all of core-js behind it".
  */
 export const CANARIES: { name: string; present: () => boolean }[] = [
 	{

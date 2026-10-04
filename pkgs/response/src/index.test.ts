@@ -8,7 +8,7 @@ describe('the catalogue', () => {
 		for (const code of Object.keys(CODES)) expect(code).toMatch(/^[a-z]+(_[a-z]+)*$/);
 	});
 
-	// See spec/architecture/services.md, "Every answer is one envelope", for how a message reads.
+	// See spec/response/envelope.md, "Every answer is one envelope", for how a message reads.
 	it('gives every code one line of English that opens with a capital and ends without a stop', () => {
 		for (const [code, message] of Object.entries(CODES)) {
 			expect(message, code).toMatch(/^[A-Z][\x20-\x7e]*[^.\s]$/);

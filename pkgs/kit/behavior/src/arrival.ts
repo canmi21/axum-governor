@@ -1,9 +1,9 @@
 /**
  * Whether this document is still the one the reader arrived in.
  *
- * What it gates is the settle a measurement needs -- see spec/styling/first-paint.md. A component
- * may not decide this for itself: it mounts on every navigation that renders it, and one asking
- * whether it is mounting for the first time would answer yes every time.
+ * What it gates is the settle a measurement needs -- see web's spec/styling/first-paint.md. A
+ * component may not decide this for itself: it mounts on every navigation that renders it, and one
+ * asking whether it is mounting for the first time would answer yes every time.
  */
 
 /**

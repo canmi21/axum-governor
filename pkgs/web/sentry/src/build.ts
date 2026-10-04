@@ -21,9 +21,9 @@ export interface UploadPolicy {
  * Whether this build sends its source maps to Sentry: only when `SENTRY_AUTH_TOKEN` is set.
  *
  * `SENTRY_SKIP_UPLOAD`, set in `mise.toml`, turns it off whatever the token says -- see
- * spec/architecture/data.md, "A CI build compiles the site, and no longer compiles the corpus".
- * Any non-empty value skips, so `SENTRY_SKIP_UPLOAD= pnpm run build` is how one local build
- * uploads after all; `0` and `false` skip too, since this is a switch and parses no words.
+ * web's spec/architecture/data.md, "A CI build compiles the site, and no longer compiles the
+ * corpus". Any non-empty value skips, so `SENTRY_SKIP_UPLOAD= pnpm run build` is how one local
+ * build uploads after all; `0` and `false` skip too, since this is a switch and parses no words.
  */
 export function uploadsSourceMaps(env: BuildEnv, policy: UploadPolicy = {}): boolean {
 	if (env.SENTRY_SKIP_UPLOAD) return false;

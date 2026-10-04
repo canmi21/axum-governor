@@ -54,7 +54,7 @@ export type LocaleCode = (typeof LOCALE_CODES)[number];
 /**
  * The language this site's own copy is written in -- not a fallback for a missing article
  * language. It moved here when the API needed to name a locale no article carries a view of,
- * which is the third consumer this table has collected. See lattice's spec/locale/interface.md.
+ * which is the third consumer this table has collected. See web's spec/locale/interface.md.
  */
 export const SITE_LANGUAGE = 'en-US';
 
@@ -62,7 +62,7 @@ export const SITE_LANGUAGE = 'en-US';
  * What a code is called in public, which is the only place BCP-47 and the corpus's codes meet.
  *
  * `mw` has no entry: the source view's tag is whatever language the article was written in, so
- * it is the article's to say and not this table's. See lattice's spec/locale/addressing.md.
+ * it is the article's to say and not this table's. See web's spec/locale/addressing.md.
  */
 export const PUBLIC_LANGUAGE = {
 	de: 'de-DE',

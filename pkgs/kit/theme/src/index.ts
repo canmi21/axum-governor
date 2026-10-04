@@ -28,7 +28,7 @@ export function themeOf(cookies: { get(name: string): string | undefined }): The
 /**
  * Fill an `app.html`'s theme placeholders: `%theme.script%` always, and `%theme.class%` when the
  * render knows the theme. A render shared between readers passes none -- see
- * spec/styling/palettes.md, "Light and dark are one cookie, read the same way everywhere".
+ * spec/kit/theme.md, "One cookie, read the same way everywhere".
  */
 export function fillTheme(html: string, theme?: Theme): string {
 	const classed = theme ? html.replace('%theme.class%', theme === 'dark' ? 'dark' : '') : html;
@@ -89,7 +89,7 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
  * Call back whenever the painted theme changes, and return the unsubscribe.
  *
  * For whatever copied a colour out of the tokens and so cannot repaint on its own -- see
- * spec/styling/blocks.md, "A diagram is drawn in both themes at once, because the palette is
+ * web's spec/styling/blocks.md, "A diagram is drawn in both themes at once, because the palette is
  * inside the SVG". The class is watched rather than `applyTheme` announcing, so `currentTheme`
  * reads it. `create` is injected like `followSystemTheme`'s media query, so the node suite can
  * drive it without a DOM.

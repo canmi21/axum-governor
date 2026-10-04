@@ -4,7 +4,7 @@ import { CONTACT, EXTERNAL, SITE, SOURCE } from './index.ts';
 /**
  * Every string under `map` as a Rust `pub const`, named by its path in capitals, so
  * `external.github.web` is `EXTERNAL_GITHUB_WEB`. The generator each address package renders its
- * Rust half with; it knows nothing of what the addresses are. See spec/architecture/layers.md.
+ * Rust half with; it knows nothing of what the addresses are. See spec/me/addresses.md.
  */
 export function rustConstants(map: Record<string, unknown>): string {
 	const pairs: Array<[name: string, value: string]> = [];
@@ -37,7 +37,7 @@ export function rustCanmi(): string {
 	return [
 		'//! @generated from pkgs/me/urls/src/index.ts and pkgs/me/identity/author.json by',
 		'//! `mise run urls`; do not edit.',
-		"//! The author's own addresses and identity, for Rust -- see spec/architecture/layers.md.",
+		"//! The author's own addresses and identity, for Rust -- see spec/me/addresses.md.",
 		'',
 		rustConstants({ site: SITE, source: SOURCE, contact: CONTACT, external: EXTERNAL }),
 		'',

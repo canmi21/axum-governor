@@ -1,7 +1,7 @@
 /* Black and white after Vercel's Geist, on the same names as concrete.css. Each value is a Geist
-   step, named beside it, and every name keeps a value of its own -- see spec/styling/palettes.md.
-   `accents-*` are Geist's older grays, taken where the current scale has no step at a tier the
-   ramp needs. */
+   step, named beside it, and every name keeps a value of its own -- see web's
+   spec/styling/palettes.md. `accents-*` are Geist's older grays, taken where the current scale has
+   no step at a tier the ramp needs. */
 :root {
 	color-scheme: light dark;
 	--color-page: oklch(0.985 0 0); /* background-200, off paper's white */

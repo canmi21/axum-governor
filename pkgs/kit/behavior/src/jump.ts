@@ -1,10 +1,10 @@
 /**
  * Moving a reader inside one page, without the move becoming an address.
  *
- * The rule these serve is spec/styling/notes.md's: navigation within one document leaves the URL
- * alone, because a reader walking six notes should not have to press Back six times to leave a page
- * they never left. The control stays an ordinary `<a href="#id">`, so without JavaScript the native
- * jump happens instead -- worse than this, and far better than a dead control.
+ * The rule these serve is web's spec/styling/notes.md: navigation within one document leaves the
+ * URL alone, because a reader walking six notes should not have to press Back six times to leave a
+ * page they never left. The control stays an ordinary `<a href="#id">`, so without JavaScript the
+ * native jump happens instead -- worse than this, and far better than a dead control.
  */
 
 /**

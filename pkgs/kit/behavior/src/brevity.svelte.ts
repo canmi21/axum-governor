@@ -1,5 +1,5 @@
 /**
- * Whether a page's title may be its short one. See spec/architecture/titles.md.
+ * Whether a page's title may be its short one. See spec/kit/titles.md.
  */
 import { reader, type Store } from './state.ts';
 

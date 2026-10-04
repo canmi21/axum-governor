@@ -4,8 +4,7 @@
  * Why there are two records, why keys are flat and dotted, why `video.at` is the exception to
  * that, why the version is an integer from the first write, why a record from a newer version is
  * left alone, and why the store is passed in rather than reached for -- all covered in
- * spec/engagement.md, "What this site remembers is two records and one mechanism". This file is
- * the mechanism itself.
+ * spec/kit/state.md. This file is the mechanism itself.
  */
 
 export type State = { version: number; [key: string]: unknown };

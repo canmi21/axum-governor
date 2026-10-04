@@ -6,20 +6,18 @@ each registry is two directories of one name -- except `@canmi/me`, whose crate 
 refused the bare name as too near two others, so the npm half took the scope. It is split by registry rather than by purpose
 because what it is read for is what it publishes.
 
-Each package keeps its own spec beside the others here, under a directory of its name:
-[axum-governor/](axum-governor/).
-
 It took this shape from `axum-governor`'s own repository, renamed, so the crate's history and its
-stars stayed where they were. How the rest arrives, and how each package is versioned and
-published, is the workspace's lattice project's `spec/architecture/layers.md` until it moves here
-with them.
+stars stayed where they were; the rest came from the site's repository, `web`, once its layers were
+drawn. How each package is versioned and published is below.
 
-## Citations that still point at lattice
+## A package's rules are here, and a site's are its own
 
-The packages under `pkgs/` and the crates `canmi`, `response` and `whereabouts` came from the
-workspace's lattice project, and a `spec/...` their comments cite is lattice's until the sections
-about them move here. Moving them is owed: each section that rules on one of these packages comes
-here, and its citations are rewritten as it does; one that rules on the site stays there.
+Each package's spec is under a directory of its name: [me/](me/), [kit/](kit/), [web/](web/),
+[response/](response/) and [axum-governor/](axum-governor/). A section that rules on how a package
+behaves is here, whoever uses it. One that rules on how a site uses a package -- which palette it
+draws, which canaries it has met, what its pages remember -- stays with that site, and a comment
+here names its repository rather than linking it, as `web's spec/styling/focus.md`: a relative link
+across a repository resolves only while both are cloned side by side.
 
 ## Versions and publishing
 

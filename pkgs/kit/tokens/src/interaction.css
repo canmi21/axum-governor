@@ -2,11 +2,11 @@
    by, and the underline a text link springs. Out of the site's own stylesheet because the CMS draws
    the same prose and the same controls, and a second copy is how two focus rings start to differ.
    Each application imports it after Tailwind, into the layer order it declares. See
-   spec/architecture/css/layers.md, "`utilities.css` is dissolved, not given a position". */
+   web's spec/architecture/css/layers.md, "`utilities.css` is dissolved, not given a position". */
 
 /* One spring, sampled once. `motion`'s generator produced these points and the browser composites
    them for free; running the library at paint time would spend JavaScript per frame on a curve
-   that is already known. See spec/styling/controls.md.
+   that is already known. See web's spec/styling/controls.md.
 
    Every consumer that wants this physics reads it from here. Pasting the points a second time is
    how two animations that were meant to feel identical start drifting apart. */
@@ -36,7 +36,7 @@
    draws: Chrome's two-tone ring reads as a stray white border on these surfaces, and it reaches
    anything that takes focus without a utility, such as a menu panel focusing itself as it opens.
    It replaces the ring rather than removing it, so a control given no focus utility stays visible
-   to the keyboard. In the base layer, so every rule below wins. See spec/styling/focus.md. */
+   to the keyboard. In the base layer, so every rule below wins. See web's spec/styling/focus.md. */
 @layer base {
 	:focus-visible {
 		outline: 0.125rem solid var(--color-accent);
@@ -49,7 +49,7 @@
    control are different. The inner variants' rings are the vocabulary's -- `surfaces.focusRingHost`
    hands one down and `focusRingInner` takes it. What is left here is what a control may overrule:
    the ring's shape and a text link's line, each a fallback that yields by sitting under every
-   StyleX layer. See spec/styling/focus.md. */
+   StyleX layer. See web's spec/styling/focus.md. */
 @layer components {
 	:where(.focus-ring, .focus-ring-inner, .focus-ring-within) {
 		border-radius: 0.25rem;
@@ -65,7 +65,7 @@
 	   height of the underline stroke below: the corner arc cuts about 0.25rem off the bottom of each
 	   end and nothing off the top, bowing a straight line into a lens. A corner is a silhouette
 	   rather than an indicator, so it stays beside the fallback above and yields to whatever the
-	   control declares. See spec/styling/focus.md. */
+	   control declares. See web's spec/styling/focus.md. */
 	.focus-link:focus-visible {
 		border-radius: 0.25rem;
 	}
@@ -74,7 +74,7 @@
 /* The ring itself, and the only thing on this site a control may not overrule: whether a keyboard
    user can see where they are. The three rules below have to outrank the vocabulary to say that,
    which is the whole of what the `overrides` layer is -- see app.css for where the position comes
-   from and spec/architecture/css/layers.md, "A new layer has to buy a new position in the
+   from and web's spec/architecture/css/layers.md, "A new layer has to buy a new position in the
    cascade". Nothing decorative belongs here; a declaration that yields to a control belongs in
    the block above. */
 @layer overrides {
@@ -82,8 +82,8 @@
 	   until named, and Tailwind v4 put `outline-color` into `transition-colors`, which nearly
 	   every control here carries for its hover. Left unnamed, the ring fades in from the
 	   element's own text colour instead of snapping to the accent. It is a member of the ring
-	   rather than a rule of its own, so it travels with the ring. See spec/styling/focus.md, "The
-	   ring's colour is declared at rest, or it fades in from the text". */
+	   rather than a rule of its own, so it travels with the ring. See web's spec/styling/focus.md,
+	   "The ring's colour is declared at rest, or it fades in from the text". */
 	:where(.focus-ring, .focus-ring-inner, .focus-ring-within, .focus-link, .focus-link-inner) {
 		outline-color: var(--color-accent);
 	}
@@ -99,8 +99,8 @@
 	   to its trigger as it closes is the case here -- so a known pointer input takes the outline
 	   away instead of trusting the pseudo-class. Written as suppression, not a keyboard requirement,
 	   so the failure mode with the attribute absent is showing a ring once too often, never hiding
-	   one from a keyboard user. See spec/styling/focus.md, "`:focus-visible` is the browser's guess,
-	   and the site keeps its own answer". */
+	   one from a keyboard user. See web's spec/styling/focus.md, "`:focus-visible` is the browser's
+	   guess, and the site keeps its own answer". */
 	/* The second declaration is how this reaches a ring drawn on a child. The child is not the
 	   focused element, so no selector here reaches it and the layer this sits in buys nothing
 	   against it. `surfaces.focusRingHost` substitutes this name into the ring it hands down, and

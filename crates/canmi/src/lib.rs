@@ -1,9 +1,9 @@
 //! @generated from pkgs/me/urls/src/index.ts and pkgs/me/identity/author.json by
 //! `mise run urls`; do not edit.
-//! The author's own addresses and identity, for Rust -- see spec/architecture/layers.md.
+//! The author's own addresses and identity, for Rust -- see spec/me/addresses.md.
 
 pub const SITE: &str = "https://canmi.net";
-pub const SOURCE: &str = "https://github.com/canmi21/lattice";
+pub const SOURCE: &str = "https://github.com/canmi21/web";
 pub const CONTACT_SECURITY: &str = "mailto:security@canmi.net";
 pub const EXTERNAL_GITHUB_WEB: &str = "https://github.com";
 pub const EXTERNAL_GITHUB_API: &str = "https://api.github.com";

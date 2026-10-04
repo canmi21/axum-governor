@@ -1,6 +1,6 @@
 //! The shape every API here answers in, from Rust and from TypeScript alike: `src/index.ts` is the
 //! other half, and both read `codes.json` and are tested against `src/fixtures.json`. See
-//! spec/architecture/services.md, "Every answer is one envelope".
+//! spec/response/envelope.md, "Every answer is one envelope".
 
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

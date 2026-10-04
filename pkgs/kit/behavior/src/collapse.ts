@@ -7,7 +7,7 @@
  *
  * Shared rather than copied: two disclosures with the same spring written out twice are two
  * numbers to keep in step with no way to tell later whether they were meant to be equal. The
- * search panel uses the same spring for a different measurement -- see spec/search.md.
+ * search panel uses the same spring for a different measurement -- see web's spec/search.md.
  */
 
 import { NEGLIGIBLE_PIXELS, pressMotion, prefersReducedMotion } from '../../motion/src/index.ts';

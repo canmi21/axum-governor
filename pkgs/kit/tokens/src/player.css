@@ -2,8 +2,8 @@
  * a video frame rather than the page, so the player brings its own ground instead of asking what
  * theme the page is in. Values are `oklch` with an alpha, like the rest of the tokens, and are
  * deliberately not derived from any `--color-*` -- a derivation would re-introduce the theme this
- * file exists to escape. See spec/styling/player.md, "The player brings its own colours, because it
- * cannot know what is behind them" for the scheme and why each piece is shaped as it is.
+ * file exists to escape. See web's spec/styling/player.md, "The player brings its own colours,
+ * because it cannot know what is behind them" for the scheme and why each piece is shaped as it is.
  */
 
 :root {
@@ -20,8 +20,8 @@
 
 	/* Glass rather than a plate: less of its own colour, more blur, and the saturation push that
 	   stops a blurred frame going grey. At 0.45 alpha the frame behind reads at 55%, against the
-	   plate's 34% -- more alpha is less glass, not more. See spec/styling/player.md, "The disc in the
-	   middle is glass, and the row along the bottom is a plate". */
+	   plate's 34% -- more alpha is less glass, not more. See web's spec/styling/player.md, "The disc
+	   in the middle is glass, and the row along the bottom is a plate". */
 	--player-glass: oklch(0.2 0 0 / 0.45);
 	--player-glass-blur: 32px;
 	--player-glass-saturate: 180%;
@@ -29,8 +29,8 @@
 	/* The settings menu: a list to read rather than a glyph to find, and it sits on the veil. Still
 	   glass -- the frame shows through as colour -- but a little more of its own ground than the
 	   disc and a little less blur, so words at 12px hold over it. No edge: a line round it, light
-	   or dark, read as a frame drawn on the glass. See spec/styling/player.md, "The menu has its
-	   own ground". */
+	   or dark, read as a frame drawn on the glass. See web's spec/styling/player.md, "The menu has
+	   its own ground". */
 	--player-menu: oklch(0.18 0 0 / 0.5);
 	--player-menu-blur: 24px;
 	--player-menu-saturate: 170%;

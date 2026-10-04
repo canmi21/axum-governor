@@ -1,7 +1,8 @@
 /**
  * Reads an app's `browserslist` floors into esbuild's `build.target`.
  *
- * See spec/compat.md, "The syntax floor is set to the same line, deliberately".
+ * See spec/web/compat.md, "The syntax floor is an app's `browserslist`, read into esbuild's
+ * target".
  */
 export function esbuildTarget(browserslist: string[]): string[] {
 	return browserslist.map((query) => {

@@ -1,5 +1,5 @@
 /**
- * Where a reader came from, taken out of the address bar. See spec/architecture/referer.md.
+ * Where a reader came from, taken out of the address bar. See spec/web/referer.md.
  */
 
 /** Parameters a link may carry into any page, taken out once the page is running. */

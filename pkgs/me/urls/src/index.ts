@@ -1,8 +1,8 @@
 /**
  * The author's own: their site, their identity's addresses, the world's addresses anyone could
  * use, and the functions every program here reads a request with. Depends on nothing else of
- * theirs, so every layer above may read it. See spec/architecture/layers.md, "Addresses are split
- * by who owns the name".
+ * theirs, so every layer above may read it. See spec/me/addresses.md, "`@canmi/me/urls` holds
+ * the addresses whose names are the author's".
  */
 
 /** Stated by a build for a runtime with no environment to read: a worker, a page. */
@@ -11,7 +11,7 @@ declare const STATED_PORT_OFFSET: number | undefined;
 /**
  * How far the sandbox shifts every pinned port, and 0 everywhere else. Read from the environment
  * where there is one, and stated by the build where there is not; production states nothing and
- * gets 0. See spec/architecture/modes.md, "Every port is shifted by one hundred".
+ * gets 0. See web's spec/architecture/modes.md, "Every port is shifted by one hundred".
  */
 export const PORT_OFFSET: number =
 	typeof STATED_PORT_OFFSET === 'number'
@@ -33,7 +33,7 @@ export const SITE_PORT = 26511;
  * An identity rather than an address, which is why it sits beside the map instead of inside it:
  * the map is mirrored into Rust as URL constants, and this is the one string in it that is not
  * a URL. The CDN's release proxy fetches from this account and no other -- there is no place in
- * its URL to name a different one. See spec/architecture/delivery.md.
+ * its URL to name a different one. See platform's spec/architecture/delivery.md.
  */
 export const GITHUB_OWNER = 'canmi21';
 
@@ -43,7 +43,7 @@ export const GITHUB_OWNER = 'canmi21';
  * themselves -- so it is a published fact, not a convenience, and belongs beside the other URLs
  * rather than written into a route.
  */
-export const SOURCE = `https://github.com/${GITHUB_OWNER}/lattice`;
+export const SOURCE = `https://github.com/${GITHUB_OWNER}/web`;
 
 /**
  * Where a vulnerability is reported, published in every zone's security.txt. An address on the
@@ -83,7 +83,7 @@ export const EXTERNAL = {
 	contentSignals: 'https://contentsignals.org',
 	contentUsage: 'https://datatracker.ietf.org/doc/draft-ietf-aipref-attach/',
 	// The agents that broke into Hugging Face, which a robots.txt here tips its hat to. See
-	// spec/architecture/robots.md, "A word to an agent sent to break in".
+	// platform's spec/architecture/robots.md, "A word to an agent sent to break in".
 	agentIncident: 'https://openai.com/index/hugging-face-incident-and-the-road-ahead/',
 	// A Sentry DSN only permits *sending* events to one project -- it grants no read
 	// access -- and the browser SDK compiles it into the bundle, where anyone can read it
@@ -95,7 +95,7 @@ export const EXTERNAL = {
 	sentry: {
 		site: 'https://a7f2f790ed2fa4f8e0c4310d26d9c39f@o4511131162116096.ingest.us.sentry.io/4511380121976832',
 		// Possibly absent: an app without a DSN sends and uploads nothing. See
-		// spec/architecture/probe.md, "Errors go to Sentry".
+		// platform's spec/architecture/probe.md, "Errors go to Sentry".
 		status:
 			'https://0c9dd7de9a89dddc79dbdc2252e1c940@o4511131162116096.ingest.us.sentry.io/4512173650542592' as
 				| string
@@ -106,7 +106,7 @@ export const EXTERNAL = {
 	feedsmith: 'https://feedsmith.dev',
 	// Where changed URLs are announced. The shared endpoint rather than one engine's own:
 	// participants agree to forward what they receive, so submitting here reaches all of
-	// them and picking one would be choosing which of them to tell. See spec/indexing.md.
+	// them and picking one would be choosing which of them to tell. See web's spec/indexing.md.
 	indexnow: 'https://api.indexnow.org/IndexNow',
 	// Bases for social profile links. Handles are canmi/identity's; these are only where a
 	// handle is reachable.
@@ -114,7 +114,7 @@ export const EXTERNAL = {
 	// `twitter.com` rather than `x.com`, on both. The service renamed itself and kept the
 	// old host as a permanent redirect, which it will go on keeping -- too much of the web
 	// points at it to drop. So the choice is between a name its owner picked and the name
-	// everybody uses, at the cost of one redirect nobody waits on. See spec/twitter.md.
+	// everybody uses, at the cost of one redirect nobody waits on. See web's spec/twitter.md.
 	social: {
 		telegram: 'https://t.me',
 		twitter: 'https://twitter.com',
@@ -143,7 +143,7 @@ export const EXTERNAL = {
 	// Neither host is written in this repository's own code -- umami's is a constant inside
 	// the script it downloads, and OpenPanel's is the default baked into `@openpanel/sdk` --
 	// so both are recorded here from having been read out of them. They are declared to be
-	// resolved early rather than to be fetched. See spec/analytics.md.
+	// resolved early rather than to be fetched. See web's spec/analytics.md.
 	umamiGateway: 'https://gateway.umami.is',
 	openpanel: 'https://api.openpanel.dev',
 	// Hosts the Latin webfont stylesheet resolves through; preconnected before it is fetched.
@@ -195,7 +195,7 @@ const FULL_STOPS = /[。．｡]|%E3%80%82|%EF%BC%8E|%EF%BD%A1/gi;
 /**
  * A request path in its one spelling: every CJK full stop a dot, every backslash a slash, every run
  * of slashes one, and no trailing slash -- so the root alone is `''`, the bare host. See
- * spec/architecture/delivery.md, "Every address has one spelling".
+ * spec/me/addresses.md, "Every address has one spelling".
  */
 export function normalizePath(path: string): string {
 	return path

@@ -19,7 +19,7 @@ const silent = () => ({
  *
  * Development initializes the SDK with every integration installed, so capture is exercised, and
  * hands it a transport that sends nothing. `enabled: false` would install no integrations at all.
- * See spec/analytics.md, "Development loads the client and reports nothing".
+ * See web's spec/analytics.md, "Development loads the client and reports nothing".
  */
 export function initOptions(dsn: string, dev: boolean) {
 	return {

@@ -2,14 +2,14 @@ import data from '../author.json' with { type: 'json' };
 
 /**
  * The author, declared once for every app. The values are a JSON file so that Rust and the
- * scripts outside the Vite graph read the same file. See spec/architecture/identity.md.
+ * scripts outside the Vite graph read the same file. See spec/me/identity.md.
  */
 export interface Author {
 	/** The name a page signs with, and the one the author goes by. */
 	name: string;
 	/**
 	 * Said only where the author is introduced: the home page, its card and its agent view once, and
-	 * the structured data. Not translated. See spec/architecture/identity.md, "One name, said
+	 * the structured data. Not translated. See web's spec/architecture/identity.md, "One name, said
 	 * plainly".
 	 */
 	fullName: string;

@@ -15,7 +15,7 @@
 	--color-ink: oklch(0.241 0 0);
 	/* `paper` is the sheet, at whichever end of the range the theme calls its own, and
 	   `paper-hover` is one step off it -- so both mirror, and a thumbnail is a white sheet in
-	   light and the deepest surface in dark. See spec/styling/surfaces.md, "A sheet takes the
+	   light and the deepest surface in dark. See web's spec/styling/surfaces.md, "A sheet takes the
 	   theme's own end of the range, and a step off it goes the other way". */
 	--color-paper: oklch(1 0 0);
 	--color-paper-hover: oklch(0.962 0 0);
