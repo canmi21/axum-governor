@@ -1,12 +1,9 @@
-//! Turning a pair of coordinates into a place name, without asking anyone.
+//! A latitude and longitude to the place it is in.
 //!
-//! GeoNames' `cities500`, indexed once into an R-tree and searched for the nearest settlement.
-//! Offline on purpose: a reverse geocoding service would make naming a place depend on somebody
-//! else's uptime, their rate limit and their opinion about what we may do with the answer -- for a
-//! fact that never changes once written. See spec/architecture/media.md.
-//!
-//! Two consumers: `local`, naming where a photograph was taken, and the `geo` service, answering
-//! the same question over HTTP. The data directory is the caller's to know.
+//! GeoNames' `cities500`, indexed once into an R-tree and searched for the nearest settlement;
+//! `countryInfo.txt`, `admin1CodesASCII.txt` and `admin2Codes.txt` name its country and regions,
+//! and `postal.txt`, read on first need, its postal code. All of them sit in one directory, the
+//! caller's. The time zone comes from the polygon the point falls in, not from the settlement.
 
 use rstar::{AABB, PointDistance, RTree, RTreeObject};
 use serde::{Deserialize, Serialize};
@@ -85,7 +82,7 @@ impl PointDistance for Postal {
 impl PointDistance for Place {
 	/// Squared degrees, which is wrong as a distance and right as an ordering.
 	///
-	/// A degree of longitude is shorter near the poles, so this is not metres and must never
+	/// A degree of longitude is shorter near the poles, so this is not meters and must never
 	/// be reported as one. It only ever decides which of two candidates is closer, and for
 	/// that the distortion has to be extreme before it changes the answer -- the nearest town
 	/// to a photograph is rarely a close call between two on opposite bearings.
@@ -233,7 +230,7 @@ impl Gazetteer {
 
 	/// The address for a position, as far as the data can say.
 	///
-	/// `district` stays absent. Naming a neighbourhood needs the full GeoNames dump, which is
+	/// `district` stays absent. Naming a neighborhood needs the full GeoNames dump, which is
 	/// an order of magnitude larger than everything here put together, and deriving one from
 	/// the nearest town would state something no source claimed.
 	pub fn lookup(&self, lat: f64, lon: f64) -> Option<Address> {
@@ -272,7 +269,7 @@ mod tests {
 
 	#[test]
 	fn nearness_is_an_ordering_and_not_a_measurement() {
-		// Squared degrees, which is not metres and must never be reported as any. It decides
+		// Squared degrees, which is not meters and must never be reported as any. It decides
 		// which of two candidates is closer and nothing else.
 		let place = Place {
 			lat: 0.0,
