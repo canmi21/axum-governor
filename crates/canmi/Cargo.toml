@@ -9,8 +9,8 @@ description = "The author's own facts for Rust: their sites' addresses and the w
 [lints]
 workspace = true
 
-# The Rust half of the `canmi` package: `src/lib.rs` is generated from
-# pkgs/canmi/urls/src/index.ts by `mise run urls`. See spec/architecture/layers.md, "Addresses
+# The Rust half of the `@canmi/me` package: `src/lib.rs` is generated from
+# pkgs/me/urls/src/index.ts by `mise run urls`. See spec/architecture/layers.md, "Addresses
 # are split by who owns the name".
 [lib]
 path = "src/lib.rs"

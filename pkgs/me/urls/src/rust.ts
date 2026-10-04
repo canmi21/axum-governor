@@ -31,7 +31,7 @@ function walk(value: unknown, path: string[], out: Array<[string, string]>): voi
  */
 export function rustCanmi(): string {
 	return [
-		'//! @generated from pkgs/canmi/urls/src/index.ts by `mise run urls`; do not edit.',
+		'//! @generated from pkgs/me/urls/src/index.ts by `mise run urls`; do not edit.',
 		"//! The author's own addresses, for Rust -- see spec/architecture/layers.md.",
 		'',
 		rustConstants({ site: SITE, source: SOURCE, contact: CONTACT, external: EXTERNAL }),

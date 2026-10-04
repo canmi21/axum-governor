@@ -2,7 +2,8 @@
 
 One repository for every package the author publishes that depends on nothing else of theirs:
 npm packages under `pkgs/`, crates under `crates/`, one directory each. A package with a half in
-each registry is two directories of one name. It is split by registry rather than by purpose
+each registry is two directories of one name -- except `@canmi/me`, whose crate is `canmi`: npm
+refused the bare name as too near two others, so the npm half took the scope. It is split by registry rather than by purpose
 because what it is read for is what it publishes.
 
 Each package keeps its own spec beside the others here, under a directory of its name:
@@ -23,8 +24,8 @@ here, and its citations are rewritten as it does; one that rules on the site sta
 ## Versions and publishing
 
 **A dated package is versioned by the UTC day**, `2026.10.4`, never zero-padded, which semver
-forbids: `canmi`, `@canmi/kit`, `@canmi/ui` and `@canmi/web`, and the `canmi` crate under the same
-version as its npm half. `.github/workflows/release.yml` runs `.mise/tasks/release` just after
+forbids: `@canmi/me`, `@canmi/kit`, `@canmi/ui` and `@canmi/web`, and the `canmi` crate under the
+same version as `@canmi/me`. `.github/workflows/release.yml` runs `.mise/tasks/release` just after
 midnight UTC for the day that ended, or by hand for today, and publishes each package whose
 directory changed since its last tag, `<name>@<version>`, tagging it as it goes.
 

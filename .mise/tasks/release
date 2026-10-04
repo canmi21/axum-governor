@@ -19,7 +19,7 @@ OUT = ROOT / "target" / "release-packs"
 
 # Each dated package: its npm directory, and the crate published beside it under one version.
 PACKAGES = [
-	{"name": "canmi", "npm": "pkgs/canmi", "crate": "crates/canmi"},
+	{"name": "@canmi/me", "npm": "pkgs/me", "crate": "crates/canmi"},
 	{"name": "@canmi/kit", "npm": "pkgs/kit"},
 	{"name": "@canmi/ui", "npm": "pkgs/ui"},
 	{"name": "@canmi/web", "npm": "pkgs/web"},

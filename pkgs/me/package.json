@@ -1,12 +1,12 @@
 {
-	"name": "canmi",
+	"name": "@canmi/me",
 	"version": "0.0.0",
 	"description": "The author's own facts: their sites' addresses and the world's, their identity, the languages they write in",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/canmi21/lib.git",
-		"directory": "pkgs/canmi"
+		"directory": "pkgs/me"
 	},
 	"type": "module",
 	"files": [

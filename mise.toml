@@ -27,8 +27,8 @@ depends = ["check", "lint", "test", "build"]
 
 # The Rust half of `canmi` is rendered from its TypeScript, so an address is written once.
 [tasks.urls]
-description = "Regenerate the canmi crate from the canmi package's addresses"
-run = ["node pkgs/canmi/urls/scripts/rust.ts", "cargo fmt -- crates/canmi/src/lib.rs"]
+description = "Regenerate the canmi crate from the @canmi/me package's addresses"
+run = ["node pkgs/me/urls/scripts/rust.ts", "cargo fmt -- crates/canmi/src/lib.rs"]
 
 # Reached from the workspace as `mise run publish lib`, for axum-governor alone until the release
 # pipeline publishes each package; see spec/repository.md. It depends on verify because a
