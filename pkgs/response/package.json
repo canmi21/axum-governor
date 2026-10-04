@@ -8,11 +8,11 @@
 		"url": "git+https://github.com/canmi21/lib.git",
 		"directory": "pkgs/response"
 	},
-	"type": "module",
 	"files": [
 		"dist",
 		"codes.json"
 	],
+	"type": "module",
 	"exports": {
 		".": {
 			"types": "./dist/src/index.d.ts",

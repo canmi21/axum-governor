@@ -8,10 +8,10 @@
 		"url": "git+https://github.com/canmi21/lib.git",
 		"directory": "pkgs/ui"
 	},
-	"type": "module",
 	"files": [
 		"dist"
 	],
+	"type": "module",
 	"exports": {
 		"./primitives": {
 			"types": "./dist/primitives/src/index.d.ts",

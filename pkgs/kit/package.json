@@ -8,10 +8,10 @@
 		"url": "git+https://github.com/canmi21/lib.git",
 		"directory": "pkgs/kit"
 	},
-	"type": "module",
 	"files": [
 		"dist"
 	],
+	"type": "module",
 	"exports": {
 		"./theme": {
 			"types": "./dist/theme/src/index.d.ts",
