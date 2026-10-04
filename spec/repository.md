@@ -53,12 +53,10 @@ since they share one `codes.json`.
 takes only what is under the crate's own directory, and follows a symbolic link to copy what it
 names. `crates/response/codes.json` is one, to `pkgs/response/codes.json`.
 
-**The license is one file, the repository's `LICENSE`, linked into every package** the same way,
-so each published package carries it and no two copies can differ. A README's own license line
-names the year the package was first thought of rather than the file's: `response` and
-`whereabouts` say 2024, `axum-governor` 2025. A README is otherwise in the author's voice and short:
-a semver package's follows `axum-governor`'s -- a line, a quick start, its features, its Cargo
-features -- and one built for the author's own projects says what it is in a line or two and ends with its license line too, under a title made from its name rather than the name itself, `Me` for `@canmi/me`.
+**The license is one file, the repository's `LICENSE`, linked into every package**, and each
+README's license line names the year the package was first thought of: `response` and
+`whereabouts` 2024, `axum-governor` 2025, the rest 2026. How a README, a description and a license
+year are written is the workspace's `spec/readme.md`.
 
 **`whereabouts` is `geocode` renamed, with the IP lookup from platform's `geo` app taken in beside
 it**, as the features `coordinates` and `ip`, none on by default. Fetching the data stays with the caller.
