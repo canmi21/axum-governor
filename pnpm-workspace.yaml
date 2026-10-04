@@ -2,6 +2,13 @@
 packages:
   - pkgs/*
 
+# SvelteKit takes TypeScript as an optional peer at ^6, for the tooling an app runs -- `svelte-kit
+# sync`, svelte-check. Here it is a development dependency of `@canmi/web`, typed against and never
+# run, so the workspace's TypeScript 7 is enough; web's spec/toolchain.md has why an app holds both.
+peerDependencyRules:
+  allowedVersions:
+    '@sveltejs/kit>typescript': '7'
+
 # An install script runs arbitrary code before anybody reads the package, which is why pnpm
 # blocks it; each is decided here by name. Nothing goes in this list to make a warning go away.
 allowBuilds:
