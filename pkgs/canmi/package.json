@@ -1,0 +1,41 @@
+{
+	"name": "canmi",
+	"version": "0.0.0",
+	"description": "The author's own facts: their sites' addresses and the world's, their identity, the languages they write in",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/canmi21/lib.git",
+		"directory": "pkgs/canmi"
+	},
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		"./urls": {
+			"types": "./dist/urls/src/index.d.ts",
+			"default": "./dist/urls/src/index.js"
+		},
+		"./rust": {
+			"types": "./dist/urls/src/rust.d.ts",
+			"default": "./dist/urls/src/rust.js"
+		},
+		"./identity": {
+			"types": "./dist/identity/src/index.d.ts",
+			"default": "./dist/identity/src/index.js"
+		},
+		"./identity/author.json": "./dist/identity/author.json",
+		"./locales": {
+			"types": "./dist/locales/src/index.d.ts",
+			"default": "./dist/locales/src/index.js"
+		},
+		"./locales/format": {
+			"types": "./dist/locales/src/format.d.ts",
+			"default": "./dist/locales/src/format.js"
+		}
+	},
+	"scripts": {
+		"build": "tsdown"
+	}
+}

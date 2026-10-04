@@ -1,0 +1,528 @@
+/*
+ * Styling for SVG diagrams using Claude's .svg-canvas convention.
+ * The selectors and light palette mirror that markup contract; the dark palette derives from
+ * those hues in OKLCH. The site's native UI tokens remain a separate system.
+ */
+
+.svg-canvas {
+	--font-sans:
+		'Inter', 'PingFang SC', 'HarmonyOS Sans SC', 'Noto Sans SC', 'Microsoft YaHei',
+		'WenQuanYi Micro Hei', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+	--font-mono: 'Ioskeley Mono', ui-monospace, monospace;
+
+	/* Backgrounds */
+	--color-background-primary: #fafafa;
+	--color-background-secondary: #f0f0f1;
+	--color-background-tertiary: #eaeaeb;
+	--color-background-info: #e6efff;
+	--color-background-danger: #fde8e6;
+	--color-background-success: #e8f3e2;
+	--color-background-warning: #fbeed8;
+
+	/* Text */
+	--color-text-primary: #383a42;
+	--color-text-secondary: #696c77;
+	--color-text-tertiary: #a0a1a7;
+	--color-text-info: #4078f2;
+	--color-text-danger: #e45649;
+	--color-text-success: #50a14f;
+	--color-text-warning: #d75f00;
+
+	/* Borders (alpha on text-primary) */
+	--color-border-tertiary: rgba(56, 58, 66, 0.15);
+	--color-border-secondary: rgba(56, 58, 66, 0.3);
+	--color-border-primary: rgba(56, 58, 66, 0.4);
+	--color-border-info: #4078f2;
+	--color-border-danger: #e45649;
+	--color-border-success: #50a14f;
+	--color-border-warning: #d75f00;
+
+	/* Radius */
+	--border-radius-md: 0.5rem;
+	--border-radius-lg: 0.75rem;
+	--border-radius-xl: 1rem;
+
+	/* SVG short aliases */
+	--p: var(--color-text-primary);
+	--s: var(--color-text-secondary);
+	--t: var(--color-text-tertiary);
+	--bg2: var(--color-background-secondary);
+	--b: var(--color-border-tertiary);
+}
+
+.dark .svg-canvas,
+[data-theme='dark'] .svg-canvas {
+	--color-background-primary: oklch(0.987 0 0 / 0.02);
+	--color-background-secondary: oklch(0.955 0.003 286 / 0.02);
+	--color-background-tertiary: oklch(0.937 0.003 286 / 0.015);
+	--color-background-info: oklch(0.7168 0.1433 254.61 / 0.1);
+	--color-background-danger: oklch(0.7192 0.169 13.43 / 0.11);
+	--color-background-success: oklch(0.8003 0.1821 143.46 / 0.11);
+	--color-background-warning: oklch(0.8369 0.1644 76.2 / 0.12);
+
+	--color-text-primary: oklch(0.987 0 0 / 0.9);
+	--color-text-secondary: oklch(0.955 0.003 286 / 0.68);
+	--color-text-tertiary: oklch(0.937 0.003 286 / 0.48);
+	--color-text-info: oklch(0.7168 0.1433 254.61);
+	--color-text-danger: oklch(0.6615 0.1539 13.26);
+	--color-text-success: oklch(0.7433 0.1657 143.46);
+	--color-text-warning: oklch(0.7799 0.1496 76.2);
+
+	--color-border-tertiary: oklch(0.987 0 0 / 0.08);
+	--color-border-secondary: oklch(0.987 0 0 / 0.16);
+	--color-border-primary: oklch(0.987 0 0 / 0.24);
+	--color-border-info: oklch(0.7168 0.1433 254.61 / 0.21);
+	--color-border-danger: oklch(0.7192 0.169 13.43 / 0.22);
+	--color-border-success: oklch(0.8003 0.1821 143.46 / 0.22);
+	--color-border-warning: oklch(0.8369 0.1644 76.2 / 0.23);
+}
+
+.svg-canvas svg text {
+	font-family: var(--font-sans);
+}
+.svg-canvas svg text.t {
+	font-size: 0.875rem;
+	font-weight: 400;
+	fill: var(--color-text-primary);
+}
+.svg-canvas svg text.ts {
+	font-size: 0.75rem;
+	font-weight: 400;
+	fill: var(--color-text-secondary);
+}
+.svg-canvas svg text.th {
+	font-size: 0.875rem;
+	font-weight: 500;
+	fill: var(--color-text-primary);
+}
+
+.svg-canvas svg .box {
+	fill: var(--color-background-secondary);
+	stroke: var(--color-border-tertiary);
+	stroke-width: 0.5;
+}
+
+/* Every diagram is one control -- pressing any part of it opens the enlarged view -- so the
+ * cursor is declared once by the host that owns that press, not per node. See
+ * spec/styling/blocks.md. */
+.svg-canvas svg {
+	display: block;
+}
+
+.svg-canvas svg .node {
+	transition: opacity 0.15s;
+}
+
+/* A touch screen synthesises hover from a tap and leaves it applied, so the node under the finger
+ * would stay dimmed behind the view that tap opened, and still be dimmed when it closes. The
+ * colour change is for a pointer that can leave again. */
+@media (hover: hover) {
+	.svg-canvas svg .node:hover {
+		opacity: 0.75;
+	}
+}
+
+.svg-canvas svg .arr {
+	fill: none;
+	stroke: var(--color-text-secondary);
+	stroke-width: 1.5;
+	stroke-linecap: round;
+}
+
+.svg-canvas svg .leader {
+	fill: none;
+	stroke: var(--color-text-tertiary);
+	stroke-width: 0.5;
+	stroke-dasharray: 3 3;
+}
+
+/* Light: 50 fill + 600 stroke + 800 title / 600 subtitle */
+
+.svg-canvas svg .c-purple > rect,
+.svg-canvas svg .c-purple > circle,
+.svg-canvas svg .c-purple > ellipse,
+.svg-canvas svg rect.c-purple,
+.svg-canvas svg circle.c-purple,
+.svg-canvas svg ellipse.c-purple {
+	fill: #faecf9;
+	stroke: #a626a4;
+}
+.svg-canvas svg .c-purple > .th,
+.svg-canvas svg .c-purple > .t {
+	fill: #771977;
+}
+.svg-canvas svg .c-purple > .ts {
+	fill: #a626a4;
+}
+
+.svg-canvas svg .c-teal > rect,
+.svg-canvas svg .c-teal > circle,
+.svg-canvas svg .c-teal > ellipse,
+.svg-canvas svg rect.c-teal,
+.svg-canvas svg circle.c-teal,
+.svg-canvas svg ellipse.c-teal {
+	fill: #e1f3fa;
+	stroke: #0184bc;
+}
+.svg-canvas svg .c-teal > .th,
+.svg-canvas svg .c-teal > .t {
+	fill: #015f88;
+}
+.svg-canvas svg .c-teal > .ts {
+	fill: #0184bc;
+}
+
+.svg-canvas svg .c-coral > rect,
+.svg-canvas svg .c-coral > circle,
+.svg-canvas svg .c-coral > ellipse,
+.svg-canvas svg rect.c-coral,
+.svg-canvas svg circle.c-coral,
+.svg-canvas svg ellipse.c-coral {
+	fill: #fbeee2;
+	stroke: #ca6f1e;
+}
+.svg-canvas svg .c-coral > .th,
+.svg-canvas svg .c-coral > .t {
+	fill: #925113;
+}
+.svg-canvas svg .c-coral > .ts {
+	fill: #ca6f1e;
+}
+
+.svg-canvas svg .c-pink > rect,
+.svg-canvas svg .c-pink > circle,
+.svg-canvas svg .c-pink > ellipse,
+.svg-canvas svg rect.c-pink,
+.svg-canvas svg circle.c-pink,
+.svg-canvas svg ellipse.c-pink {
+	fill: #fce8ee;
+	stroke: #b83260;
+}
+.svg-canvas svg .c-pink > .th,
+.svg-canvas svg .c-pink > .t {
+	fill: #852344;
+}
+.svg-canvas svg .c-pink > .ts {
+	fill: #b83260;
+}
+
+.svg-canvas svg .c-gray > rect,
+.svg-canvas svg .c-gray > circle,
+.svg-canvas svg .c-gray > ellipse,
+.svg-canvas svg rect.c-gray,
+.svg-canvas svg circle.c-gray,
+.svg-canvas svg ellipse.c-gray {
+	fill: #f0f0f1;
+	stroke: #5c5e66;
+}
+.svg-canvas svg .c-gray > .th,
+.svg-canvas svg .c-gray > .t {
+	fill: #383a42;
+}
+.svg-canvas svg .c-gray > .ts {
+	fill: #5c5e66;
+}
+
+.svg-canvas svg .c-blue > rect,
+.svg-canvas svg .c-blue > circle,
+.svg-canvas svg .c-blue > ellipse,
+.svg-canvas svg rect.c-blue,
+.svg-canvas svg circle.c-blue,
+.svg-canvas svg ellipse.c-blue {
+	fill: #e6efff;
+	stroke: #4078f2;
+}
+.svg-canvas svg .c-blue > .th,
+.svg-canvas svg .c-blue > .t {
+	fill: #1a52cf;
+}
+.svg-canvas svg .c-blue > .ts {
+	fill: #4078f2;
+}
+
+.svg-canvas svg .c-green > rect,
+.svg-canvas svg .c-green > circle,
+.svg-canvas svg .c-green > ellipse,
+.svg-canvas svg rect.c-green,
+.svg-canvas svg circle.c-green,
+.svg-canvas svg ellipse.c-green {
+	fill: #e8f3e2;
+	stroke: #50a14f;
+}
+.svg-canvas svg .c-green > .th,
+.svg-canvas svg .c-green > .t {
+	fill: #3a7639;
+}
+.svg-canvas svg .c-green > .ts {
+	fill: #50a14f;
+}
+
+.svg-canvas svg .c-amber > rect,
+.svg-canvas svg .c-amber > circle,
+.svg-canvas svg .c-amber > ellipse,
+.svg-canvas svg rect.c-amber,
+.svg-canvas svg circle.c-amber,
+.svg-canvas svg ellipse.c-amber {
+	fill: #fbeed8;
+	stroke: #c18401;
+}
+.svg-canvas svg .c-amber > .th,
+.svg-canvas svg .c-amber > .t {
+	fill: #8c6001;
+}
+.svg-canvas svg .c-amber > .ts {
+	fill: #c18401;
+}
+
+.svg-canvas svg .c-red > rect,
+.svg-canvas svg .c-red > circle,
+.svg-canvas svg .c-red > ellipse,
+.svg-canvas svg rect.c-red,
+.svg-canvas svg circle.c-red,
+.svg-canvas svg ellipse.c-red {
+	fill: #fde8e6;
+	stroke: #e45649;
+}
+.svg-canvas svg .c-red > .th,
+.svg-canvas svg .c-red > .t {
+	fill: #a83329;
+}
+.svg-canvas svg .c-red > .ts {
+	fill: #e45649;
+}
+
+/* Dark: the light palette's hue and fill-to-stroke mixture, behind brighter ink. */
+
+.dark .svg-canvas svg .c-purple > rect,
+.dark .svg-canvas svg .c-purple > circle,
+.dark .svg-canvas svg .c-purple > ellipse,
+.dark .svg-canvas svg rect.c-purple,
+.dark .svg-canvas svg circle.c-purple,
+.dark .svg-canvas svg ellipse.c-purple,
+[data-theme='dark'] .svg-canvas svg .c-purple > rect,
+[data-theme='dark'] .svg-canvas svg .c-purple > circle,
+[data-theme='dark'] .svg-canvas svg .c-purple > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-purple,
+[data-theme='dark'] .svg-canvas svg circle.c-purple,
+[data-theme='dark'] .svg-canvas svg ellipse.c-purple {
+	fill: oklch(0.709 0.1592 328.78 / 0.07);
+	stroke: oklch(0.709 0.1592 328.78 / 0.18);
+}
+.dark .svg-canvas svg .c-purple > .th,
+.dark .svg-canvas svg .c-purple > .t,
+[data-theme='dark'] .svg-canvas svg .c-purple > .th,
+[data-theme='dark'] .svg-canvas svg .c-purple > .t {
+	fill: oklch(0.709 0.1592 328.78);
+}
+.dark .svg-canvas svg .c-purple > .ts,
+[data-theme='dark'] .svg-canvas svg .c-purple > .ts {
+	fill: oklch(0.652 0.1449 328.78);
+}
+
+.dark .svg-canvas svg .c-teal > rect,
+.dark .svg-canvas svg .c-teal > circle,
+.dark .svg-canvas svg .c-teal > ellipse,
+.dark .svg-canvas svg rect.c-teal,
+.dark .svg-canvas svg circle.c-teal,
+.dark .svg-canvas svg ellipse.c-teal,
+[data-theme='dark'] .svg-canvas svg .c-teal > rect,
+[data-theme='dark'] .svg-canvas svg .c-teal > circle,
+[data-theme='dark'] .svg-canvas svg .c-teal > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-teal,
+[data-theme='dark'] .svg-canvas svg circle.c-teal,
+[data-theme='dark'] .svg-canvas svg ellipse.c-teal {
+	fill: oklch(0.7845 0.1325 237.19 / 0.09);
+	stroke: oklch(0.7845 0.1325 237.19 / 0.2);
+}
+.dark .svg-canvas svg .c-teal > .th,
+.dark .svg-canvas svg .c-teal > .t,
+[data-theme='dark'] .svg-canvas svg .c-teal > .th,
+[data-theme='dark'] .svg-canvas svg .c-teal > .t {
+	fill: oklch(0.7845 0.1325 237.19);
+}
+.dark .svg-canvas svg .c-teal > .ts,
+[data-theme='dark'] .svg-canvas svg .c-teal > .ts {
+	fill: oklch(0.7275 0.1206 237.19);
+}
+
+.dark .svg-canvas svg .c-coral > rect,
+.dark .svg-canvas svg .c-coral > circle,
+.dark .svg-canvas svg .c-coral > ellipse,
+.dark .svg-canvas svg rect.c-coral,
+.dark .svg-canvas svg circle.c-coral,
+.dark .svg-canvas svg ellipse.c-coral,
+[data-theme='dark'] .svg-canvas svg .c-coral > rect,
+[data-theme='dark'] .svg-canvas svg .c-coral > circle,
+[data-theme='dark'] .svg-canvas svg .c-coral > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-coral,
+[data-theme='dark'] .svg-canvas svg circle.c-coral,
+[data-theme='dark'] .svg-canvas svg ellipse.c-coral {
+	fill: oklch(0.7576 0.159 55.93 / 0.09);
+	stroke: oklch(0.7576 0.159 55.93 / 0.2);
+}
+.dark .svg-canvas svg .c-coral > .th,
+.dark .svg-canvas svg .c-coral > .t,
+[data-theme='dark'] .svg-canvas svg .c-coral > .th,
+[data-theme='dark'] .svg-canvas svg .c-coral > .t {
+	fill: oklch(0.7576 0.159 55.93);
+}
+.dark .svg-canvas svg .c-coral > .ts,
+[data-theme='dark'] .svg-canvas svg .c-coral > .ts {
+	fill: oklch(0.7006 0.1447 55.93);
+}
+
+.dark .svg-canvas svg .c-pink > rect,
+.dark .svg-canvas svg .c-pink > circle,
+.dark .svg-canvas svg .c-pink > ellipse,
+.dark .svg-canvas svg rect.c-pink,
+.dark .svg-canvas svg circle.c-pink,
+.dark .svg-canvas svg ellipse.c-pink,
+[data-theme='dark'] .svg-canvas svg .c-pink > rect,
+[data-theme='dark'] .svg-canvas svg .c-pink > circle,
+[data-theme='dark'] .svg-canvas svg .c-pink > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-pink,
+[data-theme='dark'] .svg-canvas svg circle.c-pink,
+[data-theme='dark'] .svg-canvas svg ellipse.c-pink {
+	fill: oklch(0.7253 0.1752 4.55 / 0.09);
+	stroke: oklch(0.7253 0.1752 4.55 / 0.2);
+}
+.dark .svg-canvas svg .c-pink > .th,
+.dark .svg-canvas svg .c-pink > .t,
+[data-theme='dark'] .svg-canvas svg .c-pink > .th,
+[data-theme='dark'] .svg-canvas svg .c-pink > .t {
+	fill: oklch(0.7253 0.1752 4.55);
+}
+.dark .svg-canvas svg .c-pink > .ts,
+[data-theme='dark'] .svg-canvas svg .c-pink > .ts {
+	fill: oklch(0.6683 0.1594 4.55);
+}
+
+.dark .svg-canvas svg .c-gray > rect,
+.dark .svg-canvas svg .c-gray > circle,
+.dark .svg-canvas svg .c-gray > ellipse,
+.dark .svg-canvas svg rect.c-gray,
+.dark .svg-canvas svg circle.c-gray,
+.dark .svg-canvas svg ellipse.c-gray,
+[data-theme='dark'] .svg-canvas svg .c-gray > rect,
+[data-theme='dark'] .svg-canvas svg .c-gray > circle,
+[data-theme='dark'] .svg-canvas svg .c-gray > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-gray,
+[data-theme='dark'] .svg-canvas svg circle.c-gray,
+[data-theme='dark'] .svg-canvas svg ellipse.c-gray {
+	fill: oklch(0.955 0.003 286 / 0.02);
+	stroke: oklch(0.955 0.003 286 / 0.08);
+}
+.dark .svg-canvas svg .c-gray > .th,
+.dark .svg-canvas svg .c-gray > .t,
+[data-theme='dark'] .svg-canvas svg .c-gray > .th,
+[data-theme='dark'] .svg-canvas svg .c-gray > .t {
+	fill: oklch(0.987 0 0 / 0.86);
+}
+.dark .svg-canvas svg .c-gray > .ts,
+[data-theme='dark'] .svg-canvas svg .c-gray > .ts {
+	fill: oklch(0.955 0.003 286 / 0.65);
+}
+
+.dark .svg-canvas svg .c-blue > rect,
+.dark .svg-canvas svg .c-blue > circle,
+.dark .svg-canvas svg .c-blue > ellipse,
+.dark .svg-canvas svg rect.c-blue,
+.dark .svg-canvas svg circle.c-blue,
+.dark .svg-canvas svg ellipse.c-blue,
+[data-theme='dark'] .svg-canvas svg .c-blue > rect,
+[data-theme='dark'] .svg-canvas svg .c-blue > circle,
+[data-theme='dark'] .svg-canvas svg .c-blue > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-blue,
+[data-theme='dark'] .svg-canvas svg circle.c-blue,
+[data-theme='dark'] .svg-canvas svg ellipse.c-blue {
+	fill: oklch(0.7168 0.1433 254.61 / 0.1);
+	stroke: oklch(0.7168 0.1433 254.61 / 0.21);
+}
+.dark .svg-canvas svg .c-blue > .th,
+.dark .svg-canvas svg .c-blue > .t,
+[data-theme='dark'] .svg-canvas svg .c-blue > .th,
+[data-theme='dark'] .svg-canvas svg .c-blue > .t {
+	fill: oklch(0.7168 0.1433 254.61);
+}
+.dark .svg-canvas svg .c-blue > .ts,
+[data-theme='dark'] .svg-canvas svg .c-blue > .ts {
+	fill: oklch(0.7168 0.1433 254.61);
+}
+
+.dark .svg-canvas svg .c-green > rect,
+.dark .svg-canvas svg .c-green > circle,
+.dark .svg-canvas svg .c-green > ellipse,
+.dark .svg-canvas svg rect.c-green,
+.dark .svg-canvas svg circle.c-green,
+.dark .svg-canvas svg ellipse.c-green,
+[data-theme='dark'] .svg-canvas svg .c-green > rect,
+[data-theme='dark'] .svg-canvas svg .c-green > circle,
+[data-theme='dark'] .svg-canvas svg .c-green > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-green,
+[data-theme='dark'] .svg-canvas svg circle.c-green,
+[data-theme='dark'] .svg-canvas svg ellipse.c-green {
+	fill: oklch(0.8003 0.1821 143.46 / 0.11);
+	stroke: oklch(0.8003 0.1821 143.46 / 0.22);
+}
+.dark .svg-canvas svg .c-green > .th,
+.dark .svg-canvas svg .c-green > .t,
+[data-theme='dark'] .svg-canvas svg .c-green > .th,
+[data-theme='dark'] .svg-canvas svg .c-green > .t {
+	fill: oklch(0.8003 0.1821 143.46);
+}
+.dark .svg-canvas svg .c-green > .ts,
+[data-theme='dark'] .svg-canvas svg .c-green > .ts {
+	fill: oklch(0.7433 0.1657 143.46);
+}
+
+.dark .svg-canvas svg .c-amber > rect,
+.dark .svg-canvas svg .c-amber > circle,
+.dark .svg-canvas svg .c-amber > ellipse,
+.dark .svg-canvas svg rect.c-amber,
+.dark .svg-canvas svg circle.c-amber,
+.dark .svg-canvas svg ellipse.c-amber,
+[data-theme='dark'] .svg-canvas svg .c-amber > rect,
+[data-theme='dark'] .svg-canvas svg .c-amber > circle,
+[data-theme='dark'] .svg-canvas svg .c-amber > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-amber,
+[data-theme='dark'] .svg-canvas svg circle.c-amber,
+[data-theme='dark'] .svg-canvas svg ellipse.c-amber {
+	fill: oklch(0.8369 0.1644 76.2 / 0.12);
+	stroke: oklch(0.8369 0.1644 76.2 / 0.23);
+}
+.dark .svg-canvas svg .c-amber > .th,
+.dark .svg-canvas svg .c-amber > .t,
+[data-theme='dark'] .svg-canvas svg .c-amber > .th,
+[data-theme='dark'] .svg-canvas svg .c-amber > .t {
+	fill: oklch(0.8369 0.1644 76.2);
+}
+.dark .svg-canvas svg .c-amber > .ts,
+[data-theme='dark'] .svg-canvas svg .c-amber > .ts {
+	fill: oklch(0.7799 0.1496 76.2);
+}
+
+.dark .svg-canvas svg .c-red > rect,
+.dark .svg-canvas svg .c-red > circle,
+.dark .svg-canvas svg .c-red > ellipse,
+.dark .svg-canvas svg rect.c-red,
+.dark .svg-canvas svg circle.c-red,
+.dark .svg-canvas svg ellipse.c-red,
+[data-theme='dark'] .svg-canvas svg .c-red > rect,
+[data-theme='dark'] .svg-canvas svg .c-red > circle,
+[data-theme='dark'] .svg-canvas svg .c-red > ellipse,
+[data-theme='dark'] .svg-canvas svg rect.c-red,
+[data-theme='dark'] .svg-canvas svg circle.c-red,
+[data-theme='dark'] .svg-canvas svg ellipse.c-red {
+	fill: oklch(0.7192 0.169 13.43 / 0.11);
+	stroke: oklch(0.7192 0.169 13.43 / 0.22);
+}
+.dark .svg-canvas svg .c-red > .th,
+.dark .svg-canvas svg .c-red > .t,
+[data-theme='dark'] .svg-canvas svg .c-red > .th,
+[data-theme='dark'] .svg-canvas svg .c-red > .t {
+	fill: oklch(0.7192 0.169 13.43);
+}
+.dark .svg-canvas svg .c-red > .ts,
+[data-theme='dark'] .svg-canvas svg .c-red > .ts {
+	fill: oklch(0.6615 0.1539 13.26);
+}

@@ -1,0 +1,220 @@
+/* The interaction surfaces every application shares: the focus ring, the spring a motion eases
+   by, and the underline a text link springs. Out of the site's own stylesheet because the CMS draws
+   the same prose and the same controls, and a second copy is how two focus rings start to differ.
+   Each application imports it after Tailwind, into the layer order it declares. See
+   spec/architecture/css/layers.md, "`utilities.css` is dissolved, not given a position". */
+
+/* One spring, sampled once. `motion`'s generator produced these points and the browser composites
+   them for free; running the library at paint time would spend JavaScript per frame on a curve
+   that is already known. See spec/styling/controls.md.
+
+   Every consumer that wants this physics reads it from here. Pasting the points a second time is
+   how two animations that were meant to feel identical start drifting apart. */
+:root {
+	--ease-spring: linear(
+		0,
+		0.149,
+		0.393,
+		0.602,
+		0.752,
+		0.85,
+		0.911,
+		0.948,
+		0.97,
+		0.983,
+		0.99,
+		0.994,
+		0.997,
+		0.998,
+		0.999,
+		0.999,
+		1
+	);
+}
+
+/* Every focus indicator on this site is the accent outline below, so the browser's own never
+   draws: Chrome's two-tone ring reads as a stray white border on these surfaces, and it reaches
+   anything that takes focus without a utility, such as a menu panel focusing itself as it opens.
+   It replaces the ring rather than removing it, so a control given no focus utility stays visible
+   to the keyboard. In the base layer, so every rule below wins. See spec/styling/focus.md. */
+@layer base {
+	:focus-visible {
+		outline: 0.125rem solid var(--color-accent);
+		outline-offset: 0;
+	}
+}
+
+/* Keyboard focus belongs to the control's visible shape. The direct variant follows the focusable
+   box; the within variant moves the same outline to an ancestor when the hit area and visible
+   control are different. The inner variants' rings are the vocabulary's -- `surfaces.focusRingHost`
+   hands one down and `focusRingInner` takes it. What is left here is what a control may overrule:
+   the ring's shape and a text link's line, each a fallback that yields by sitting under every
+   StyleX layer. See spec/styling/focus.md. */
+@layer components {
+	:where(.focus-ring, .focus-ring-inner, .focus-ring-within) {
+		border-radius: 0.25rem;
+	}
+
+	:where(.focus-link, .focus-link-inner) {
+		--focus-link-height: 1.25rem;
+		line-height: var(--focus-link-height);
+	}
+
+	/* A text link's corner exists only to shape the outline, so it arrives with the outline. Left on
+	   at rest it would also clip the background, and a radius sized for a focus outline is twice the
+	   height of the underline stroke below: the corner arc cuts about 0.25rem off the bottom of each
+	   end and nothing off the top, bowing a straight line into a lens. A corner is a silhouette
+	   rather than an indicator, so it stays beside the fallback above and yields to whatever the
+	   control declares. See spec/styling/focus.md. */
+	.focus-link:focus-visible {
+		border-radius: 0.25rem;
+	}
+}
+
+/* The ring itself, and the only thing on this site a control may not overrule: whether a keyboard
+   user can see where they are. The three rules below have to outrank the vocabulary to say that,
+   which is the whole of what the `overrides` layer is -- see app.css for where the position comes
+   from and spec/architecture/css/layers.md, "A new layer has to buy a new position in the
+   cascade". Nothing decorative belongs here; a declaration that yields to a control belongs in
+   the block above. */
+@layer overrides {
+	/* Stated at rest, not only inside `:focus-visible` -- an outline's colour is `currentColor`
+	   until named, and Tailwind v4 put `outline-color` into `transition-colors`, which nearly
+	   every control here carries for its hover. Left unnamed, the ring fades in from the
+	   element's own text colour instead of snapping to the accent. It is a member of the ring
+	   rather than a rule of its own, so it travels with the ring. See spec/styling/focus.md, "The
+	   ring's colour is declared at rest, or it fades in from the text". */
+	:where(.focus-ring, .focus-ring-inner, .focus-ring-within, .focus-link, .focus-link-inner) {
+		outline-color: var(--color-accent);
+	}
+
+	.focus-ring:focus-visible,
+	.focus-link:focus-visible,
+	.focus-ring-within:has(:focus-visible) {
+		outline: 0.125rem solid var(--color-accent);
+		outline-offset: 0;
+	}
+
+	/* `:focus-visible` is an unreliable guess for focus a script moved -- a menu handing focus back
+	   to its trigger as it closes is the case here -- so a known pointer input takes the outline
+	   away instead of trusting the pseudo-class. Written as suppression, not a keyboard requirement,
+	   so the failure mode with the attribute absent is showing a ring once too often, never hiding
+	   one from a keyboard user. See spec/styling/focus.md, "`:focus-visible` is the browser's guess,
+	   and the site keeps its own answer". */
+	/* The second declaration is how this reaches a ring drawn on a child. The child is not the
+	   focused element, so no selector here reaches it and the layer this sits in buys nothing
+	   against it. `surfaces.focusRingHost` substitutes this name into the ring it hands down, and
+	   only this rule ever writes it -- a name with one writer has no cascade to lose, so
+	   indirection gets there where no selector goes. */
+	html[data-focus-source='pointer'] :focus-visible,
+	html[data-focus-source='pointer'] .focus-ring-within:has(:focus-visible) {
+		outline: none;
+		--focus-ring-suppress: none;
+	}
+}
+
+/* Outside the layer, because Tailwind writes the pre-`@property` fallback for the registrations it
+   finds at the top level and skips one nested in a layer -- which left Safari 16.0 to 16.3 with no
+   `--underline-progress` at all and `background-size` invalid. It has no cascade interaction with
+   the rules around it, so the position costs nothing. */
+@property --underline-progress {
+	syntax: '<length-percentage>';
+	inherits: false;
+	initial-value: 0%;
+}
+
+@layer components {
+	/* A background can spring from zero width while text-decoration cannot. Three layers make each
+	   stroke a real capsule: a rectangular middle plus one circular cap at either end. The first
+	   capsule grows over the always-present second one; article links only replace the two colours,
+	   while the translation notice keeps the transparent default at rest. */
+	.spring-underline {
+		/* The stroke is a background pinned to the bottom of the box, so the box has to hug the text.
+		   A flex or grid container stretches its items by default, and a stretched link paints its
+		   underline at the bottom of whatever the row grew to -- measured at 27.5px below the glyphs
+		   in a licence-file list, against 2.5px everywhere else. Declared here rather than at each
+		   call site because forgetting it is invisible until a neighbouring cell happens to get tall.
+		   Ignored outside a flex or grid container, which is most of them. */
+		align-self: baseline;
+		--underline-height: 0.125rem;
+		--underline-radius: calc(var(--underline-height) / 2);
+		--underline-rest: transparent;
+		--underline-active: currentColor;
+		background-image:
+			radial-gradient(
+				circle var(--underline-radius) at right center,
+				var(--underline-active) 99%,
+				transparent 100%
+			),
+			linear-gradient(var(--underline-active), var(--underline-active)),
+			radial-gradient(closest-side, var(--underline-active) 99%, transparent 100%),
+			radial-gradient(
+				circle var(--underline-radius) at center,
+				var(--underline-rest) 99%,
+				transparent 100%
+			),
+			linear-gradient(var(--underline-rest), var(--underline-rest)),
+			radial-gradient(
+				circle var(--underline-radius) at center,
+				var(--underline-rest) 99%,
+				transparent 100%
+			);
+		background-repeat: no-repeat;
+		background-position:
+			left bottom,
+			var(--underline-radius) bottom,
+			left bottom,
+			right bottom,
+			var(--underline-radius) bottom,
+			left bottom;
+		background-size:
+			var(--underline-progress) var(--underline-height),
+			max(0rem, calc(var(--underline-progress) - var(--underline-height))) var(--underline-height),
+			min(var(--underline-progress), var(--underline-height)) var(--underline-height),
+			var(--underline-height) var(--underline-height),
+			calc(100% - var(--underline-height)) var(--underline-height),
+			var(--underline-height) var(--underline-height);
+		-webkit-box-decoration-break: clone;
+		box-decoration-break: clone;
+		/* So the padding the focus rule below adds carries no stroke: the size and position above
+		   are read against this box, which stays the text's. Without padding it is the same box. */
+		background-origin: content-box;
+		transition: --underline-progress 315ms var(--ease-spring);
+	}
+
+	/* The focus ring's lower edge lands on the stroke instead of below it. The stroke is the bottom
+	   `--underline-height` of the box, so an outline inset by that much occupies the same band --
+	   but `outline-offset` has no per-side form, and inset alone took the same width off each end
+	   and cut into the first and last glyph. The padding gives that width back and the margin
+	   returns it to the line, so only the height moves: 22px to 18px on a 15px link, the text
+	   where it was. `box-decoration-break: clone` above is what makes this hold across a wrap. */
+	.focus-link.spring-underline,
+	.focus-link-inner.spring-underline {
+		padding-inline: var(--underline-height);
+		margin-inline: calc(-1 * var(--underline-height));
+	}
+}
+
+/* The other half of the rule above, and the reason the two are in different layers: the padding
+   is the link's own box and a component may have its own opinion about that, while the offset is
+   where the ring lands and belongs with the ring. Left behind it would lose to the
+   `outline-offset: 0` the ring states a layer higher, which is a plain `0` beating a negative one
+   on every prose link. */
+@layer overrides {
+	.focus-link.spring-underline:focus-visible,
+	:focus-visible > .focus-link-inner.spring-underline {
+		outline-offset: calc(-1 * var(--underline-height));
+	}
+}
+
+@layer components {
+	.spring-underline:is(:hover, :focus-visible) {
+		--underline-progress: 100%;
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.spring-underline {
+			transition: none;
+		}
+	}
+}

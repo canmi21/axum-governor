@@ -1,6 +1,6 @@
 [tasks.check]
-description = "Type-check every crate and its targets"
-run = "cargo check --all-targets"
+description = "Type-check every crate and its targets, and every package's TypeScript"
+run = ["cargo check --all-targets", "pnpm exec tsc -p tsconfig.json"]
 
 # Both feature extremes are linted because every optional feature has a `not(feature)` twin
 # that only compiles when the feature is off; `--all-features` alone never sees those.
@@ -9,15 +9,26 @@ description = "Lint every crate at both feature extremes, warnings denied"
 run = [
 	"cargo clippy --all-targets --all-features -- -D warnings",
 	"cargo clippy --all-targets --no-default-features -- -D warnings",
+	'oxlint pkgs ${AUDIT:+--deny-warnings}',
 ]
 
 [tasks.test]
-description = "Run the test suite at both feature extremes"
-run = ["cargo test --all-features", "cargo test --no-default-features"]
+description = "Run every crate's tests at both feature extremes, and every package's"
+run = ["cargo test --all-features", "cargo test --no-default-features", "pnpm exec vitest run"]
+
+# What is published is what this builds, so a package that does not build is a failed change.
+[tasks.build]
+description = "Build every package into its dist/"
+run = "pnpm -r run build"
 
 [tasks.verify]
 description = "Everything a change has to pass"
-depends = ["check", "lint", "test"]
+depends = ["check", "lint", "test", "build"]
+
+# The Rust half of `canmi` is rendered from its TypeScript, so an address is written once.
+[tasks.urls]
+description = "Regenerate the canmi crate from the canmi package's addresses"
+run = ["node pkgs/canmi/urls/scripts/rust.ts", "cargo fmt -- crates/canmi/src/lib.rs"]
 
 # Reached from the workspace as `mise run publish lib`, for axum-governor alone until the release
 # pipeline publishes each package; see spec/repository.md. It depends on verify because a

@@ -1,0 +1,103 @@
+/* The page colors below are also written as `theme-color` meta tags in apps/site/src/app.html,
+   because a meta tag cannot read a CSS variable. Changing one means changing the other. */
+:root {
+	color-scheme: light dark;
+	--color-page: oklch(0.987 0 0);
+	--color-border: oklch(0.917 0 0);
+	--color-border-strong: oklch(0.867 0 0);
+	--color-text: oklch(0.2 0 0);
+	/* Between body and soft, and the ramp had nothing there: the three loud tiers sat within
+	   0.08 of each other while the gap down to soft was 0.32 wide. A row of records needs a
+	   voice quieter than its own heading and louder than the column names above it. */
+	--color-text-muted: oklch(0.36 0 0);
+	--color-text-soft: oklch(0.521 0 0);
+	--color-text-strong: oklch(0.157 0 0);
+	--color-ink: oklch(0.241 0 0);
+	/* `paper` is the sheet, at whichever end of the range the theme calls its own, and
+	   `paper-hover` is one step off it -- so both mirror, and a thumbnail is a white sheet in
+	   light and the deepest surface in dark. See spec/styling/surfaces.md, "A sheet takes the
+	   theme's own end of the range, and a step off it goes the other way". */
+	--color-paper: oklch(1 0 0);
+	--color-paper-hover: oklch(0.962 0 0);
+	/* Native application chrome remains translucent over the platform material. Alpha belongs to
+	   the surface colour rather than `opacity`, which would fade its content as well. */
+	--color-native-divider: oklch(0.52 0 0 / 0.22);
+	--color-native-hover: oklch(0.88 0 0 / 0.52);
+	--color-native-selected: oklch(0.76 0 0 / 0.5);
+	--color-selection: oklch(0.97 0.09 105 / 0.7);
+	/* Auxiliary (a11y) color — the focus-ring blue, ~Tailwind blue-500. */
+	--color-accent: oklch(0.623 0.214 259.815);
+	/* Light inks sit at L 0.42 and are chroma-capped by the hue: green tops out near 0.11 in
+	   sRGB where blue and red still have room. Matching them numerically would push green out
+	   of gamut and get silently clipped. */
+	--color-blue: oklch(0.58 0.19 256.7);
+	--color-blue-ink: oklch(0.42 0.12 259.4);
+	--color-green: oklch(0.67 0.17 147.79);
+	--color-green-ink: oklch(0.42 0.11 150.81);
+	--color-amber: oklch(0.72 0.15 70);
+	--color-amber-ink: oklch(0.42 0.1 60);
+	--color-red: oklch(0.59 0.19 27);
+	--color-red-ink: oklch(0.42 0.13 29);
+}
+
+html {
+	background: var(--color-page);
+	color: var(--color-text);
+}
+
+::selection {
+	background-color: var(--color-selection);
+}
+
+.dark,
+[data-theme='dark'] {
+	color-scheme: dark;
+	--color-page: oklch(0.178 0 0);
+	--color-border: oklch(0.241 0 0);
+	--color-border-strong: oklch(0.291 0 0);
+	--color-text: oklch(0.878 0 0);
+	--color-text-muted: oklch(0.73 0 0);
+	--color-text-soft: oklch(0.587 0 0);
+	--color-text-strong: oklch(0.937 0 0);
+	--color-ink: oklch(0.892 0 0);
+	--color-paper: oklch(0.157 0 0);
+	--color-paper-hover: oklch(0.213 0 0);
+	--color-native-divider: oklch(0.72 0 0 / 0.2);
+	--color-native-hover: oklch(0.38 0 0 / 0.48);
+	--color-native-selected: oklch(0.48 0 0 / 0.52);
+	--color-selection: oklch(0.51 0.064 191 / 0.5);
+	--color-blue: oklch(0.65 0.175 256.7);
+	--color-blue-ink: oklch(0.647 0.175 256.9);
+	--color-green: oklch(0.7398 0.1569 147.79);
+	--color-green-ink: oklch(0.2685 0.0203 150.81);
+	--color-amber: oklch(0.78 0.15 72);
+	--color-amber-ink: oklch(0.2685 0.02 70);
+	--color-red: oklch(0.6798 0.1769 27);
+	--color-red-ink: oklch(0.2685 0.0213 29);
+}
+
+@theme inline {
+	--color-page: var(--color-page);
+	--color-border: var(--color-border);
+	--color-border-strong: var(--color-border-strong);
+	--color-text: var(--color-text);
+	--color-text-muted: var(--color-text-muted);
+	--color-text-soft: var(--color-text-soft);
+	--color-text-strong: var(--color-text-strong);
+	--color-ink: var(--color-ink);
+	--color-paper: var(--color-paper);
+	--color-paper-hover: var(--color-paper-hover);
+	--color-native-divider: var(--color-native-divider);
+	--color-native-hover: var(--color-native-hover);
+	--color-native-selected: var(--color-native-selected);
+	--color-selection: var(--color-selection);
+	--color-accent: var(--color-accent);
+	--color-blue: var(--color-blue);
+	--color-blue-ink: var(--color-blue-ink);
+	--color-green: var(--color-green);
+	--color-green-ink: var(--color-green-ink);
+	--color-amber: var(--color-amber);
+	--color-amber-ink: var(--color-amber-ink);
+	--color-red: var(--color-red);
+	--color-red-ink: var(--color-red-ink);
+}

@@ -1,0 +1,5 @@
+# Every npm package the library publishes, one directory each.
+packages:
+  - pkgs/*
+allowBuilds:
+  core-js: set this to true or false

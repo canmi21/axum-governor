@@ -1,0 +1,25 @@
+{
+	// One program over every package's TypeScript; each package's build declares its own types
+	// from the same files. The `.svelte` component is Svelte's to check, not this program's.
+	"compilerOptions": {
+		"target": "es2023",
+		"module": "preserve",
+		"moduleResolution": "bundler",
+		"resolveJsonModule": true,
+		"moduleDetection": "force",
+		"strict": true,
+		// Sources import each other by their `.ts` name, which the build rewrites.
+		"allowImportingTsExtensions": true,
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"verbatimModuleSyntax": true,
+		"isolatedModules": true,
+		"skipLibCheck": true,
+		"noEmit": true,
+		"lib": ["es2023", "dom", "dom.iterable"],
+		"types": ["node"]
+	},
+	"include": ["pkgs/**/*.ts"],
+	"exclude": ["**/node_modules", "**/dist"]
+}

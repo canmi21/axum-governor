@@ -1,0 +1,52 @@
+/* The player's own colours, the one set on this site that does not follow the theme: read against
+ * a video frame rather than the page, so the player brings its own ground instead of asking what
+ * theme the page is in. Values are `oklch` with an alpha, like the rest of the tokens, and are
+ * deliberately not derived from any `--color-*` -- a derivation would re-introduce the theme this
+ * file exists to escape. See spec/styling/player.md, "The player brings its own colours, because it
+ * cannot know what is behind them" for the scheme and why each piece is shaped as it is.
+ */
+
+:root {
+	/* Ink. `strong` is a control at rest, `dim` is a secondary one -- the clock, an inactive
+	   toggle -- and `faint` is a track a slider has not filled yet. */
+	--player-ink: oklch(1 0 0 / 0.92);
+	--player-ink-dim: oklch(1 0 0 / 0.62);
+	--player-ink-faint: oklch(1 0 0 / 0.3);
+
+	/* The plate a floating control group sits on, and the blur behind it. */
+	--player-plate: oklch(0.22 0 0 / 0.42);
+	--player-plate-strong: oklch(0.18 0 0 / 0.66);
+	--player-blur: 24px;
+
+	/* Glass rather than a plate: less of its own colour, more blur, and the saturation push that
+	   stops a blurred frame going grey. At 0.45 alpha the frame behind reads at 55%, against the
+	   plate's 34% -- more alpha is less glass, not more. See spec/styling/player.md, "The disc in the
+	   middle is glass, and the row along the bottom is a plate". */
+	--player-glass: oklch(0.2 0 0 / 0.45);
+	--player-glass-blur: 32px;
+	--player-glass-saturate: 180%;
+
+	/* The settings menu: a list to read rather than a glyph to find, and it sits on the veil. Still
+	   glass -- the frame shows through as colour -- but a little more of its own ground than the
+	   disc and a little less blur, so words at 12px hold over it. No edge: a line round it, light
+	   or dark, read as a frame drawn on the glass. See spec/styling/player.md, "The menu has its
+	   own ground". */
+	--player-menu: oklch(0.18 0 0 / 0.5);
+	--player-menu-blur: 24px;
+	--player-menu-saturate: 170%;
+	--player-menu-shadow: 0 0.5rem 1.5rem oklch(0 0 0 / 0.35);
+
+	/* A menu row under a pointer or a key. No color shift, only more light, and only a little: on
+	   an unknown backdrop a hue would be a second variable nobody can predict. Light over a ground
+	   this dark reads as far more than its alpha: 16% outshone the menu around the row, 10% still
+	   did, so 6%, and the row's ink rising from dim to full carries the rest. */
+	--player-wash: oklch(1 0 0 / 0.06);
+
+	/* The gradient under the control row. Transparent at the top so no edge is drawn across the
+	   picture, and dark enough at the bottom to hold white ink over a bright frame. */
+	--player-veil: linear-gradient(to top, oklch(0 0 0 / 0.55), oklch(0 0 0 / 0.28) 42%, transparent);
+
+	/* Cast on the ink rather than on the plate, so a glyph survives the case the veil cannot
+	   reach: a frame that is white from edge to edge. */
+	--player-shadow: 0 1px 2px oklch(0 0 0 / 0.55);
+}

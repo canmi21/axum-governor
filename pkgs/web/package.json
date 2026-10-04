@@ -1,0 +1,49 @@
+{
+	"name": "@canmi/web",
+	"version": "0.0.0",
+	"description": "Running a SvelteKit app in public: browser compatibility, the referrer and Sentry",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/canmi21/lib.git",
+		"directory": "pkgs/web"
+	},
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		"./compat": {
+			"types": "./dist/compat/src/index.d.ts",
+			"default": "./dist/compat/src/index.js"
+		},
+		"./compat/build": {
+			"types": "./dist/compat/src/build.d.ts",
+			"default": "./dist/compat/src/build.js"
+		},
+		"./referer": {
+			"types": "./dist/referer/src/index.d.ts",
+			"default": "./dist/referer/src/index.js"
+		},
+		"./sentry/build": {
+			"types": "./dist/sentry/src/build.d.ts",
+			"default": "./dist/sentry/src/build.js"
+		},
+		"./sentry/client": {
+			"types": "./dist/sentry/src/client.d.ts",
+			"default": "./dist/sentry/src/client.js"
+		},
+		"./sentry/server": {
+			"types": "./dist/sentry/src/server.d.ts",
+			"default": "./dist/sentry/src/server.js"
+		}
+	},
+	"scripts": {
+		"build": "tsdown"
+	},
+	"dependencies": {
+		"@sentry/sveltekit": "^11.4.0",
+		"@sveltejs/kit": "^3.0.0",
+		"core-js": "^3.50.0"
+	}
+}

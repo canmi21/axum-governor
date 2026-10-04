@@ -1,0 +1,4 @@
+{
+	"success": { "status": "success", "data": { "count": 3 } },
+	"failure": { "status": "error", "code": "no_such_route", "message": "No route answers this path" }
+}

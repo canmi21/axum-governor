@@ -1,0 +1,25 @@
+{
+	"name": "@canmi/response",
+	"version": "0.0.0",
+	"description": "The answer envelope every API here speaks, the TypeScript half of the response crate",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/canmi21/lib.git",
+		"directory": "pkgs/response"
+	},
+	"type": "module",
+	"files": [
+		"dist",
+		"codes.json"
+	],
+	"exports": {
+		".": {
+			"types": "./dist/src/index.d.ts",
+			"default": "./dist/src/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsdown"
+	}
+}

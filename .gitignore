@@ -1,6 +1,10 @@
 # Cargo build output.
 /target
 
+# pnpm's install and each package's build.
+node_modules/
+dist/
+
 # OS and editor noise.
 .DS_Store
 *.log

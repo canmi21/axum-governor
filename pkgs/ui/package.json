@@ -1,0 +1,26 @@
+{
+	"name": "@canmi/ui",
+	"version": "0.0.0",
+	"description": "What is composed from the design foundation: primitives and the SVG canvas",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/canmi21/lib.git",
+		"directory": "pkgs/ui"
+	},
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		"./primitives": {
+			"types": "./dist/primitives/src/index.d.ts",
+			"default": "./dist/primitives/src/index.js"
+		},
+		"./primitives/style.css": "./dist/primitives/src/style.css",
+		"./svg-canvas/style.css": "./dist/svg-canvas/src/style.css"
+	},
+	"scripts": {
+		"build": "tsdown"
+	}
+}

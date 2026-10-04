@@ -1,0 +1,83 @@
+{
+	"name": "@canmi/kit",
+	"version": "0.0.0",
+	"description": "The design foundation: theme, tokens, motion, behavior and units",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/canmi21/lib.git",
+		"directory": "pkgs/kit"
+	},
+	"type": "module",
+	"files": [
+		"dist"
+	],
+	"exports": {
+		"./theme": {
+			"types": "./dist/theme/src/index.d.ts",
+			"default": "./dist/theme/src/index.js"
+		},
+		"./theme/palettes/concrete.css": "./dist/theme/src/palettes/concrete.css",
+		"./theme/palettes/mono.css": "./dist/theme/src/palettes/mono.css",
+		"./tokens/interaction.css": "./dist/tokens/src/interaction.css",
+		"./tokens/player.css": "./dist/tokens/src/player.css",
+		"./tokens/surfaces": {
+			"types": "./dist/tokens/src/surfaces.d.ts",
+			"default": "./dist/tokens/src/surfaces.js"
+		},
+		"./tokens/vocabulary.stylex": {
+			"types": "./dist/tokens/src/vocabulary.stylex.d.ts",
+			"default": "./dist/tokens/src/vocabulary.stylex.js"
+		},
+		"./motion": {
+			"types": "./dist/motion/src/index.d.ts",
+			"default": "./dist/motion/src/index.js"
+		},
+		"./behavior/arrival": {
+			"types": "./dist/behavior/src/arrival.d.ts",
+			"default": "./dist/behavior/src/arrival.js"
+		},
+		"./behavior/brevity": {
+			"types": "./dist/behavior/src/brevity.svelte.d.ts",
+			"default": "./dist/behavior/src/brevity.svelte.js"
+		},
+		"./behavior/collapse": {
+			"types": "./dist/behavior/src/collapse.d.ts",
+			"default": "./dist/behavior/src/collapse.js"
+		},
+		"./behavior/edge": {
+			"types": "./dist/behavior/src/edge.d.ts",
+			"default": "./dist/behavior/src/edge.js"
+		},
+		"./behavior/jump": {
+			"types": "./dist/behavior/src/jump.d.ts",
+			"default": "./dist/behavior/src/jump.js"
+		},
+		"./behavior/progress": {
+			"types": "./dist/behavior/src/progress.d.ts",
+			"default": "./dist/behavior/src/progress.js"
+		},
+		"./behavior/resize": {
+			"types": "./dist/behavior/src/resize.d.ts",
+			"default": "./dist/behavior/src/resize.js"
+		},
+		"./behavior/state": {
+			"types": "./dist/behavior/src/state.d.ts",
+			"default": "./dist/behavior/src/state.js"
+		},
+		"./behavior/title.svelte": "./dist/behavior/src/title.svelte",
+		"./units": {
+			"types": "./dist/units/src/index.d.ts",
+			"default": "./dist/units/src/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsdown"
+	},
+	"dependencies": {
+		"@stylexjs/stylex": "^0.19.1",
+		"motion": "^14.0.0",
+		"svelte": "^5.57.1",
+		"thumbhash": "^0.1.1"
+	}
+}
