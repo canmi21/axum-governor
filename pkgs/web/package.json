@@ -1,7 +1,14 @@
 {
 	"name": "@canmi/web",
 	"version": "0.0.0",
-	"description": "Running a SvelteKit app in public: browser compatibility, the referrer and Sentry",
+	"description": "SvelteKit compat, referer and Sentry.",
+	"keywords": [
+		"browserslist",
+		"canmi",
+		"core-js",
+		"sentry",
+		"sveltekit"
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",

@@ -1,7 +1,14 @@
 {
 	"name": "@canmi/me",
 	"version": "0.0.0",
-	"description": "The author's own facts: their sites' addresses and the world's, their identity, the languages they write in, what their hosts say to crawlers",
+	"description": "My addresses, identity and languages.",
+	"keywords": [
+		"canmi",
+		"identity",
+		"locales",
+		"robots",
+		"urls"
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",

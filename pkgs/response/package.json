@@ -1,7 +1,14 @@
 {
 	"name": "@canmi/response",
 	"version": "2.0.0",
-	"description": "The answer envelope every API here speaks, the TypeScript half of the response crate",
+	"description": "One response envelope, for TypeScript.",
+	"keywords": [
+		"api",
+		"envelope",
+		"json",
+		"response",
+		"typescript"
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",

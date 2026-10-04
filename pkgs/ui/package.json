@@ -1,7 +1,14 @@
 {
 	"name": "@canmi/ui",
 	"version": "0.0.0",
-	"description": "What is composed from the design foundation: primitives and the SVG canvas",
+	"description": "UI primitives built on the kit.",
+	"keywords": [
+		"canmi",
+		"primitives",
+		"svelte",
+		"svg",
+		"ui"
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",

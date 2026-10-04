@@ -4,7 +4,8 @@ version = "0.0.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "The author's own facts for Rust: their sites' addresses, the world's, and who they are"
+description = "My addresses and identity, for Rust."
+keywords = ["canmi"]
 
 [lints]
 workspace = true

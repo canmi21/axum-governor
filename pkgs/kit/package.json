@@ -1,7 +1,14 @@
 {
 	"name": "@canmi/kit",
 	"version": "0.0.0",
-	"description": "The design foundation: theme, tokens, motion, behavior and units",
+	"description": "Theme, tokens and motion for my sites.",
+	"keywords": [
+		"canmi",
+		"design-tokens",
+		"motion",
+		"stylex",
+		"theme"
+	],
 	"license": "MIT",
 	"repository": {
 		"type": "git",
