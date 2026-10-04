@@ -42,8 +42,22 @@
 		"build": "tsdown"
 	},
 	"dependencies": {
-		"@sentry/sveltekit": "^11.4.0",
-		"@sveltejs/kit": "^3.0.0",
 		"core-js": "^3.50.0"
+	},
+	"peerDependencies": {
+		"@sentry/sveltekit": "^11.4.0",
+		"@sveltejs/kit": "^3.0.0"
+	},
+	"peerDependenciesMeta": {
+		"@sentry/sveltekit": {
+			"optional": true
+		},
+		"@sveltejs/kit": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@sentry/sveltekit": "^11.4.0",
+		"@sveltejs/kit": "^3.0.0"
 	}
 }
