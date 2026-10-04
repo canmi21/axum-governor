@@ -1,5 +1,13 @@
 # Every npm package the library publishes, one directory each.
 packages:
   - pkgs/*
+
+# An install script runs arbitrary code before anybody reads the package, which is why pnpm
+# blocks it; each is decided here by name. Nothing goes in this list to make a warning go away.
 allowBuilds:
-  core-js: set this to true or false
+  # Its postinstall only prints a funding message; the runtime modules need no build step.
+  core-js: false
+
+# Supply-chain delay, in minutes: a version waits a day before it can be installed. The rule is the
+# workspace's, in its spec/toolchain.md.
+minimumReleaseAge: 1440

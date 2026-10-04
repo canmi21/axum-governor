@@ -1,0 +1,117 @@
+#!/usr/bin/env python3
+#MISE description="Publish each dated package whose tree changed: `release [--day today|yesterday] [--dry-run]`"
+"""A dated package is versioned by the UTC day, `2026.10.4`, and published once that day's change
+is in: by the schedule just after midnight for the day that ended, or by hand for today. A package
+is published when its tree changed since its last tag, `<name>@<version>`, or has none yet; npm's
+copy is packed by pnpm, which writes the versions `workspace:` names, and published by npm, which
+reaches the registry's trusted publishing. See spec/repository.md, "Versions and publishing".
+"""
+
+import datetime
+import json
+import pathlib
+import re
+import subprocess
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+OUT = ROOT / "target" / "release-packs"
+
+# Each dated package: its npm directory, and the crate published beside it under one version.
+PACKAGES = [
+	{"name": "canmi", "npm": "pkgs/canmi", "crate": "crates/canmi"},
+	{"name": "@canmi/kit", "npm": "pkgs/kit"},
+	{"name": "@canmi/ui", "npm": "pkgs/ui"},
+	{"name": "@canmi/web", "npm": "pkgs/web"},
+]
+
+
+def run(*command, check=True, capture=False, cwd=ROOT):
+	print("$", " ".join(command), flush=True)
+	return subprocess.run(command, cwd=cwd, check=check, capture_output=capture, text=True)
+
+
+def version_of(day):
+	"""A day as a version: never zero-padded, which semver forbids."""
+	return f"{day.year}.{day.month}.{day.day}"
+
+
+def last_tag(name):
+	tags = run("git", "tag", "--list", f"{name}@*", "--sort=-v:refname", capture=True).stdout
+	return next(iter(tags.split()), None)
+
+
+def changed(package):
+	"""Whether the package's tree changed since its last tag, or it has never had one."""
+	tag = last_tag(package["name"])
+	if tag is None:
+		return True
+	paths = [package["npm"], *([package["crate"]] if "crate" in package else [])]
+	return run("git", "diff", "--quiet", tag, "HEAD", "--", *paths, check=False).returncode != 0
+
+
+def published(name, version):
+	answer = run("npm", "view", f"{name}@{version}", "version", check=False, capture=True)
+	return answer.stdout.strip() == version
+
+
+def stamp(package, version):
+	"""Write `version` into the package's manifest, and its crate's when it has one."""
+	manifest = ROOT / package["npm"] / "package.json"
+	data = json.loads(manifest.read_text())
+	data["version"] = version
+	manifest.write_text(json.dumps(data, indent="\t") + "\n")
+	if "crate" in package:
+		cargo = ROOT / package["crate"] / "Cargo.toml"
+		text = re.sub(r'(?m)^version = "[^"]*"', f'version = "{version}"', cargo.read_text(), count=1)
+		cargo.write_text(text)
+
+
+def release(package, version, dry):
+	name = package["name"]
+	stamp(package, version)
+	run("pnpm", "--filter", name, "run", "build")
+	OUT.mkdir(parents=True, exist_ok=True)
+	packed = run("pnpm", "pack", "--pack-destination", str(OUT), capture=True, cwd=ROOT / package["npm"])
+	tarball = packed.stdout.strip().splitlines()[-1]
+	run("npm", "publish", tarball, "--access", "public", *(["--dry-run"] if dry else []))
+	if "crate" in package:
+		crate = pathlib.Path(package["crate"]).name
+		run("cargo", "publish", "-p", crate, "--allow-dirty", *(["--dry-run"] if dry else []))
+	if not dry:
+		run("git", "tag", f"{name}@{version}")
+		run("git", "push", "origin", f"{name}@{version}")
+
+
+def main(argv):
+	dry = "--dry-run" in argv
+	day = argv[argv.index("--day") + 1] if "--day" in argv else "today"
+	today = datetime.datetime.now(datetime.timezone.utc).date()
+	version = version_of(today if day == "today" else today - datetime.timedelta(days=1))
+	print(f"release: {version}" + (" (dry run)" if dry else ""))
+	# A dry run leaves every file as it found it; a real one leaves the stamped versions for the
+	# runner to discard, the tag pointing at the commit as it was.
+	stamped = [ROOT / "Cargo.lock"]
+	for package in PACKAGES:
+		stamped.append(ROOT / package["npm"] / "package.json")
+		if "crate" in package:
+			stamped.append(ROOT / package["crate"] / "Cargo.toml")
+	originals = {path: path.read_text() for path in stamped}
+	try:
+		for package in PACKAGES:
+			name = package["name"]
+			if not changed(package):
+				print(f"release: {name} has not changed since {last_tag(name)}")
+			elif published(name, version):
+				print(f"release: {name}@{version} is out already")
+			else:
+				release(package, version, dry)
+	finally:
+		if dry:
+			for path, text in originals.items():
+				path.write_text(text)
+	return 0
+
+
+if __name__ == "__main__":
+	sys.exit(main(sys.argv[1:]))
