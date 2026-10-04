@@ -17,9 +17,7 @@ pub enum Envelope<T> {
 
 fn catalogue() -> &'static BTreeMap<String, String> {
 	static CODES: OnceLock<BTreeMap<String, String>> = OnceLock::new();
-	CODES.get_or_init(|| {
-		serde_json::from_str(include_str!("../../../pkgs/response/codes.json")).unwrap_or_default()
-	})
+	CODES.get_or_init(|| serde_json::from_str(include_str!("../codes.json")).unwrap_or_default())
 }
 
 /// The message a code carries when the moment has nothing more exact to say.
@@ -84,7 +82,7 @@ mod tests {
 	use serde_json::{Value, json};
 
 	fn fixtures() -> Value {
-		serde_json::from_str(include_str!("../../../pkgs/response/src/fixtures.json")).unwrap()
+		serde_json::from_str(include_str!("fixtures.json")).unwrap()
 	}
 
 	#[test]

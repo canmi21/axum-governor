@@ -1,6 +1,6 @@
 {
 	"name": "@canmi/response",
-	"version": "0.0.0",
+	"version": "2.0.0",
 	"description": "The answer envelope every API here speaks, the TypeScript half of the response crate",
 	"license": "MIT",
 	"repository": {
