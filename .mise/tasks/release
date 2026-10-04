@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-#MISE description="Publish each dated package whose tree changed: `release [--day today|yesterday] [--dry-run]`"
-"""A dated package is versioned by the UTC day, `2026.10.4`, and published once that day's change
-is in: by the schedule just after midnight for the day that ended, or by hand for today. A package
-is published when its tree changed since its last tag, `<name>@<version>`, or has none yet; npm's
+#MISE description="Publish each dated package whose tree changed: `release [--dry-run]`"
+"""A dated package is versioned `YYYY.MDD.N`: the UTC year, the month times a hundred plus the
+day, and the release's number within that day from 0 -- `2026.1004.0`, then `2026.1004.1`. It is
+published whenever its tree changed since its last tag, `<name>@<version>`, or has none yet; npm's
 copy is packed by pnpm, which writes the versions `workspace:` names, and published by npm, which
 reaches the registry's trusted publishing. See spec/repository.md, "Versions and publishing".
 """
@@ -31,9 +31,18 @@ def run(*command, check=True, capture=False, cwd=ROOT):
 	return subprocess.run(command, cwd=cwd, check=check, capture_output=capture, text=True)
 
 
-def version_of(day):
-	"""A day as a version: never zero-padded, which semver forbids."""
-	return f"{day.year}.{day.month}.{day.day}"
+def day_of(today):
+	"""The year and the day within it, as the first two parts: never zero-padded, which semver
+	forbids, so the fourth of January is `104`."""
+	return f"{today.year}.{today.month * 100 + today.day}"
+
+
+def version_of(name, today):
+	"""The next of today's versions for `name`: one past the highest tagged today, or 0."""
+	day = day_of(today)
+	tags = run("git", "tag", "--list", f"{name}@{day}.*", capture=True).stdout.split()
+	numbers = [int(tag.rsplit(".", 1)[1]) for tag in tags if tag.rsplit(".", 1)[1].isdigit()]
+	return f"{day}.{max(numbers) + 1 if numbers else 0}"
 
 
 def last_tag(name):
@@ -85,13 +94,8 @@ def release(package, version, dry):
 
 def main(argv):
 	dry = "--dry-run" in argv
-	day = argv[argv.index("--day") + 1] if "--day" in argv else "today"
-	# Anything else is refused rather than read as one of the two: a release cannot be taken back.
-	if day not in ("today", "yesterday"):
-		sys.exit(f"release: --day is today or yesterday, not {day!r}")
 	today = datetime.datetime.now(datetime.timezone.utc).date()
-	version = version_of(today if day == "today" else today - datetime.timedelta(days=1))
-	print(f"release: {version}" + (" (dry run)" if dry else ""))
+	print(f"release: {day_of(today)}" + (" (dry run)" if dry else ""))
 	# A dry run leaves every file as it found it; a real one leaves the stamped versions for the
 	# runner to discard, the tag pointing at the commit as it was.
 	stamped = [ROOT / "Cargo.lock"]
@@ -105,10 +109,12 @@ def main(argv):
 			name = package["name"]
 			if not changed(package):
 				print(f"release: {name} has not changed since {last_tag(name)}")
-			elif published(name, version):
-				print(f"release: {name}@{version} is out already")
-			else:
-				release(package, version, dry)
+				continue
+			version = version_of(name, today)
+			# A tag lost after its publish would hand out a number npm already holds; refuse it.
+			if published(name, version):
+				sys.exit(f"release: {name}@{version} is out already, though no tag says so")
+			release(package, version, dry)
 	finally:
 		if dry:
 			for path, text in originals.items():

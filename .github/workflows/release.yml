@@ -1,19 +1,23 @@
-# Publishes each dated package whose tree changed: on schedule just after midnight UTC for the day
-# that ended, or by hand for today. Every token is short-lived and asked for here: npm's through
-# trusted publishing, crates.io's through its auth action. See spec/repository.md, "Versions and
-# publishing".
+# Publishes each dated package whose tree changed, as soon as the change reaches main, or by hand.
+# Every token is short-lived and asked for here: npm's through trusted publishing, crates.io's
+# through its auth action. See spec/repository.md, "Versions and publishing".
 name: Release
 
 on:
-  schedule:
-    - cron: "11 0 * * *"
+  push:
+    branches: [main]
+    paths:
+      - "pkgs/**"
+      - "crates/canmi/**"
   workflow_dispatch:
-    inputs:
-      day:
-        description: "Which UTC day the version names"
-        type: choice
-        options: [today, yesterday]
-        default: today
+
+# One at a time, in the order pushed, and never cancelled: a run numbers the day's versions from
+# the tags the one before it pushed, and a release stopped halfway has published without tagging.
+# `queue: max` keeps every waiting run, up to GitHub's hundred, where the default keeps the newest.
+concurrency:
+  group: release
+  cancel-in-progress: false
+  queue: max
 
 permissions:
   contents: write
@@ -42,4 +46,4 @@ jobs:
       - working-directory: repos/lib
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates.outputs.token }}
-        run: .mise/tasks/release --day "${{ github.event_name == 'schedule' && 'yesterday' || inputs.day }}"
+        run: .mise/tasks/release

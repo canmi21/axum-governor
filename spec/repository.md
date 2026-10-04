@@ -23,11 +23,17 @@ here, and its citations are rewritten as it does; one that rules on the site sta
 
 ## Versions and publishing
 
-**A dated package is versioned by the UTC day**, `2026.10.4`, never zero-padded, which semver
-forbids: `@canmi/me`, `@canmi/kit`, `@canmi/ui` and `@canmi/web`, and the `canmi` crate under the
-same version as `@canmi/me`. `.github/workflows/release.yml` runs `.mise/tasks/release` just after
-midnight UTC for the day that ended, or by hand for today, and publishes each package whose
-directory changed since its last tag, `<name>@<version>`, tagging it as it goes.
+**A dated package is versioned `YYYY.MDD.N`**: the UTC year, the month times a hundred plus the
+day, and the release's number within that day from 0 -- `2026.1004.0`, then `2026.1004.1`; the
+fourth of January is `2026.104.0`. Nothing is zero-padded, which semver forbids. A day holds as many
+releases as it needs, so a change is never held back for the date to turn. `@canmi/me`,
+`@canmi/kit`, `@canmi/ui` and `@canmi/web` are dated, and the `canmi` crate takes `@canmi/me`'s
+version. The earlier `2026.10.3` and `2026.10.4` were `YYYY.M.D`, and sort below every one since.
+
+**A push to main that changes a package publishes it**: `.github/workflows/release.yml` runs
+`.mise/tasks/release`, which publishes each package whose directory changed since its last tag,
+`<name>@<version>`, and tags it as it goes. Runs queue in the order pushed and none is cancelled
+or dropped, since each numbers the day from the tags the one before pushed.
 
 **npm's copy is packed by pnpm and published by npm**: `pnpm pack` writes the versions `workspace:`
 names, and `npm publish` of the tarball reaches trusted publishing, which `pnpm publish` does not.
