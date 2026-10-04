@@ -49,8 +49,6 @@ Every answer is one of two shapes:
 
 Without `axum` the crate is the envelope and the catalog alone, on `serde` and `serde_json`.
 
-Version 2 is a rewrite; 1.x was an unrelated crate of mine under the same name.
-
 ## License
 
 Released under the MIT License © 2024 [Canmi](https://canmi.net)

@@ -45,7 +45,7 @@ trusted publisher only to a package that exists; the first dated version is the 
 
 **A semver package -- `axum-governor`, `response` and `@canmi/response`, `whereabouts` -- is
 published by hand until it has a pipeline of its own**: `whereabouts` began at 1.0.0, `response`
-and `@canmi/response` at 2.0.0, redoing the crate of that name, and `axum-governor` keeps the line
+and `@canmi/response` at 2.0.0, the next major of the crate's own line, and `axum-governor` keeps the line
 it already had. The two halves of `response` share one version,
 since they share one `codes.json`.
 
