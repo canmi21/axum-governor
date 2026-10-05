@@ -81,9 +81,9 @@
 	/* Stated at rest, not only inside `:focus-visible` -- an outline's colour is `currentColor`
 	   until named, and Tailwind v4 put `outline-color` into `transition-colors`, which nearly
 	   every control here carries for its hover. Left unnamed, the ring fades in from the
-	   element's own text colour instead of snapping to the accent. It is a member of the ring
+	   element's own text color instead of snapping to the accent. It is a member of the ring
 	   rather than a rule of its own, so it travels with the ring. See web's spec/styling/focus.md,
-	   "The ring's colour is declared at rest, or it fades in from the text". */
+	   "The ring's color is declared at rest, or it fades in from the text". */
 	:where(.focus-ring, .focus-ring-inner, .focus-ring-within, .focus-link, .focus-link-inner) {
 		outline-color: var(--color-accent);
 	}

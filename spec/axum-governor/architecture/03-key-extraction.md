@@ -31,6 +31,8 @@ pub trait KeyExtractor: Send + Sync + 'static {
     type Key: Hash + Eq + Clone + Debug + Send + Sync + 'static;
     fn extract(&self, parts: &Parts)
         -> Result<KeyOutcome<Self::Key>, ExtractionError>;
+    /// Whether it reads `ConnectInfo`, which the builder holds to `expect_connect_info()`.
+    fn requires_connect_info(&self) -> bool { false }
 }
 
 pub trait AsyncKeyExtractor: Send + Sync + 'static {
@@ -52,7 +54,7 @@ Why these shapes (the [`02`](02-prior-art.md) gap table is the short version):
   removes the body-type generic that breaks dyn-safety and forces correct middleware
   ordering — limiters run before any body extractor.
 - **Hand-rolled `Pin<Box<dyn Future>>` for the async trait.** AFIT (`async fn` in trait,
-  stable since 1.75) is **not** dyn-compatible in 1.95. The hand-rolled form is exactly
+  stable since 1.75) is **not** dyn-compatible. The hand-rolled form is exactly
   what `async-trait` would expand to; we avoid the proc-macro to keep build times tight.
 - **Two traits, not one async trait.** Roughly 99 % of extractors (peer IP, header,
   cookie, connect-info) are sync. Forcing them through a `Pin<Box<dyn Future>>`
@@ -73,7 +75,7 @@ All of these implement `KeyExtractor` (sync) unless noted.
   `PeerIp::ipv6_prefix(u8)`.
 - **`SmartIp`** — header walk in priority order: `X-Forwarded-For` → `X-Real-IP` →
   `Forwarded` (`for=`) → peer. Honors a configurable trusted-proxy CIDR list:
-  `SmartIp::with_trusted_proxies(["10.0.0.0/8".parse()?])`. Without an explicit
+  `SmartIp::new().with_trusted_proxies(["10.0.0.0/8".parse()?])`. Without an explicit
   whitelist, only the peer IP is consulted — header spoofing is otherwise trivial.
 - **`Global`** — `type Key = ();`. One bucket for the whole Layer; useful for hard caps
   on total HTTP load.
@@ -116,11 +118,11 @@ The lookup is already done by auth — we never re-do it. If the lookup itself i
 
 ```rust
 pub struct GovernorLayer<K> {
-    extractor: KeyExtractorKind<K>,
-    // ...
+    shared: Arc<LimiterShared<K>>,       // the extractor slot, every limiter, the GC handle
 }
 
-enum KeyExtractorKind<K> {
+enum ExtractorSlot<K> {
+    None,                                // refused by finish() as NoExtractor
     Sync(Arc<dyn KeyExtractor<Key = K>>),
     Async(Arc<dyn AsyncKeyExtractor<Key = K>>),
 }

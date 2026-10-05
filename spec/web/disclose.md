@@ -67,8 +67,8 @@ A version shows only where a fingerprint reads one.
 - **D3 is named without a version.** An app carries D3's modules -- `d3-hierarchy`, `d3-scale`,
   `d3-shape`, `d3-array` -- never D3 itself, and a module's own major would read as D3's;
   `<module>@<version>` is refused by Wappalyzer's version check, which allows only letters,
-  digits, `.`, `_` and `-`. `discloseD3(disclosure)` names the first module the app lists, from
-  the component that draws with it.
+  digits, `.`, `_` and `-`. `discloseD3(disclosure)` names the first of `d3-hierarchy`, `d3-scale`,
+  `d3-shape` and `d3-array` the app has, from the component that draws with it.
 - **Motion's flag is one its React components set on mounting**, and its `animate` -- all a
   Svelte page uses -- never sets. Wappalyzer still lists Motion under its old name, Framer Motion.
 - **Every Hono app names itself with `poweredBy()` from `@canmi/web/disclose/hono`**, the first

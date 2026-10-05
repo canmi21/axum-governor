@@ -2,8 +2,8 @@
 
 **A page has two titles: the full one a search result shows, and the short one a tab shows.** The
 full one leads with the name and then says, in plain words, what the page is; the short one is the
-name alone. `@canmi/kit/behavior` holds both halves: `brevity` decides which one a load shows, and
-`title.svelte` renders the page's `<title>` from it.
+name alone. Two subpaths hold the halves: `@canmi/kit/behavior/brevity` decides which one a load shows, and
+`@canmi/kit/behavior/title.svelte` renders the page's `<title>` from it.
 
 - **A page loaded fresh in a browser the app has no mark in shows the full title**, and the server
   renders it. Then it marks the browser: `visit.seen` in the `reader` record, see

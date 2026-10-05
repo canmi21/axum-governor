@@ -1,6 +1,6 @@
 # UI
 
-UI primitives and an SVG canvas, built on [`@canmi/kit`](https://www.npmjs.com/package/@canmi/kit).  
+UI primitives and an SVG canvas.  
 Mostly for my own projects.
 
 ## License

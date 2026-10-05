@@ -14,7 +14,7 @@ X-RateLimit-Limit:     100
 X-RateLimit-Remaining: 0
 X-RateLimit-Reset:     5
 Content-Type: text/plain; charset=utf-8
-Content-Length: 32
+Content-Length: 30
 
 Too Many Requests, retry in 5s
 ```
@@ -117,8 +117,9 @@ pub enum RejectionReason {
 
 When `error_handler` is set, the layer skips its built-in body. Headers are still
 filled in by the outer Service wrapper, so the user gets to control the body without
-losing the standards-compliant headers. Users who want full control over headers
-return their `Response` with the headers they want and the layer leaves them alone.
+losing the standards-compliant headers: `Retry-After`, `RateLimit`, `RateLimit-Policy` and
+the `X-RateLimit-*` set are written after the handler runs and replace any it set. Every other
+header the handler sets is kept.
 
 ## Default response status mapping
 
@@ -131,21 +132,22 @@ return their `Response` with the headers they want and the layer leaves them alo
 | `KeyExtractionFailed::UntrustedProxy`     | 400            | Proxy not in whitelist.                                          |
 | `KeyExtractionFailed::Other(_)`           | 500            | Conservative default.                                            |
 
-These are defaults; `error_handler` overrides everything.
+These are defaults; `error_handler` replaces the status and the body, never the rate-limit headers.
 
 ## Worked example: stacked rejection
 
-Config: `PeerIp` 10/s and `Header(Authorization)` 600/m. A burst trips the second:
+Config: `PeerIp` 10/s as the primary extractor, and `Header(Authorization)` 600/m stacked
+as `"auth"`. A burst trips the second:
 
 ```
 HTTP/1.1 429 Too Many Requests
 Retry-After: 12
 RateLimit:        "auth";r=0;t=12
-RateLimit-Policy: "peer";q=10;w=1, "auth";q=600;w=60
+RateLimit-Policy: "default";q=10;w=1, "auth";q=600;w=60
 X-RateLimit-Limit:     600
 X-RateLimit-Remaining: 0
 X-RateLimit-Reset:     12
 ```
 
-Both policies appear in `RateLimit-Policy`; only the triggering one populates
+Both policies appear in `RateLimit-Policy`, the primary one always named `"default"`; only the triggering one populates
 `RateLimit:` and the legacy headers.

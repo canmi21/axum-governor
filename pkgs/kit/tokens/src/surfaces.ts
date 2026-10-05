@@ -121,7 +121,7 @@ export const surfaces = stylex.create({
 	/**
 	 * The compact icon-and-label control a metadata row is made of. See web's spec/styling/focus.md,
 	 * "Quiet metadata controls share one surface" (why this replaced the `.quiet-control` class) and
-	 * web's spec/todo/todo.md, "A recipe's other half is a convention and nothing checks that a call
+	 * web's spec/todo/css.md, "A recipe's other half is a convention and nothing checks that a call
 	 * site kept it" (why only the appearance is here). `:hover` is bare (sameness first, web's
 	 * spec/architecture/css/migration.md). `outline: none` also resets width and colour, to `medium`/
 	 * `currentcolor` rather than the `0.125rem` accent base-layer `:focus-visible` sets.
@@ -142,7 +142,7 @@ export const surfaces = stylex.create({
 			':hover': 'var(--color-paper-hover)',
 			':focus-visible': 'var(--color-paper-hover)',
 		},
-		// Doubled because two properties transition: web's spec/todo/todo.md, "A `transition` shorthand
+		// Doubled because two properties transition: web's spec/todo/css.md, "A `transition` shorthand
 		// sets five lists and the migrated form writes three".
 		transitionProperty: 'color, background-color',
 		transitionDuration: '200ms, 200ms',

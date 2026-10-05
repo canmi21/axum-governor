@@ -1,8 +1,8 @@
 //! Two-policy stack: peer IP at 10 req/s and Authorization header at 600 req/min.
 //!
-//! A reject from the peer bucket produces:
-//!   RateLimit: "peer";r=0;t=1
-//!   RateLimit-Policy: "peer";q=10;w=1, "auth";q=600;w=60
+//! A reject from the peer bucket, the primary one, produces:
+//!   RateLimit: "default";r=0;t=1
+//!   RateLimit-Policy: "default";q=10;w=1, "auth";q=600;w=60
 
 use std::net::SocketAddr;
 

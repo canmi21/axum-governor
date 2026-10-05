@@ -33,7 +33,7 @@ See [`architecture/04-quota-and-policy.md`](architecture/04-quota-and-policy.md)
 - Per-tier override via `KeyOutcome::quota_override`, no extra layer needed.
 - Stacked limits — multiple `(KeyExtractor, Quota)` pairs in one Layer; first to reject
   wins.
-- Same-key multi-window sugar — one extractor, several quotas (`10/s` + `1k/m` + `100k/d`).
+- Same-key multi-window sugar — one extractor, several quotas (`10/s` + `1k/m` + `20k/h`).
 - Method / path / IP whitelists bypass the limiter entirely.
 
 ### Response and headers

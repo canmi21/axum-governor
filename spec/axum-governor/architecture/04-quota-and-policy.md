@@ -33,6 +33,7 @@ Within one Layer, distinct quotas per HTTP method:
 
 ```rust
 GovernorConfigBuilder::default()
+    .with_extractor(Global)
     .quota_for(Method::GET,  Quota::requests_per_second(nz!(100)))
     .quota_for(Method::POST, Quota::requests_per_second(nz!(10)))
     .quota_default(Quota::requests_per_second(nz!(50)))   // anything else
@@ -60,12 +61,16 @@ store; cold quotas allocate one limiter wrapper, never a state store.
 
 ```rust
 GovernorConfigBuilder::default()
+    .with_extractor(Global)
+    .expect_connect_info()                  // the stacked PeerIp reads the peer too
     .stack("peer", PeerIp::default(),       Quota::requests_per_second(nz!(10)))
     .stack("auth", Header(&AUTHORIZATION),  Quota::requests_per_minute(nz!(600)))
     .finish()?;
 ```
 
-Internally `Vec<(name, KeyExtractorKind, Quota, RateLimiter)>`. On each request, every
+A stack sits on top of the primary extractor, which is still required. Internally each entry is a
+type-erased runner -- its name, its extractor, its quota and its limiter -- held in order in the
+layer's shared state. On each request, every
 entry is checked in order; the first reject wins and is reported with its own policy
 name in `RateLimit:` (see [`05`](05-response-and-headers.md)). The full set of policies
 is advertised in `RateLimit-Policy`; only the entry that triggered the reject populates
@@ -79,6 +84,8 @@ up with. Order matters — put the cheapest extractor first.
 
 ```rust
 GovernorConfigBuilder::default()
+    .with_extractor(Global)
+    .expect_connect_info()
     .quotas("peer", PeerIp::default(), [
         Quota::requests_per_second(nz!(10)),
         Quota::requests_per_minute(nz!(600)),
@@ -121,11 +128,11 @@ typically support.
   address, which turns the limiter off.
 - `ConfigError::NoExtractor` — the builder went straight to `finish()` without picking
   an extractor.
-- `ConfigError::MissingConnectInfoAcknowledgement` — `PeerIp` / `SmartIp` configured
-  but `expect_connect_info()` was not called
+- `ConfigError::MissingConnectInfoAcknowledgement` — `PeerIp` / `SmartIp` configured,
+  as the primary extractor or in the stack, but `expect_connect_info()` was not called
   ([`06`](06-runtime-and-lifecycle.md)).
 
-The split between `finish()` errors (config-level, recoverable) and the construction
-panic (ConnectInfo missing at runtime, [`06`](06-runtime-and-lifecycle.md)) is
+The split between `finish()` errors (config-level, recoverable) and the runtime 500
+(ConnectInfo missing despite the acknowledgement, [`06`](06-runtime-and-lifecycle.md)) is
 deliberate: config errors are something the developer can fix with a different value;
-the runtime panic fires only when the deployment-level acknowledgement was lied about.
+the 500 answers only when the deployment-level acknowledgement was lied about.

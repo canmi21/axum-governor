@@ -11,27 +11,32 @@ whose last activity is older than the longest replenishment interval in the curr
 quota set. It is O(n) over keys and is governor's primary built-in mechanism for
 controlling keyed-store growth.
 
-v2 starts a tokio task on Layer construction:
+v2 starts a tokio task on Layer construction, when a runtime is current:
 
 ```rust
-fn spawn_gc(state: Arc<DashMapStateStore<K>>, every: Duration) -> AbortHandle {
-    let handle = tokio::spawn(async move {
+fn spawn_gc_inner<K>(weak: Weak<LimiterShared<K>>, every: Duration) -> Option<AbortHandle> {
+    let handle = Handle::try_current().ok()?.spawn(async move {
         let mut tick = tokio::time::interval(every);
+        tick.tick().await;                           // a full interval before the first sweep
         loop {
             tick.tick().await;
-            state.retain_recent();
+            let Some(strong) = weak.upgrade() else { return };
+            strong.retain_all();
         }
     });
-    handle.abort_handle()
+    Some(handle.abort_handle())
 }
 ```
+
+It holds the shared state weakly, so it never keeps a dropped layer alive.
 
 Default interval: 60 seconds. Configurable via `.gc_interval(Duration)`. Disable with
 `.gc_disable()`.
 
 The `AbortHandle` lives in `LimiterShared`, which every layer clone shares; its `Drop`
-calls `abort()` when the last clone goes, and the task terminates by the next yield. Users who construct one Layer per request leak a task
-per Layer, which is documented as an anti-pattern in
+calls `abort()` when the last clone goes, and the task terminates by the next yield. A Layer
+constructed per request is a limiter per request, which limits nothing -- documented as an
+anti-pattern in
 [`07-ergonomics-and-testing.md`](07-ergonomics-and-testing.md); the `BoxedGovernorLayer`
 ergonomics aim to make the one-config-per-process pattern the obvious one.
 
@@ -73,9 +78,10 @@ GovernorConfigBuilder::default()
     .finish()?;
 ```
 
-Builders that select `PeerIp` or `SmartIp` and skip `expect_connect_info()` make
-`finish()` return `ConfigError::MissingConnectInfoAcknowledgement`. The error message
-points to the docs for `into_make_service_with_connect_info`.
+Builders that select `PeerIp` or `SmartIp`, as the primary extractor or in the stack, and
+skip `expect_connect_info()` make `finish()` return
+`ConfigError::MissingConnectInfoAcknowledgement`, whose message says
+`expect_connect_info()` is required before `finish()`.
 
 The first request that arrives without `ConnectInfo` despite the acknowledgement
 still fails — but the failure path is a deterministic 500 with a `tracing::warn!`

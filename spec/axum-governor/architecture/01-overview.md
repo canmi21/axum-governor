@@ -77,21 +77,23 @@ default = ["dashmap", "tracing", "json"]
 the recommended path. `tracing` is on because all production Axum stacks use it; turning
 it off removes both the span and the per-reject event, with no other consequence.
 
-## Crate dependencies (proposed)
+## Crate dependencies
 
-| Crate              | Why                                                             |
-| ------------------ | --------------------------------------------------------------- |
-| `governor`         | The underlying GCRA limiter and clock abstractions.             |
-| `tower`            | `Layer` and `Service` traits.                                   |
-| `axum`             | `ConnectInfo` extractor and response types.                     |
-| `http`             | `request::Parts`, `HeaderMap`, status codes.                    |
-| `pin-project-lite` | `#[pin_project]` on `Service::Future` without a proc-macro dep. |
-| `tokio`            | Background GC task; `JoinHandle` and `interval`.                |
-| `tracing`          | Optional, on by default; spans and events.                      |
-| `dashmap`          | Optional, on by default; concurrent state store.                |
-| `serde_json`       | Optional, on by default via `json` feature; for the JSON and    |
-|                    | problem+json body presets.                                      |
-| `nonzero_ext`      | `nz!` macro for compile-time `NonZeroU32` literals.             |
+| Crate                    | Why                                                             |
+| ------------------------ | --------------------------------------------------------------- |
+| `governor`               | The underlying GCRA limiter and clock abstractions.             |
+| `tower`                  | `Layer` and `Service` traits.                                   |
+| `axum`                   | `ConnectInfo` extractor and response types.                     |
+| `http`                   | `request::Parts`, `HeaderMap`, status codes.                    |
+| `pin-project-lite`       | `#[pin_project]` on `Service::Future` without a proc-macro dep. |
+| `tokio`                  | Background GC task; `JoinHandle` and `interval`.                |
+| `tracing`                | Optional, on by default; spans and events.                      |
+| `dashmap`                | Optional, on by default; concurrent state store.                |
+| `serde_json`             | Optional, on by default via `json` feature; for the JSON and    |
+|                          | problem+json body presets.                                      |
+| `nonzero_ext`            | `nz!` macro for compile-time `NonZeroU32` literals.             |
+| `ipnet`                  | Trusted-proxy CIDRs for `SmartIp`, and the IP whitelist.        |
+| `forwarded-header-value` | Parsing RFC 7239 `Forwarded` for `SmartIp`.                     |
 
 `pin-project-lite` is preferred over `pin-project` to avoid pulling in a proc-macro on
 the hot compile path; the `Service::Future` we project is shaped simply enough for the
@@ -99,9 +101,10 @@ lite form to suffice.
 
 ## Design rules that bind every doc
 
-1. Anything that can be a build-time error is one (after `finish()`) — but `finish()`
-   itself returns `Result<_, ConfigError>` rather than `panic!`. Panics are reserved for
-   the `expect_connect_info` acknowledgement case at Layer construction time
+1. Anything that can be a build-time error is one (after `finish()`) — and `finish()`
+   returns `Result<_, ConfigError>` rather than `panic!`. Nothing panics: a missing
+   `expect_connect_info` acknowledgement is a `finish()` error, and `ConnectInfo` missing at
+   run time despite it is a per-request 500
    ([`06-runtime-and-lifecycle.md`](06-runtime-and-lifecycle.md)).
 2. The hot path allocates only when a header value is being formatted into the response.
 3. No re-export of governor's ambiguously-named constructors — every public name in this

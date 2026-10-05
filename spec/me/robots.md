@@ -77,11 +77,12 @@ after agents broke into it.
 - **A note is broken into lines by hand, and stored as its lines.** A line ends where the sentence
   pauses -- a full stop, a comma, a semicolon -- the lengths run close, within `NOTE_WIDTH` columns,
   and no line holds a lone word or the first words of a sentence it does not finish.
-  `noteProblems` is what a test holds a note to; breaking by rule either filled lines to a width or
-  left them ragged, and a handful of short notes are cheaper set once.
+  `noteProblems` holds a note to the two of these a test can check -- the width and a lone word --
+  and the rest is held by hand; breaking by rule either filled lines to a width or left them
+  ragged, and a handful of short notes are cheaper set once.
 
 ## security.txt is RFC 9116's two fields and the note
 
-`Contact` is the author's security address from `@canmi/me/urls`, the same on every host;
+`Contact` is the `security` box, `CONTACT.security` in `@canmi/me/urls`, the same on every host;
 `Expires` is 180 days ahead on a day boundary, stated per request so it never lapses, and every
 answer on one day is the same text and caches as one; `Canonical` is the host's own path.

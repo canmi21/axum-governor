@@ -249,8 +249,8 @@ ${items}
 const VALID_DAYS = 180;
 
 /**
- * The security.txt `origin` answers with at `now`: RFC 9116's two required fields -- the author's
- * contact and an expiry -- where the file lives, and the host's note. The expiry is a day boundary, so every answer on one day is the
+ * The security.txt `origin` answers with at `now`: RFC 9116's two required fields -- the security
+ * box and an expiry -- where the file lives, and the host's note. The expiry is a day boundary, so every answer on one day is the
  * same text and caches as one.
  */
 export function securityTxt(origin: string, now: Date, note: AgentNote): string {

@@ -5,9 +5,9 @@
  * numbers and handed back to `auto` at rest -- a panel pinned to a measured height would stop
  * following its content on resize or a late font.
  *
- * Shared rather than copied: two disclosures with the same spring written out twice are two
+ * Shared rather than copied: two disclosures with the same motion written out twice are two
  * numbers to keep in step with no way to tell later whether they were meant to be equal. The
- * search panel uses the same spring for a different measurement -- see web's spec/search.md.
+ * search panel uses the same motion for a different measurement -- see web's spec/search.md.
  */
 
 import { NEGLIGIBLE_PIXELS, pressMotion, prefersReducedMotion } from '../../motion/src/index.ts';

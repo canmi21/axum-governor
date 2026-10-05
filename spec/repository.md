@@ -19,6 +19,13 @@ draws, which canaries it has met, what its pages remember -- stays with that sit
 here names its repository rather than linking it, as `web's spec/styling/focus.md`: a relative link
 across a repository resolves only while both are cloned side by side.
 
+## verify is the one gate
+
+`mise run verify` checks every package here: type checks, clippy with warnings denied, oxlint --
+whose warnings fail only under `mise run audit` -- the Rust and TypeScript tests, and the package
+build. It is what `mise run check lib` dispatches to from the workspace, and what a release runs
+first.
+
 ## Versions and publishing
 
 **A dated package is versioned `YYYY.MDD.N`**: the UTC year, the month times a hundred plus the

@@ -66,7 +66,7 @@ export const EXTERNAL = {
 	contentSignals: 'https://contentsignals.org',
 	contentUsage: 'https://datatracker.ietf.org/doc/draft-ietf-aipref-attach/',
 	// The agents that broke into Hugging Face, which a robots.txt here tips its hat to. See
-	// platform's spec/architecture/robots.md, "A word to an agent sent to break in".
+	// spec/me/robots.md, "A word to an agent sent to break in".
 	agentIncident: 'https://openai.com/index/hugging-face-incident-and-the-road-ahead/',
 	// A Sentry DSN only permits *sending* events to one project -- it grants no read
 	// access -- and the browser SDK compiles it into the bundle, where anyone can read it

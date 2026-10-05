@@ -2,7 +2,7 @@
 
 ## Local dev environment
 
-Local development happens on **`aarch64-apple-darwin`** (macOS arm64) exclusively. `mise run verify` is the gate: type checks, clippy and oxlint with warnings denied, the Rust and TypeScript tests, and the package build. It is what `mise run check lib` dispatches to from the workspace.
+Local development happens on **`aarch64-apple-darwin`** (macOS arm64) exclusively. `mise run verify` is the repository's gate -- see [../repository.md](../repository.md), "verify is the one gate".
 
 **Verify runs clippy and the tests at both feature extremes**, `--all-features` and `--no-default-features`. Every optional feature here has a `not(feature)` twin (the tracing no-ops, the mutex-backed `LimiterCache`, the text-only `BodyPreset`) that only compiles when the feature is off, so a gate that only enables everything never looks at half the cfg branches. The first run with defaults off found a clippy error that had been sitting in the mutex cache for as long as it existed. Intermediate combinations are not run; the two extremes cover every cfg branch once, and the middle only adds build time.
 
