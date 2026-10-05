@@ -1,6 +1,6 @@
-# Roadmap
+# Releases
 
-Functional capabilities planned for axum-governor v2 and beyond. Each section links to the
+Functional capabilities planned for axum-governor v2 and beyond, release by release. Each section links to the
 architecture document that justifies the design. Items are scoped per release; non-goals at
 the bottom are explicit and durable.
 
