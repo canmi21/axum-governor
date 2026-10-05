@@ -42,6 +42,9 @@ pub const EXTERNAL_UMAMI_GATEWAY: &str = "https://gateway.umami.is";
 pub const EXTERNAL_OPENPANEL: &str = "https://api.openpanel.dev";
 pub const EXTERNAL_GOOGLE_FONTS_CSS: &str = "https://fonts.googleapis.com";
 pub const EXTERNAL_GOOGLE_FONTS_STATIC: &str = "https://fonts.gstatic.com";
+pub const EXTERNAL_TURNSTILE_SCRIPT: &str = "https://challenges.cloudflare.com/turnstile/v0/api.js";
+pub const EXTERNAL_TURNSTILE_SITEVERIFY: &str =
+	"https://challenges.cloudflare.com/turnstile/v0/siteverify";
 
 pub const AUTHOR_NAME: &str = "Canmi";
 pub const AUTHOR_FULL_NAME: &str = "Canmi Wu";

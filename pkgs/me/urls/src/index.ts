@@ -134,6 +134,12 @@ export const EXTERNAL = {
 		css: 'https://fonts.googleapis.com',
 		static: 'https://fonts.gstatic.com',
 	},
+	// Cloudflare Turnstile: the widget's script, which a page loads only when it needs trust to
+	// write, and where a server checks the token it passed. See web's spec/architecture/trust.md.
+	turnstile: {
+		script: 'https://challenges.cloudflare.com/turnstile/v0/api.js',
+		siteverify: 'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+	},
 } as const;
 
 /**
