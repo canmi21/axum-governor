@@ -19,4 +19,7 @@ reads what it sets.
 A version shows only where a fingerprint reads one -- Sentry's `Sentry.SDK_VERSION` and Algolia's
 `__algolia.algoliasearch.version` among what the sites use. The others name a technology and no
 version, so they are disclosed only where they would otherwise go unseen: OpenPanel's client as
-`openpanel`, since its fingerprint wants `openpanel.api` and the bundled client sets no global.
+`openpanel`, since its fingerprint wants `openpanel.api` and the bundled client sets no global;
+and Motion as `MotionIsMounted: true`, the flag its React components set on mounting, which its
+`animate` -- all a Svelte page uses -- never sets. Wappalyzer still lists Motion under its old
+name, Framer Motion.
