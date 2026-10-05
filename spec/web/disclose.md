@@ -12,17 +12,52 @@ reads what it sets.
   build time or from the library itself; an object is the real one where the fingerprint asks for
   one. Nothing is claimed that is not so.
 - **Nothing already there is replaced.** A path is filled in only where it is missing, so a
-  library that sets its own global keeps it.
+  library that sets its own global keeps it. An undefined value is skipped, so an entry the build
+  did not find is simply absent.
 - **One function, every app.** Each app names its own entries; what every app with Sentry shares
   is set in `initClient`, `Sentry.SDK_VERSION`.
+- **Where a library is used on some pages, its patch is set by the component that uses it**, so
+  only those pages say so.
 
-A version shows only where a fingerprint reads one -- Sentry's `Sentry.SDK_VERSION` and Algolia's
-`__algolia.algoliasearch.version` among what the sites use. D3's `d3.version` reads one too, but a
-site carries only `d3-hierarchy`, whose 3.x would read as D3's own; the value is
-`d3-hierarchy@<version>`, which Wappalyzer's version check refuses, so D3 is named without a
-version. It is set by the blocks that draw with it, on the pages that have one. The others name a technology and no
-version, so they are disclosed only where they would otherwise go unseen: OpenPanel's client as
-`openpanel`, since its fingerprint wants `openpanel.api` and the bundled client sets no global;
-and Motion as `MotionIsMounted: true`, the flag its React components set on mounting, which its
-`animate` -- all a Svelte page uses -- never sets. Wappalyzer still lists Motion under its old
-name, Framer Motion.
+## What a build knows is read from the app's `package.json`
+
+**`disclosure(root)` in `@canmi/web/disclose/build` reads it once, at build time**, and
+`discloseDefine(root)` hands it to Vite as `import.meta.env.VITE_DISCLOSURE`, so no app reads a
+version by hand.
+
+- **`versions`** holds the installed version of each package a fingerprint reads one for -- the
+  `VERSIONED` list in `build.ts` -- and only those the app lists itself. It is read from the
+  package's own `package.json` beside the app, since exports rarely offer it.
+- **`runtime`** is `Cloudflare Workers` when the app depends on `@sveltejs/adapter-cloudflare` or
+  `wrangler`, and absent otherwise. The app writes it as `<meta name="runtime">` in its root
+  layout, which is all Wappalyzer's Cloudflare Workers fingerprint reads.
+
+## What each technology is disclosed as
+
+A version shows only where a fingerprint reads one.
+
+| Technology | Fingerprint read                  | Disclosed as                                                |
+| ---------- | --------------------------------- | ----------------------------------------------------------- |
+| Sentry     | `Sentry.SDK_VERSION`              | the SDK's own constant, in `initClient`                     |
+| Algolia    | `__algolia.algoliasearch.version` | the installed `algoliasearch`                               |
+| CodeMirror | `CodeMirror.version`              | the installed `@codemirror/view`, by the editor on mounting |
+| Video.js   | `videojs.VERSION`                 | the installed `@videojs/core`, by a video on mounting       |
+| D3         | `d3.version`                      | `d3-hierarchy@<version>`, by the blocks that draw with it   |
+| OpenPanel  | `openpanel.api`                   | the real client, as `openpanel`                             |
+| Motion     | `MotionIsMounted`                 | `true`                                                      |
+| Workers    | `<meta name="runtime">`           | `runtime`, from the build                                   |
+| Hono       | `X-Powered-By` on the page        | `Hono`, on the site's pages                                 |
+| Iconify    | `iconify` beside `data-icon`      | on one MingCute icon, which is drawn from Iconify's data    |
+| MingCute   | `i-mingcute-<name>-line`          | on the icons it draws                                       |
+
+- **D3 is named without a version.** A site carries only `d3-hierarchy`, whose 3.x would read as
+  D3's own; `d3-hierarchy@<version>` is refused by Wappalyzer's version check, which allows only
+  letters, digits, `.`, `_` and `-`.
+- **Motion's flag is one its React components set on mounting**, and its `animate` -- all a
+  Svelte page uses -- never sets. Wappalyzer still lists Motion under its old name, Framer Motion.
+- **Hono's header goes on the site's pages, not only its API**, because Wappalyzer reads headers
+  from the page's own response alone and only the host of a request the page makes. The Worker
+  that serves the page answers its API with Hono.
+- **core-js is not disclosed.** It loads only where a browser lacks an API it covers, and then it
+  sets `__core-js_shared__` itself, which is the fingerprint; a browser that never needs it is not
+  told it was used.
