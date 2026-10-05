@@ -294,6 +294,7 @@ mod tests {
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(Global)
 			.stack("peer", PeerIp::default(), Quota::requests_per_second(nz!(10u32)))
+			.expect_connect_info()
 			.finish()
 			.unwrap();
 		let layer: GovernorLayer<()> = GovernorLayer::new(cfg);

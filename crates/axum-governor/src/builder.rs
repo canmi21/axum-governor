@@ -152,6 +152,7 @@ impl<K> GovernorConfigBuilder<K> {
 	/// Entries are checked in insertion order; the first reject wins.
 	#[must_use]
 	pub fn stack<E: KeyExtractor>(mut self, name: &'static str, extractor: E, quota: Quota) -> Self {
+		self.requires_connect_info |= extractor.requires_connect_info();
 		self.stack.push(Box::new(TypedStackFactory {
 			name: Arc::from(name),
 			quota,
@@ -179,6 +180,7 @@ impl<K> GovernorConfigBuilder<K> {
 			self.empty_chain_names.push(name);
 			return self;
 		}
+		self.requires_connect_info |= extractor.requires_connect_info();
 		let shared = Arc::new(extractor);
 		for (idx, q) in entries.into_iter().enumerate() {
 			let label = quota_label(name, &q, idx);
@@ -413,6 +415,26 @@ mod tests {
 		assert!(matches!(err, crate::ConfigError::MissingConnectInfoAcknowledgement));
 	}
 
+	#[test]
+	fn finish_stacked_peer_ip_without_ack_returns_error() {
+		// A stacked entry reads the peer as surely as the primary extractor does, so it is held to
+		// the same acknowledgement rather than answering 500 on every request.
+		let stacked = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.quota_default(q1s())
+			.stack("peer", PeerIp::default(), q1s())
+			.finish()
+			.unwrap_err();
+		assert!(matches!(stacked, crate::ConfigError::MissingConnectInfoAcknowledgement));
+		let windows = GovernorConfigBuilder::default()
+			.with_extractor(Global)
+			.quota_default(q1s())
+			.quotas("peer", SmartIp::new(), [q1s()])
+			.finish()
+			.unwrap_err();
+		assert!(matches!(windows, crate::ConfigError::MissingConnectInfoAcknowledgement));
+	}
+
 	// --- finish() success paths ---
 
 	#[test]
@@ -459,6 +481,7 @@ mod tests {
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(Global)
 			.stack("peer", PeerIp::default(), q1s())
+			.expect_connect_info()
 			.finish()
 			.unwrap();
 		assert_eq!(cfg.stack.len(), 1);
@@ -474,6 +497,7 @@ mod tests {
 		let cfg = GovernorConfigBuilder::default()
 			.with_extractor(Global)
 			.quotas("peer", PeerIp::default(), [q1s(), q1m(), q1h()])
+			.expect_connect_info()
 			.finish()
 			.unwrap();
 		assert_eq!(cfg.stack.len(), 3);
