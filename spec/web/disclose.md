@@ -17,7 +17,10 @@ reads what it sets.
   is set in `initClient`, `Sentry.SDK_VERSION`.
 
 A version shows only where a fingerprint reads one -- Sentry's `Sentry.SDK_VERSION` and Algolia's
-`__algolia.algoliasearch.version` among what the sites use. The others name a technology and no
+`__algolia.algoliasearch.version` among what the sites use. D3's `d3.version` reads one too, but a
+site carries only `d3-hierarchy`, whose 3.x would read as D3's own; the value is
+`d3-hierarchy@<version>`, which Wappalyzer's version check refuses, so D3 is named without a
+version. It is set by the blocks that draw with it, on the pages that have one. The others name a technology and no
 version, so they are disclosed only where they would otherwise go unseen: OpenPanel's client as
 `openpanel`, since its fingerprint wants `openpanel.api` and the bundled client sets no global;
 and Motion as `MotionIsMounted: true`, the flag its React components set on mounting, which its
