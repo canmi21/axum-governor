@@ -76,7 +76,8 @@
 		"./units": {
 			"types": "./dist/units/src/index.d.ts",
 			"default": "./dist/units/src/index.js"
-		}
+		},
+		"./package.json": "./package.json"
 	},
 	"scripts": {
 		"build": "tsdown"

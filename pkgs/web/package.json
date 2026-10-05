@@ -43,7 +43,8 @@
 		"./sentry/server": {
 			"types": "./dist/sentry/src/server.d.ts",
 			"default": "./dist/sentry/src/server.js"
-		}
+		},
+		"./package.json": "./package.json"
 	},
 	"scripts": {
 		"build": "tsdown"

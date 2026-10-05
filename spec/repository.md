@@ -61,6 +61,11 @@ year are written is the workspace's `spec/readme.md`.
 **`whereabouts` is `geocode` renamed, with the IP lookup from platform's `geo` app taken in beside
 it**, as the features `coordinates` and `ip`, none on by default. Fetching the data stays with the caller.
 
+**Every package exports its own `package.json`.** StyleX's Vite plugin finds the packages it
+must compile by reading each dependency's manifest, and one it cannot resolve is skipped in
+silence: `@canmi/kit` was, so in development Vite pre-bundled its `.stylex` modules uncompiled and
+every page that imports them threw before hydrating.
+
 **Each package is built by tsdown into `dist/`**, one output per source file, so a `.svelte.ts`
 stays a module Svelte compiles and a `.stylex.ts` one StyleX reads; CSS, JSON and Svelte components
 are copied as they are. A consumer that is not a bundler -- node, loading a Vite config -- does

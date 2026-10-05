@@ -44,7 +44,8 @@
 		"./robots": {
 			"types": "./dist/robots/src/index.d.ts",
 			"default": "./dist/robots/src/index.js"
-		}
+		},
+		"./package.json": "./package.json"
 	},
 	"scripts": {
 		"build": "tsdown"

@@ -25,7 +25,8 @@
 			"default": "./dist/primitives/src/index.js"
 		},
 		"./primitives/style.css": "./dist/primitives/src/style.css",
-		"./svg-canvas/style.css": "./dist/svg-canvas/src/style.css"
+		"./svg-canvas/style.css": "./dist/svg-canvas/src/style.css",
+		"./package.json": "./package.json"
 	},
 	"scripts": {
 		"build": "tsdown"
