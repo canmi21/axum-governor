@@ -33,6 +33,20 @@ export function disclosureHead(disclosure: Disclosure | undefined): string {
 	return parts.join('');
 }
 
+/** The D3 modules an app may draw with, any one of which is D3 to a fingerprint. */
+const D3_MODULES = ['d3-hierarchy', 'd3-scale', 'd3-shape', 'd3-array'];
+
+/**
+ * D3, from the component that draws with it: `d3.version`, which no D3 module sets. The value names
+ * the module, which Wappalyzer's version check refuses, so D3 shows without the module's own major
+ * read as D3's. Nothing when the app's build found no D3 module. See spec/web/disclose.md.
+ */
+export function discloseD3(disclosure: Disclosure | undefined): void {
+	const versions = disclosure?.versions ?? {};
+	const name = D3_MODULES.find((module) => versions[module]);
+	if (name) disclose({ 'd3.version': `${name}@${versions[name]}` });
+}
+
 /** Sets `globals` on `window`, from an app's root layout; nothing on the server. */
 export function discloseGlobals(disclosure: Disclosure | undefined): void {
 	if (disclosure) disclose(disclosure.globals);

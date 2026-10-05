@@ -7,6 +7,7 @@ export default defineConfig({
 		'compat/src/index.ts',
 		'compat/src/build.ts',
 		'disclose/src/build.ts',
+		'disclose/src/hono.ts',
 		'disclose/src/index.ts',
 		'referer/src/index.ts',
 		'sentry/src/build.ts',

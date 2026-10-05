@@ -55,23 +55,28 @@ A version shows only where a fingerprint reads one.
 | Algolia    | `__algolia.algoliasearch.version` | the installed `algoliasearch`, from `globals`               |
 | CodeMirror | `CodeMirror.version`              | the installed `@codemirror/view`, by the editor on mounting |
 | Video.js   | `videojs.VERSION`                 | the installed `@videojs/core`, by a video on mounting       |
-| D3         | `d3.version`                      | `d3-hierarchy@<version>`, by the blocks that draw with it   |
+| D3         | `d3.version`                      | `<module>@<version>`, by `discloseD3` where it draws        |
 | OpenPanel  | `openpanel.api`                   | the real client, as `openpanel`                             |
 | Motion     | `MotionIsMounted`                 | `true`, from `globals`                                      |
 | TanStack   | `tanstack.com` in script text     | `https://tanstack.com/query`, from `references`             |
 | Workers    | `<meta name="runtime">`           | `runtime`, from the build                                   |
-| Hono       | `X-Powered-By` on the page        | `Hono`, on the site's pages                                 |
+| Hono       | `X-Powered-By` on the page        | `Hono`, from every Hono app and on the site's pages         |
 | Iconify    | `iconify` beside `data-icon`      | on one MingCute icon, which is drawn from Iconify's data    |
 | MingCute   | `i-mingcute-<name>-line`          | on the icons it draws                                       |
 
-- **D3 is named without a version.** A site carries only `d3-hierarchy`, whose 3.x would read as
-  D3's own; `d3-hierarchy@<version>` is refused by Wappalyzer's version check, which allows only
-  letters, digits, `.`, `_` and `-`.
+- **D3 is named without a version.** An app carries D3's modules -- `d3-hierarchy`, `d3-scale`,
+  `d3-shape`, `d3-array` -- never D3 itself, and a module's own major would read as D3's;
+  `<module>@<version>` is refused by Wappalyzer's version check, which allows only letters,
+  digits, `.`, `_` and `-`. `discloseD3(disclosure)` names the first module the app lists, from
+  the component that draws with it.
 - **Motion's flag is one its React components set on mounting**, and its `animate` -- all a
   Svelte page uses -- never sets. Wappalyzer still lists Motion under its old name, Framer Motion.
-- **Hono's header goes on the site's pages, not only its API**, because Wappalyzer reads headers
-  from the page's own response alone and only the host of a request the page makes. The Worker
-  that serves the page answers its API with Hono.
+- **Every Hono app names itself with `poweredBy()` from `@canmi/web/disclose/hono`**, the first
+  middleware it registers. Hono's own sets the header in place and throws on an answer passed
+  through from a `fetch`, whose headers are immutable; this one copies such an answer first.
+- **Hono's header goes on the site's pages too, not only its API**, because Wappalyzer reads
+  headers from the page's own response alone and only the host of a request the page makes. The
+  Worker that serves the page answers its API with Hono.
 - **The data block writes every slash as `\/`**, which JSON reads as a plain slash. Wappalyzer
   escapes each `/` of a pattern once more when it compiles it, so its TanStack pattern, already
   written `\/\/`, matches only a slash that follows a backslash.

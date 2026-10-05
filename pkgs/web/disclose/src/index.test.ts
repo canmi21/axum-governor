@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { disclose, disclosureHead } from './index.ts';
+import { disclose, discloseD3, disclosureHead } from './index.ts';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -52,4 +52,14 @@ it('writes a data block JSON still reads as the same addresses', () => {
 	});
 	const data = /data-disclosure>(.*)<\/script>/.exec(head)![1]!;
 	expect(JSON.parse(data)).toEqual(['https://tanstack.com/query']);
+});
+
+it('names D3 by the module the app draws with, and nothing without one', () => {
+	vi.stubGlobal('window', {});
+	discloseD3({ versions: { 'd3-scale': '4.0.2' }, globals: {}, references: [] });
+	expect(window).toEqual({ d3: { version: 'd3-scale@4.0.2' } });
+	vi.stubGlobal('window', {});
+	discloseD3({ versions: {}, globals: {}, references: [] });
+	discloseD3(undefined);
+	expect(window).toEqual({});
 });

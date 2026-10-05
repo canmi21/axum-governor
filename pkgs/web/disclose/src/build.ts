@@ -6,7 +6,14 @@ import type { Disclosure } from './index.ts';
  * The packages whose version a component's own patch reads, by the name an app installs them as:
  * used on some pages only, so the component that uses one discloses it. See spec/web/disclose.md.
  */
-const VERSIONED = ['@codemirror/view', '@videojs/core', 'd3-hierarchy'] as const;
+const VERSIONED = [
+	'@codemirror/view',
+	'@videojs/core',
+	'd3-array',
+	'd3-hierarchy',
+	'd3-scale',
+	'd3-shape',
+] as const;
 
 /** The globals a package used on every page is disclosed as, given its installed version. */
 const GLOBALS: Readonly<Record<string, (version: string) => Record<string, unknown>>> = {

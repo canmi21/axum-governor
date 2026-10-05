@@ -48,6 +48,10 @@
 			"types": "./dist/disclose/src/build.d.ts",
 			"default": "./dist/disclose/src/build.js"
 		},
+		"./disclose/hono": {
+			"types": "./dist/disclose/src/hono.d.ts",
+			"default": "./dist/disclose/src/hono.js"
+		},
 		"./disclose": {
 			"types": "./dist/disclose/src/index.d.ts",
 			"default": "./dist/disclose/src/index.js"
@@ -62,17 +66,22 @@
 	},
 	"devDependencies": {
 		"@sentry/sveltekit": "^11.4.0",
-		"@sveltejs/kit": "^3.0.0"
+		"@sveltejs/kit": "^3.0.0",
+		"hono": "^4.13.12"
 	},
 	"peerDependencies": {
 		"@sentry/sveltekit": "^11.4.0",
-		"@sveltejs/kit": "^3.0.0"
+		"@sveltejs/kit": "^3.0.0",
+		"hono": "^4.13.12"
 	},
 	"peerDependenciesMeta": {
 		"@sentry/sveltekit": {
 			"optional": true
 		},
 		"@sveltejs/kit": {
+			"optional": true
+		},
+		"hono": {
 			"optional": true
 		}
 	}
