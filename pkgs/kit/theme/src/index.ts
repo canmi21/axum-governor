@@ -51,12 +51,12 @@ export function currentTheme(root: HTMLElement = document.documentElement): Them
 	return root.classList.contains('dark') ? 'dark' : 'light';
 }
 
-/** Paint a theme. Toggling the class is the whole of it; every colour is a token beneath it. */
+/** Paint a theme. Toggling the class is the whole of it; every color is a token beneath it. */
 /**
  * Move the class with every transition in the document switched off, then switch them back on.
  *
- * A theme repaints in one frame, but anything easing a colour for its own reasons eases this one
- * too: measured on an article's link cards, 150ms of greys belonging to neither theme, behind a
+ * A theme repaints in one frame, but anything easing a color for its own reasons eases this one
+ * too: measured on an article's link cards, 150ms of grays belonging to neither theme, behind a
  * page that had already finished. **The reflow is the whole trick** -- without a layout read
  * between the writes the browser folds all three into one recalculation, sees only the ends, and
  * transitions anyway.
@@ -88,7 +88,7 @@ export function applyTheme(theme: Theme, root: HTMLElement = document.documentEl
 /**
  * Call back whenever the painted theme changes, and return the unsubscribe.
  *
- * For whatever copied a colour out of the tokens and so cannot repaint on its own -- see
+ * For whatever copied a color out of the tokens and so cannot repaint on its own -- see
  * web's spec/styling/blocks.md, "A diagram is drawn in both themes at once, because the palette is
  * inside the SVG". The class is watched rather than `applyTheme` announcing, so `currentTheme`
  * reads it. `create` is injected like `followSystemTheme`'s media query, so the node suite can

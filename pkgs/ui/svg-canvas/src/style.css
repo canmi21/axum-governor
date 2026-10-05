@@ -113,9 +113,9 @@
 	transition: opacity 0.15s;
 }
 
-/* A touch screen synthesises hover from a tap and leaves it applied, so the node under the finger
+/* A touch screen synthesizes hover from a tap and leaves it applied, so the node under the finger
  * would stay dimmed behind the view that tap opened, and still be dimmed when it closes. The
- * colour change is for a pointer that can leave again. */
+ * color change is for a pointer that can leave again. */
 @media (hover: hover) {
 	.svg-canvas svg .node:hover {
 		opacity: 0.75;

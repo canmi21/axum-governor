@@ -15,7 +15,7 @@ describe('isDevHost', () => {
 	});
 
 	it('matches the IPv6 loopback as a URL spells it', () => {
-		// The site binds `::`, so a request can arrive over IPv6. `URL.hostname` normalises every
+		// The site binds `::`, so a request can arrive over IPv6. `URL.hostname` normalizes every
 		// spelling to the bracketed one, which is what a caller actually hands over.
 		expect(isDevHost(new URL('http://[::1]:26512/').hostname)).toBe(true);
 		expect(isDevHost(new URL('http://[0:0:0:0:0:0:0:1]:26512/').hostname)).toBe(true);

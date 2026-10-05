@@ -21,7 +21,7 @@
 	--color-paper: oklch(1 0 0);
 	--color-paper-hover: oklch(0.962 0 0);
 	/* Native application chrome remains translucent over the platform material. Alpha belongs to
-	   the surface colour rather than `opacity`, which would fade its content as well. */
+	   the surface color rather than `opacity`, which would fade its content as well. */
 	--color-native-divider: oklch(0.52 0 0 / 0.22);
 	--color-native-hover: oklch(0.88 0 0 / 0.52);
 	--color-native-selected: oklch(0.76 0 0 / 0.5);

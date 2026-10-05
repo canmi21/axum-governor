@@ -7,7 +7,7 @@
 	"github_unavailable": "This node has no GitHub token, or no repositories to deploy from",
 	"invalid_address": "This is not an address this host serves",
 	"invalid_body": "The body is not one this route reads",
-	"invalid_cancellation": "Cancelling needs the email and the token it was subscribed with",
+	"invalid_cancellation": "Canceling needs the email and the token it was subscribed with",
 	"invalid_content_id": "This is not a content id",
 	"invalid_declaration": "The declaration is not one this node can run",
 	"invalid_derivation": "This object has no such form",

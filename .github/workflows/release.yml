@@ -11,7 +11,7 @@ on:
       - "crates/canmi/**"
   workflow_dispatch:
 
-# One at a time, in the order pushed, and never cancelled: a run numbers the day's versions from
+# One at a time, in the order pushed, and never canceled: a run numbers the day's versions from
 # the tags the one before it pushed, and a release stopped halfway has published without tagging.
 # `queue: max` keeps every waiting run, up to GitHub's hundred, where the default keeps the newest.
 concurrency:

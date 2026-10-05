@@ -24,7 +24,7 @@ export const SITE_PORT = 26511;
 export const GITHUB_OWNER = 'canmi21';
 
 /**
- * Where everything here that is not a dependency comes from. Named at the top of the licence
+ * Where everything here that is not a dependency comes from. Named at the top of the license
  * routes, which have to state the terms of the code around the credits as well as the credits
  * themselves -- so it is a published fact, not a convenience, and belongs beside the other URLs
  * rather than written into a route.
@@ -48,7 +48,7 @@ export const EXTERNAL = {
 	google: {
 		sourcePreferences: 'https://www.google.com/preferences/source',
 	},
-	// Where the dependencies come from, named on the licence page. Keyed by purl type, which
+	// Where the dependencies come from, named on the license page. Keyed by purl type, which
 	// is what the record uses, so the page looks a registry up rather than mapping names.
 	registries: {
 		npm: 'https://www.npmjs.com',
@@ -56,8 +56,8 @@ export const EXTERNAL = {
 		// The sparse index the embed collector reads crate metadata from.
 		cargoIndex: 'https://index.crates.io',
 	},
-	// The canonical page for a licence, joined with `/{id}.html`. SPDX rather than any of the
-	// stewards' own sites, because the whole licence record is keyed by SPDX identifier and
+	// The canonical page for a license, joined with `/{id}.html`. SPDX rather than any of the
+	// stewards' own sites, because the whole license record is keyed by SPDX identifier and
 	// this is the one address that exists for every one of them.
 	spdx: 'https://spdx.org/licenses',
 	robotstxt: 'https://www.robotstxt.org/robotstxt.html',
@@ -157,11 +157,11 @@ export const LOOPBACK_HOST = '127.0.0.1';
 /**
  * The hostnames that mean this machine.
  *
- * `[::1]` in brackets is the form `URL.hostname` normalises every IPv6 loopback spelling to,
+ * `[::1]` in brackets is the form `URL.hostname` normalizes every IPv6 loopback spelling to,
  * and a `Host` header brackets it too; the bare form covers a caller that takes a host apart
  * itself. Without both, a request arriving over IPv6 -- the site binds `::` -- read as production.
  *
- * `LOOPBACK_HOST` covers IPv4: the same address, not the same job as recognising one.
+ * `LOOPBACK_HOST` covers IPv4: the same address, not the same job as recognizing one.
  */
 const DEV_HOSTS: ReadonlySet<string> = new Set(['localhost', LOOPBACK_HOST, '[::1]', '::1']);
 

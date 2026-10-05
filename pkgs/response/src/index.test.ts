@@ -3,7 +3,7 @@ import CODES from '../codes.json' with { type: 'json' };
 import FIXTURES from './fixtures.json' with { type: 'json' };
 import { errorBody, failure, success, unwrap } from './index.ts';
 
-describe('the catalogue', () => {
+describe('the catalog', () => {
 	it('names every code in lowercase with underscores', () => {
 		for (const code of Object.keys(CODES)) expect(code).toMatch(/^[a-z]+(_[a-z]+)*$/);
 	});

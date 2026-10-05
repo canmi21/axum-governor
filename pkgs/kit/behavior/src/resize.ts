@@ -133,7 +133,7 @@ export function resizeHandle(
 		}
 	}
 
-	/** Let go of the drag; `released` is a real release, where a cancelled pointer is not one. */
+	/** Let go of the drag; `released` is a real release, where a canceled pointer is not one. */
 	function end(event: PointerEvent, released: boolean) {
 		if (!start) return;
 		const before = start.width;

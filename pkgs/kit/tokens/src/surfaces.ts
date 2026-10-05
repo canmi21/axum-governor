@@ -37,7 +37,7 @@ const paper = {
 /**
  * The child half of a focus ring a control hands down: the host sets the `--focus-ring-*` group
  * at `:focus-visible` and inheritance carries it here, so both ends are same-element declarations
- * and no selector crosses between them. The colour is stated rather than handed down -- an
+ * and no selector crosses between them. The color is stated rather than handed down -- an
  * outline's is `currentColor` until named, and `transition.colors` carries `outline-color`. See
  * web's spec/styling/focus.md.
  */
@@ -49,7 +49,7 @@ const handedRing = {
 
 export const surfaces = stylex.create({
 	/**
-	 * The ground every route stands on: the page's own colour and the ink that inherits from it.
+	 * The ground every route stands on: the page's own color and the ink that inherits from it.
 	 * This removes the duplication of seven components writing the same two declarations, but not
 	 * the question underneath it -- one line on `body` would be the better repair. See
 	 * web's spec/issues/css.md, "The page ground is now one name, and the repair it is standing in for
@@ -106,7 +106,7 @@ export const surfaces = stylex.create({
 	},
 
 	/**
-	 * How a colour change is drawn: eight components hand their hover and focus colours this
+	 * How a color change is drawn: eight components hand their hover and focus colors this
 	 * curve, and before this they each wrote the three declarations out. Named for the cost of
 	 * changing it rather than for bytes -- atomic classes already deduplicate these, so nothing
 	 * shrinks, but the curve was eight files to edit and is now one. `quietControl` below keeps
@@ -123,11 +123,11 @@ export const surfaces = stylex.create({
 	 * "Quiet metadata controls share one surface" (why this replaced the `.quiet-control` class) and
 	 * web's spec/issues/css.md, "A recipe's other half is a convention and nothing checks that a call
 	 * site kept it" (why only the appearance is here). `:hover` is bare (sameness first, web's
-	 * spec/architecture/css/migration.md). `outline: none` also resets width and colour, to `medium`/
+	 * spec/architecture/css/migration.md). `outline: none` also resets width and color, to `medium`/
 	 * `currentcolor` rather than the `0.125rem` accent base-layer `:focus-visible` sets.
 	 */
 	quietControl: {
-		// A member of this surface, which seven files apply: the cursor arrives with the colour, the
+		// A member of this surface, which seven files apply: the cursor arrives with the color, the
 		// radius and the transitions, or none of them does. See web's spec/architecture/css/layers.md,
 		// "A name alone is not a recipe".
 		cursor: 'pointer',

@@ -16,7 +16,7 @@ it('takes over a plain left click', () => {
 });
 
 // Each of these is the reader asking for a new tab or window, which is the browser's to answer.
-// Cancelling one turns a gesture people rely on into a control that looks broken.
+// Canceling one turns a gesture people rely on into a control that looks broken.
 it('leaves a modified click to the browser', () => {
 	expect(movesThisPage(click({ metaKey: true }))).toBe(false);
 	expect(movesThisPage(click({ ctrlKey: true }))).toBe(false);

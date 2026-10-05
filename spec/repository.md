@@ -38,7 +38,7 @@ version. The earlier `2026.10.3` and `2026.10.4` were `YYYY.M.D`, and sort below
 **A push to main that changes a dated package publishes it**: `.github/workflows/release.yml` runs
 `.mise/tasks/release`, which publishes each package whose directory changed since its last tag,
 `<name>@<version>`, and tags it as it goes -- the `canmi` crate under its own name too, beside
-`@canmi/me`'s. Runs queue in the order pushed and none is cancelled
+`@canmi/me`'s. Runs queue in the order pushed and none is canceled
 or dropped, up to GitHub's hundred waiting, since each numbers the day from the tags the one before
 pushed. The workflow runs `mise run verify` first, because a release is the one thing that cannot
 be taken back.

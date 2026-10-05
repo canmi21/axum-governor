@@ -11,7 +11,7 @@
  * Whether this click is the reader asking *this page* to move.
  *
  * A modified click -- meta, control, shift, alt, or any button but the first -- is a request for a
- * new tab or window, and belongs to the browser untouched. Cancelling it would turn a familiar
+ * new tab or window, and belongs to the browser untouched. Canceling it would turn a familiar
  * gesture into a control that appears broken.
  */
 export function movesThisPage(event: {

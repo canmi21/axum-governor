@@ -63,16 +63,16 @@ export function pressMotion(distancePixels: number): {
 /**
  * The two curves an indicator travels on, and they describe different things.
  *
- * A bar crossing a strip has a centre that moves and a width that adapts; driving both on one
+ * A bar crossing a strip has a center that moves and a width that adapts; driving both on one
  * curve conflates them into a rectangle redrawn at successive positions -- correct, and inert.
- * `CENTRE` and `WIDTH` run separately over one duration instead, so the bar reads as moving and
- * resizing at once: `CENTRE` leaves decisively, `WIDTH` flatter so it neither snaps ahead nor
+ * `CENTER` and `WIDTH` run separately over one duration instead, so the bar reads as moving and
+ * resizing at once: `CENTER` leaves decisively, `WIDTH` flatter so it neither snaps ahead nor
  * lags at the wrong length.
  */
-const CENTRE = [0.32, 0.72, 0.24, 1] as const;
+const CENTER = [0.32, 0.72, 0.24, 1] as const;
 const WIDTH = [0.4, 0, 0.2, 1] as const;
 
-/** A bar travelling between two tabs, rather than a surface opening. */
+/** A bar traveling between two tabs, rather than a surface opening. */
 const TRAVEL_REFERENCE_PIXELS = 60;
 const TRAVEL_REFERENCE_SECONDS = 0.24;
 const TRAVEL_MIN_SECONDS = 0.18;
@@ -87,14 +87,14 @@ const TRAVEL_MAX_SECONDS = 0.38;
  */
 export function travelMotion(distancePixels: number): {
 	duration: number;
-	centre: readonly [number, number, number, number];
+	center: readonly [number, number, number, number];
 	width: readonly [number, number, number, number];
 } {
 	const scaled =
 		TRAVEL_REFERENCE_SECONDS * Math.sqrt(Math.abs(distancePixels) / TRAVEL_REFERENCE_PIXELS);
 	return {
 		duration: Math.min(TRAVEL_MAX_SECONDS, Math.max(TRAVEL_MIN_SECONDS, scaled)),
-		centre: CENTRE,
+		center: CENTER,
 		width: WIDTH,
 	};
 }

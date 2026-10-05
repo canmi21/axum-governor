@@ -2,7 +2,7 @@
  * Authored lengths and measured ones, kept apart.
  *
  * Geometry read from the DOM comes back in CSS pixels, and anything written back to a style is
- * divided by the live root size and serialised as rem -- see web's spec/styling/lengths.md. Two
+ * divided by the live root size and serialized as rem -- see web's spec/styling/lengths.md. Two
  * applications now animate lengths, which is what moved these out of the site.
  */
 

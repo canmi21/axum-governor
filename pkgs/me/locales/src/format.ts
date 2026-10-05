@@ -11,7 +11,7 @@ import { PUBLIC_LANGUAGE, type LocaleCode } from './index.ts';
 /**
  * The tag `Intl` should be given for a view. The source view has no language of its own, so it
  * borrows English for the numbers around its untranslated words. Derived from `PUBLIC_LANGUAGE`
- * rather than restated: the licence pages carried their own copy, four times, spelling `tw` out
+ * rather than restated: the license pages carried their own copy, four times, spelling `tw` out
  * as a special case -- it produced identical output, which is why nobody noticed the duplication.
  */
 export function intlLocale(locale: LocaleCode): string {

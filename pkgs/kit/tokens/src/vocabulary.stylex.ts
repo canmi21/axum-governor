@@ -20,7 +20,7 @@ import * as stylex from '@stylexjs/stylex';
  * Tailwind's radius scale, which is where all five of these came from -- `--radius-sm` through
  * `--radius-xl`, and the pill. `624.9375rem` is the site's other pill and is deliberately
  * not here: it computes to a different number and it is the one value on the site that loses a
- * digit in serialisation. See web's spec/issues/issues.md.
+ * digit in serialization. See web's spec/issues/issues.md.
  */
 export const radius = stylex.defineConsts({
 	sm: '0.25rem',
@@ -132,7 +132,7 @@ export const easing = stylex.defineConsts({
 });
 
 /**
- * What Tailwind's colour transition compiles to, the longest string the site retypes.
+ * What Tailwind's color transition compiles to, the longest string the site retypes.
  *
  * Three of the ten are Tailwind's private gradient variables and this site sets none of them.
  * They stay because the measure of a migration is the computed value, and whether they belong in

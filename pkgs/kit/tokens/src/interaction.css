@@ -78,7 +78,7 @@
    cascade". Nothing decorative belongs here; a declaration that yields to a control belongs in
    the block above. */
 @layer overrides {
-	/* Stated at rest, not only inside `:focus-visible` -- an outline's colour is `currentColor`
+	/* Stated at rest, not only inside `:focus-visible` -- an outline's color is `currentColor`
 	   until named, and Tailwind v4 put `outline-color` into `transition-colors`, which nearly
 	   every control here carries for its hover. Left unnamed, the ring fades in from the
 	   element's own text color instead of snapping to the accent. It is a member of the ring
@@ -126,14 +126,14 @@
 @layer components {
 	/* A background can spring from zero width while text-decoration cannot. Three layers make each
 	   stroke a real capsule: a rectangular middle plus one circular cap at either end. The first
-	   capsule grows over the always-present second one; article links only replace the two colours,
+	   capsule grows over the always-present second one; article links only replace the two colors,
 	   while the translation notice keeps the transparent default at rest. */
 	.spring-underline {
 		/* The stroke is a background pinned to the bottom of the box, so the box has to hug the text.
 		   A flex or grid container stretches its items by default, and a stretched link paints its
 		   underline at the bottom of whatever the row grew to -- measured at 27.5px below the glyphs
-		   in a licence-file list, against 2.5px everywhere else. Declared here rather than at each
-		   call site because forgetting it is invisible until a neighbouring cell happens to get tall.
+		   in a license-file list, against 2.5px everywhere else. Declared here rather than at each
+		   call site because forgetting it is invisible until a neighboring cell happens to get tall.
 		   Ignored outside a flex or grid container, which is most of them. */
 		align-self: baseline;
 		--underline-height: 0.125rem;

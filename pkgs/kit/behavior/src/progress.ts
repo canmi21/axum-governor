@@ -18,15 +18,15 @@ const KEY = 'video.at';
  * How wide the frame is sampled before it is hashed.
  *
  * `rgbaToThumbHash` takes at most a hundred pixels on a side and keeps a handful of coefficients,
- * so this only has to be large enough that each region averages to the right colour.
+ * so this only has to be large enough that each region averages to the right color.
  */
 const HASH_WIDTH = 64;
 
 /**
  * Quality for the encode, which is the build's own number.
  *
- * Higher is wasted on a picture that has already discarded everything but an impression of colour
- * and shape, and this only has to avoid adding artefacts of its own. See
+ * Higher is wasted on a picture that has already discarded everything but an impression of color
+ * and shape, and this only has to avoid adding artifacts of its own. See
  * `services/libs/compile/src/placeholder.ts`, where the same number encodes the same kind of
  * picture.
  */
@@ -105,7 +105,7 @@ export function stillOf(element: HTMLVideoElement): string | undefined {
 		// The round trip is the point, not a formality. A small copy of a photograph is a small
 		// photograph: stretched back across a 668px frame it reads as a picture out of focus,
 		// which is exactly what this looked like. A thumbhash keeps a handful of coefficients and
-		// throws the rest away, so what comes back is a field of colour that was never pretending
+		// throws the rest away, so what comes back is a field of color that was never pretending
 		// to be in focus -- and that is the appearance every picture on this site already has,
 		// because they are placed the same way. See `services/libs/compile/src/placeholder.ts`.
 		const hash = rgbaToThumbHash(pixels.width, pixels.height, pixels.data);
@@ -128,7 +128,7 @@ export function stillOf(element: HTMLVideoElement): string | undefined {
  * Record where this clip has got to, or forget it.
  *
  * Forgetting is the same call rather than a second one, because every caller that knows a
- * position also knows whether it is one worth keeping, and splitting them would put that judgement
+ * position also knows whether it is one worth keeping, and splitting them would put that judgment
  * at each of the call sites instead of here.
  */
 export function keepPosition(

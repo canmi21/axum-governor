@@ -15,18 +15,18 @@ pub enum Envelope<T> {
 	Error { code: String, message: String },
 }
 
-fn catalogue() -> &'static BTreeMap<String, String> {
+fn catalog() -> &'static BTreeMap<String, String> {
 	static CODES: OnceLock<BTreeMap<String, String>> = OnceLock::new();
 	CODES.get_or_init(|| serde_json::from_str(include_str!("../codes.json")).unwrap_or_default())
 }
 
 /// The message a code carries when the moment has nothing more exact to say.
 pub fn message_of(code: &str) -> Option<&'static str> {
-	catalogue().get(code).map(String::as_str)
+	catalog().get(code).map(String::as_str)
 }
 
 /// Every code a Rust source names beside a status -- `StatusCode::X, "code"` -- so a program's
-/// tests can hold what it answers with to the catalogue, which TypeScript does with a type.
+/// tests can hold what it answers with to the catalog, which TypeScript does with a type.
 pub fn codes_named(source: &str) -> Vec<&str> {
 	source
 		.split("StatusCode::")
@@ -41,8 +41,8 @@ pub fn codes_named(source: &str) -> Vec<&str> {
 }
 
 impl Envelope<()> {
-	/// A failure with the code's own message. A code missing from the catalogue answers with the
-	/// code itself, and the tests hold every code the programs use to the catalogue.
+	/// A failure with the code's own message. A code missing from the catalog answers with the
+	/// code itself, and the tests hold every code the programs use to the catalog.
 	pub fn error(code: &str) -> Self {
 		Self::error_with(code, message_of(code).unwrap_or(code))
 	}
@@ -106,7 +106,7 @@ mod tests {
 
 	#[test]
 	fn every_code_has_a_message() {
-		assert!(catalogue().len() > 10);
+		assert!(catalog().len() > 10);
 		assert_eq!(message_of("no_such_scope"), Some("No API is published under this scope"));
 		assert_eq!(message_of("not_a_code"), None);
 	}
