@@ -25,3 +25,9 @@ box from `@canmi/me/mail`. It does not open without a client, which an app witho
 makes, nor when the dialog fails; and the `import` itself fails when a tab opened before a deploy
 asks for a chunk the deploy replaced, which `report` catches the same way. A control that does
 nothing when pressed is the one outcome not allowed.
+
+**On a Worker, both resolve to nothing.** `./sentry/report` and `./sentry/feedback` carry a
+`workerd` and a `worker` condition pointing at stubs that import nothing of Sentry: wrangler bundles
+every import a Worker's code can reach, dynamic ones too, and `@sentry/sveltekit`'s `workerd` entry
+has no `feedbackIntegration` or `getFeedback`, so following the dialog there failed the deploy. A
+page's server code may then import `report` like any other module.

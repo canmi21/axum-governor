@@ -42,10 +42,14 @@
 		},
 		"./sentry/feedback": {
 			"types": "./dist/sentry/src/feedback.d.ts",
+			"workerd": "./dist/sentry/src/feedback.worker.js",
+			"worker": "./dist/sentry/src/feedback.worker.js",
 			"default": "./dist/sentry/src/feedback.js"
 		},
 		"./sentry/report": {
 			"types": "./dist/sentry/src/report.d.ts",
+			"workerd": "./dist/sentry/src/report.worker.js",
+			"worker": "./dist/sentry/src/report.worker.js",
 			"default": "./dist/sentry/src/report.js"
 		},
 		"./sentry/server": {
