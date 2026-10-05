@@ -72,9 +72,6 @@ export const EXTERNAL = {
 	// access -- and the browser SDK compiles it into the bundle, where anyone can read it
 	// out of devtools. It is therefore public by construction, and declaring it here is
 	// honest about that rather than pretending a secret store could hide it.
-	//
-	// The API worker's DSN is a different project that never reaches a browser, so it
-	// stays a wrangler secret. Each is treated according to whether it is exposed.
 	sentry: {
 		site: 'https://a7f2f790ed2fa4f8e0c4310d26d9c39f@o4511131162116096.ingest.us.sentry.io/4511380121976832',
 		// Possibly absent: an app without a DSN sends and uploads nothing. See
@@ -105,6 +102,15 @@ export const EXTERNAL = {
 		fediverse: 'https://nya.one',
 		bluesky: 'https://bsky.app/profile',
 	},
+	// X as its own API links it: a post at `<web>/<user>/status/<id>`, and the media it serves on
+	// `<media>`. Not `social.twitter`, which is where a page links the author's profile.
+	x: {
+		web: 'https://x.com',
+		media: 'https://pbs.twimg.com',
+	},
+	// Where xAI publishes the Grok Build CLI that the platform's `grok` drives: `<base>/<channel>`
+	// names a version and `<base>/grok-<version>-<platform>` is the binary.
+	grokCli: 'https://x.ai/cli',
 	// Companion sites the cargo widget links a crate to, beside the registry above. Keyed by
 	// what each serves, joined with `/{crate}` (docs) and `/crates/{crate}` (lib).
 	rust: {
