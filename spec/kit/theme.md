@@ -6,8 +6,9 @@
 `themeScript`, the inline script that settles it before the first frame, `themeOf` and `fillTheme`,
 the server's reading of it, and `themeCookie` and `applyTheme`, the control's writing of it -- the cookie and the class. With no
 cookie the script takes the system's preference and writes it, so the next request's server already
-knows. `palette` is a second cookie that only the script reads: `nord` or `contrast`, added as a class. Nothing
-here writes it. The palettes this package ships, `concrete.css` and `mono.css`, are chosen by which
+knows. `palette` is a second cookie that only the script reads: `nord` or `contrast`, added as a class.
+Nothing writes it and no stylesheet answers either class yet, so it paints nothing -- a leftover the
+script still carries; see web's `spec/styling/palettes.md`. The palettes this package ships, `concrete.css` and `mono.css`, are chosen by which
 file an app imports.
 
 **An app wires the script into its `app.html`, and the server's reading into its hooks where its

@@ -1,12 +1,13 @@
 /**
  * The gestures shared by everything here that moves.
  *
- * Only the shape of a movement lives here, never the thing being moved: a height animation needs
- * rem conversion the site owns, and a sliding indicator needs geometry a management surface owns.
- * What both would otherwise write out separately is the timing.
+ * Only the shape of a movement lives here, never the thing being moved: a height is
+ * `@canmi/kit/behavior/collapse`'s, and a sliding indicator's geometry is the surface's that draws
+ * it. What both would otherwise write out separately is the timing.
  *
  * The site's disclosure was first and the desktop client's tab indicator was the second, which is
- * the pair that moved this out of web's `apps/site/src/lib/client/collapse.ts`.
+ * the pair that moved this out of the site and into the kit -- the height half is
+ * `@canmi/kit/behavior/collapse`.
  */
 
 /**
