@@ -40,6 +40,16 @@ it('writes the runtime meta and a data block, and nothing when there is nothing'
 		}),
 	).toBe(
 		'<meta name="runtime" content="Cloudflare Workers">' +
-			'<script type="application/json" data-disclosure>["https://tanstack.com/query","\\u003c/script>"]</script>',
+			String.raw`<script type="application/json" data-disclosure>["https:\/\/tanstack.com\/query","\u003c\/script>"]</script>`,
 	);
+});
+
+it('writes a data block JSON still reads as the same addresses', () => {
+	const head = disclosureHead({
+		versions: {},
+		globals: {},
+		references: ['https://tanstack.com/query'],
+	});
+	const data = /data-disclosure>(.*)<\/script>/.exec(head)![1]!;
+	expect(JSON.parse(data)).toEqual(['https://tanstack.com/query']);
 });

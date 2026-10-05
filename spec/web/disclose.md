@@ -72,6 +72,9 @@ A version shows only where a fingerprint reads one.
 - **Hono's header goes on the site's pages, not only its API**, because Wappalyzer reads headers
   from the page's own response alone and only the host of a request the page makes. The Worker
   that serves the page answers its API with Hono.
+- **The data block writes every slash as `\/`**, which JSON reads as a plain slash. Wappalyzer
+  escapes each `/` of a pattern once more when it compiles it, so its TanStack pattern, already
+  written `\/\/`, matches only a slash that follows a backslash.
 - **core-js is not disclosed.** It loads only where a browser lacks an API it covers, and then it
   sets `__core-js_shared__` itself, which is the fingerprint; a browser that never needs it is not
   told it was used.

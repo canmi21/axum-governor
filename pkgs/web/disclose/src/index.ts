@@ -23,7 +23,11 @@ export function disclosureHead(disclosure: Disclosure | undefined): string {
 	const parts: string[] = [];
 	if (disclosure.runtime) parts.push(`<meta name="runtime" content="${disclosure.runtime}">`);
 	if (disclosure.references.length > 0) {
-		const data = JSON.stringify(disclosure.references).replaceAll('<', '\\u003c');
+		// Every slash written `\/`, which JSON reads as a slash: Wappalyzer escapes each `/` in a
+		// pattern again, so its TanStack pattern only matches a slash that follows a backslash.
+		const data = JSON.stringify(disclosure.references)
+			.replaceAll('<', '\\u003c')
+			.replaceAll('/', '\\/');
 		parts.push(`<script type="application/json" data-disclosure>${data}</script>`);
 	}
 	return parts.join('');
