@@ -13,6 +13,7 @@ export default defineConfig({
 		'sentry/src/build.ts',
 		'sentry/src/client.ts',
 		'sentry/src/feedback.ts',
+		'sentry/src/report.ts',
 		'sentry/src/server.ts',
 	],
 	unbundle: true,

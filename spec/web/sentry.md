@@ -16,8 +16,12 @@ top-level import fails the module rather than the call -- a page that did this a
 module uses named imports, since a namespace import forces every export live and the bundler could
 not split it off.
 
-**It answers whether it opened, and a caller that hears no offers mail instead**, the `support`
+**`report(mailto)` in `./sentry/report` is what a control calls**, and the one that may be
+imported anywhere: it imports nothing of Sentry, fetches the dialog on the press, and sends the
+reader to `mailto` when the dialog does not open.
+
+**`openReport` answers whether it opened, and `report` offers mail when it did not**, the `support`
 box from `@canmi/me/mail`. It does not open without a client, which an app without a DSN never
 makes, nor when the dialog fails; and the `import` itself fails when a tab opened before a deploy
-asks for a chunk the deploy replaced, which the caller catches the same way. A control that does
+asks for a chunk the deploy replaced, which `report` catches the same way. A control that does
 nothing when pressed is the one outcome not allowed.

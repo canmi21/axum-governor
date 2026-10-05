@@ -44,6 +44,10 @@
 			"types": "./dist/sentry/src/feedback.d.ts",
 			"default": "./dist/sentry/src/feedback.js"
 		},
+		"./sentry/report": {
+			"types": "./dist/sentry/src/report.d.ts",
+			"default": "./dist/sentry/src/report.js"
+		},
 		"./sentry/server": {
 			"types": "./dist/sentry/src/server.d.ts",
 			"default": "./dist/sentry/src/server.js"
