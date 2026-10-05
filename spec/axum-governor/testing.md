@@ -10,9 +10,9 @@ Unit tests live beside their code in `#[cfg(test)] mod tests` blocks; integratio
 
 ## Coverage target
 
-95 % line coverage on tested modules. This is a floor, not a ceiling. I/O-heavy code may fall below when the uncovered branches are genuinely error paths with no observable behavior — document the exemption in-module.
-
-A function C that orchestrates tested functions A and B is covered by testing C's orchestration (call order, short-circuits, data threading) — not by re-testing A's and B's internal branches through C. The 95 % target is satisfied when every C-level branch runs in some test, not when C's tests cover every leaf A and B could reach.
+95% line coverage is the workspace's target for every project, and not yet reached here or anywhere
+else -- the workspace's `spec/issues.md`, "Every project is to reach 95% line coverage, and none is
+measured against it yet", which also holds how this crate reads the number.
 
 ## What to cover
 
