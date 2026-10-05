@@ -44,6 +44,10 @@
 			"types": "./dist/sentry/src/server.d.ts",
 			"default": "./dist/sentry/src/server.js"
 		},
+		"./disclose/build": {
+			"types": "./dist/disclose/src/build.d.ts",
+			"default": "./dist/disclose/src/build.js"
+		},
 		"./disclose": {
 			"types": "./dist/disclose/src/index.d.ts",
 			"default": "./dist/disclose/src/index.js"

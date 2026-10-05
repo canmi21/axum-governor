@@ -21,3 +21,9 @@ it('does nothing on the server', () => {
 	vi.stubGlobal('window', undefined);
 	expect(() => disclose({ a: 1 })).not.toThrow();
 });
+
+it('skips an undefined value', () => {
+	vi.stubGlobal('window', {});
+	disclose({ 'd3.version': undefined, umami: true });
+	expect(window).toEqual({ umami: true });
+});
