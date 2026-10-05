@@ -6,6 +6,7 @@ export default defineConfig({
 	entry: [
 		'compat/src/index.ts',
 		'compat/src/build.ts',
+		'disclose/src/index.ts',
 		'referer/src/index.ts',
 		'sentry/src/build.ts',
 		'sentry/src/client.ts',
