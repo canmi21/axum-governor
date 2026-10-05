@@ -5,8 +5,33 @@
 export interface Disclosure {
 	/** Installed versions, by package name, of the packages a fingerprint reads a version for. */
 	readonly versions: Readonly<Record<string, string>>;
+	/** Globals for what every page uses, by dotted path, set by `discloseGlobals`. */
+	readonly globals: Readonly<Record<string, unknown>>;
+	/** Addresses named in the page's data block, written by `disclosureHead`. */
+	readonly references: readonly string[];
 	/** Where the app runs, when a fingerprint names it: set for an app deployed to Workers. */
 	readonly runtime?: 'Cloudflare Workers';
+}
+
+/**
+ * The head an app's root layout writes with `{@html}`: the `runtime` meta, and a data block naming
+ * `references`, which the browser never runs and a profiler reads as script text. Empty when there
+ * is nothing to say. See spec/web/disclose.md.
+ */
+export function disclosureHead(disclosure: Disclosure | undefined): string {
+	if (!disclosure) return '';
+	const parts: string[] = [];
+	if (disclosure.runtime) parts.push(`<meta name="runtime" content="${disclosure.runtime}">`);
+	if (disclosure.references.length > 0) {
+		const data = JSON.stringify(disclosure.references).replaceAll('<', '\\u003c');
+		parts.push(`<script type="application/json" data-disclosure>${data}</script>`);
+	}
+	return parts.join('');
+}
+
+/** Sets `globals` on `window`, from an app's root layout; nothing on the server. */
+export function discloseGlobals(disclosure: Disclosure | undefined): void {
+	if (disclosure) disclose(disclosure.globals);
 }
 
 /**

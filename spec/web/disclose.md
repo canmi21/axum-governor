@@ -23,14 +23,27 @@ reads what it sets.
 
 **`disclosure(root)` in `@canmi/web/disclose/build` reads it once, at build time**, and
 `discloseDefine(root)` hands it to Vite as `import.meta.env.VITE_DISCLOSURE`, so no app reads a
-version by hand.
+version or names a library by hand. Only what the app lists in its own `package.json` counts, so a
+dependency it declares and never uses is a false claim -- remove it rather than leave it.
 
-- **`versions`** holds the installed version of each package a fingerprint reads one for -- the
-  `VERSIONED` list in `build.ts` -- and only those the app lists itself. It is read from the
-  package's own `package.json` beside the app, since exports rarely offer it.
+- **`globals`** are what a package used on every page is disclosed as -- the `GLOBALS` table in
+  `build.ts`, given the installed version.
+- **`references`** are addresses a fingerprint looks for in a page's script text -- the
+  `REFERENCES` table.
 - **`runtime`** is `Cloudflare Workers` when the app depends on `@sveltejs/adapter-cloudflare` or
-  `wrangler`, and absent otherwise. The app writes it as `<meta name="runtime">` in its root
-  layout, which is all Wappalyzer's Cloudflare Workers fingerprint reads.
+  `wrangler`, and absent otherwise.
+- **`versions`** hold the installed version of each package a component's own patch reads -- the
+  `VERSIONED` list -- for a library used on some pages only.
+
+A version is read from the package's own `package.json` beside the app, since exports rarely offer
+it.
+
+**Every app that has pages and depends on `@canmi/web` wires it once**, the same way: the define
+in `vite.config.ts`, and in its root layout `discloseGlobals(disclosure)` and
+`{@html disclosureHead(disclosure)}` in the head. The head is the `runtime` meta and a
+`<script type="application/json" data-disclosure>` naming the `references`: a data block the
+browser never runs or fetches, which Wappalyzer reads as script text. An app then discloses
+whatever it gains a dependency on without another line.
 
 ## What each technology is disclosed as
 
@@ -39,12 +52,13 @@ A version shows only where a fingerprint reads one.
 | Technology | Fingerprint read                  | Disclosed as                                                |
 | ---------- | --------------------------------- | ----------------------------------------------------------- |
 | Sentry     | `Sentry.SDK_VERSION`              | the SDK's own constant, in `initClient`                     |
-| Algolia    | `__algolia.algoliasearch.version` | the installed `algoliasearch`                               |
+| Algolia    | `__algolia.algoliasearch.version` | the installed `algoliasearch`, from `globals`               |
 | CodeMirror | `CodeMirror.version`              | the installed `@codemirror/view`, by the editor on mounting |
 | Video.js   | `videojs.VERSION`                 | the installed `@videojs/core`, by a video on mounting       |
 | D3         | `d3.version`                      | `d3-hierarchy@<version>`, by the blocks that draw with it   |
 | OpenPanel  | `openpanel.api`                   | the real client, as `openpanel`                             |
-| Motion     | `MotionIsMounted`                 | `true`                                                      |
+| Motion     | `MotionIsMounted`                 | `true`, from `globals`                                      |
+| TanStack   | `tanstack.com` in script text     | `https://tanstack.com/query`, from `references`             |
 | Workers    | `<meta name="runtime">`           | `runtime`, from the build                                   |
 | Hono       | `X-Powered-By` on the page        | `Hono`, on the site's pages                                 |
 | Iconify    | `iconify` beside `data-icon`      | on one MingCute icon, which is drawn from Iconify's data    |

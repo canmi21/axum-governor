@@ -3,11 +3,21 @@ import { join } from 'node:path';
 import type { Disclosure } from './index.ts';
 
 /**
- * The packages whose version a Wappalyzer fingerprint reads, by the name an app installs them as.
- *
- * Only an app that lists one in its own `package.json` gets its version; the others are absent.
+ * The packages whose version a component's own patch reads, by the name an app installs them as:
+ * used on some pages only, so the component that uses one discloses it. See spec/web/disclose.md.
  */
-const VERSIONED = ['@codemirror/view', '@videojs/core', 'algoliasearch', 'd3-hierarchy'] as const;
+const VERSIONED = ['@codemirror/view', '@videojs/core', 'd3-hierarchy'] as const;
+
+/** The globals a package used on every page is disclosed as, given its installed version. */
+const GLOBALS: Readonly<Record<string, (version: string) => Record<string, unknown>>> = {
+	algoliasearch: (version) => ({ '__algolia.algoliasearch.version': version }),
+	motion: () => ({ MotionIsMounted: true }),
+};
+
+/** The address a package is named by in the page's data block, for a fingerprint that reads one. */
+const REFERENCES: Readonly<Record<string, string>> = {
+	'@tanstack/svelte-query': 'https://tanstack.com/query',
+};
 
 /** A dependency an app is deployed to Cloudflare Workers with. */
 const WORKERS = ['@sveltejs/adapter-cloudflare', 'wrangler'];
@@ -22,7 +32,7 @@ function readJson<T>(path: string): T {
 }
 
 /**
- * What an app is made of, read from its `package.json` at build time.
+ * What an app is made of, read from its `package.json` at build time: only what it lists itself.
  *
  * A version is the installed package's, read from its own `package.json` beside the app rather than
  * through its exports, which rarely offer it. See spec/web/disclose.md.
@@ -33,15 +43,23 @@ export function disclosure(root: string): Disclosure {
 		...Object.keys(manifest.dependencies ?? {}),
 		...Object.keys(manifest.devDependencies ?? {}),
 	]);
+	const installed = (name: string): string =>
+		readJson<{ version: string }>(join(root, 'node_modules', name, 'package.json')).version;
+
 	const versions: Record<string, string> = {};
-	for (const name of VERSIONED) {
-		if (!names.has(name)) continue;
-		versions[name] = readJson<{ version: string }>(
-			join(root, 'node_modules', name, 'package.json'),
-		).version;
+	for (const name of VERSIONED) if (names.has(name)) versions[name] = installed(name);
+	const globals: Record<string, unknown> = {};
+	for (const [name, entries] of Object.entries(GLOBALS)) {
+		if (names.has(name)) Object.assign(globals, entries(installed(name)));
 	}
+	const references = Object.entries(REFERENCES)
+		.filter(([name]) => names.has(name))
+		.map(([, address]) => address);
+
 	return {
 		versions,
+		globals,
+		references,
 		...(WORKERS.some((name) => names.has(name)) ? { runtime: 'Cloudflare Workers' } : {}),
 	};
 }

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { disclose } from './index.ts';
+import { disclose, disclosureHead } from './index.ts';
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -26,4 +26,20 @@ it('skips an undefined value', () => {
 	vi.stubGlobal('window', {});
 	disclose({ 'd3.version': undefined, umami: true });
 	expect(window).toEqual({ umami: true });
+});
+
+it('writes the runtime meta and a data block, and nothing when there is nothing', () => {
+	expect(disclosureHead(undefined)).toBe('');
+	expect(disclosureHead({ versions: {}, globals: {}, references: [] })).toBe('');
+	expect(
+		disclosureHead({
+			versions: {},
+			globals: {},
+			references: ['https://tanstack.com/query', '</script>'],
+			runtime: 'Cloudflare Workers',
+		}),
+	).toBe(
+		'<meta name="runtime" content="Cloudflare Workers">' +
+			'<script type="application/json" data-disclosure>["https://tanstack.com/query","\\u003c/script>"]</script>',
+	);
 });
