@@ -64,16 +64,16 @@ export function currentTheme(root: HTMLElement = document.documentElement): Them
 function withoutTransitions(change: () => void, root: HTMLElement): void {
 	// A root outside a document has nothing painting from it, so there is nothing to suppress and
 	// the sheet would have nowhere to go. Make the change and return.
-	const document_ = root.ownerDocument as Document | undefined;
-	if (!document_?.head) {
+	const owner = root.ownerDocument as Document | undefined;
+	if (!owner?.head) {
 		change();
 		return;
 	}
-	const suppress = document_.createElement('style');
+	const suppress = owner.createElement('style');
 	suppress.textContent = '*,*::before,*::after{transition:none!important;animation:none!important}';
 	// `appendChild` rather than `append`: this library is read by the workers too, and their
 	// types give `append` a different signature on the same name.
-	document_.head.appendChild(suppress);
+	owner.head.appendChild(suppress);
 	change();
 	// Read, and do not remove the read: it is what forces the new values to be committed under
 	// the rule above rather than after it.

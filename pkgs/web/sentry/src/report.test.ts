@@ -21,6 +21,7 @@ it('opens mail when the dialog did not open, or failed', async () => {
 	for (const outcome of [() => Promise.resolve(false), () => Promise.reject(new Error('chunk'))]) {
 		vi.stubGlobal('window', { location: { href: 'https://example.com/' } });
 		feedback.openReport.mockImplementation(outcome);
+		// oxlint-disable-next-line no-await-in-loop -- each outcome rewrites the one global window
 		await report('mailto:support@example.com');
 		expect(window.location.href).toBe('mailto:support@example.com');
 	}

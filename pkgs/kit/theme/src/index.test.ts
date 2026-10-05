@@ -72,26 +72,32 @@ describe('fillTheme', () => {
 	});
 });
 
-describe('reading and painting a theme', () => {
-	function root(dark: boolean) {
-		const classes = new Set(dark ? ['dark'] : []);
-		return {
-			classList: {
-				contains: (name: string) => classes.has(name),
-				toggle: (name: string, on: boolean) => (on ? classes.add(name) : classes.delete(name)),
-			},
-		} as unknown as HTMLElement;
-	}
+/** A root holding the classes it was given, and those classes, to read back. */
+function watched(dark: boolean) {
+	const classes = new Set(dark ? ['dark'] : []);
+	const root = {
+		classList: {
+			contains: (name: string) => classes.has(name),
+			toggle: (name: string, on: boolean) => (on ? classes.add(name) : classes.delete(name)),
+		},
+	} as unknown as HTMLElement;
+	return { root, classes };
+}
 
+function painted(dark: boolean): HTMLElement {
+	return watched(dark).root;
+}
+
+describe('reading and painting a theme', () => {
 	it('reads what is painted rather than what was stored', () => {
 		// On a first visit there is no cookie yet and the class is already correct, which is
 		// exactly when the two would disagree.
-		expect(currentTheme(root(true))).toBe('dark');
-		expect(currentTheme(root(false))).toBe('light');
+		expect(currentTheme(painted(true))).toBe('dark');
+		expect(currentTheme(painted(false))).toBe('light');
 	});
 
 	it('paints either theme, from either theme', () => {
-		const element = root(false);
+		const element = painted(false);
 		applyTheme('dark', element);
 		expect(currentTheme(element)).toBe('dark');
 		applyTheme('dark', element);
@@ -130,17 +136,6 @@ describe('followSystemTheme', () => {
 });
 
 describe('observeTheme', () => {
-	function watched(dark: boolean) {
-		const classes = new Set(dark ? ['dark'] : []);
-		const root = {
-			classList: {
-				contains: (name: string) => classes.has(name),
-				toggle: (name: string, on: boolean) => (on ? classes.add(name) : classes.delete(name)),
-			},
-		} as unknown as HTMLElement;
-		return { root, classes };
-	}
-
 	it('reports a change once, and says nothing about the mutations that are not one', () => {
 		const { root, classes } = watched(false);
 		const seen: Theme[] = [];
