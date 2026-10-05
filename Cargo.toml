@@ -10,7 +10,7 @@ license = "MIT"
 repository = "https://github.com/canmi21/lib"
 
 [workspace.lints.clippy]
-# Formatting belongs to rustfmt; see the workspace's spec/lint-format.md.
+# `style` is left at clippy's default, a warning; see the workspace's spec/lint-format.md.
 correctness = "deny"
 suspicious = "deny"
 complexity = "warn"
