@@ -1,9 +1,11 @@
 /**
  * The author's own: their site, their identity's addresses, the world's addresses anyone could
- * use, and the functions every program here reads a request with. Depends on nothing else of
- * theirs, so every layer above may read it. See spec/me/addresses.md, "`@canmi/me/urls` holds
- * the addresses whose names are the author's".
+ * use, and the functions every program here reads a request with. Depends on nothing of theirs
+ * but the mail boxes, which depend on nothing, so every layer above may read it. See
+ * spec/me/addresses.md, "`@canmi/me/urls` holds the addresses whose names are the author's".
  */
+
+import { mailtoOf } from '../../mail/src/index.ts';
 
 /** The author's site. */
 export const SITE = 'https://canmi.net';
@@ -29,12 +31,9 @@ export const GITHUB_OWNER = 'canmi21';
  */
 export const SOURCE = `https://github.com/${GITHUB_OWNER}/web`;
 
-/**
- * Where a vulnerability is reported, published in every zone's security.txt. An address on the
- * site's domain that Cloudflare forwards, so the mailbox behind it can change without it.
- */
+/** Where a vulnerability is reported, published in every zone's security.txt; see ../../mail. */
 export const CONTACT = {
-	security: 'mailto:security@canmi.net',
+	security: mailtoOf('security'),
 } as const;
 
 /** The world's addresses: services somebody else runs, which anything here may reach. */

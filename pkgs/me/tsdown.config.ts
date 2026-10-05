@@ -9,6 +9,7 @@ export default defineConfig({
 		'identity/src/index.ts',
 		'locales/src/index.ts',
 		'locales/src/format.ts',
+		'mail/src/index.ts',
 		'robots/src/index.ts',
 	],
 	unbundle: true,

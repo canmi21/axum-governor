@@ -12,6 +12,7 @@ export default defineConfig({
 		'referer/src/index.ts',
 		'sentry/src/build.ts',
 		'sentry/src/client.ts',
+		'sentry/src/feedback.ts',
 		'sentry/src/server.ts',
 	],
 	unbundle: true,

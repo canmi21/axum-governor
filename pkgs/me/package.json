@@ -41,6 +41,10 @@
 			"types": "./dist/locales/src/format.d.ts",
 			"default": "./dist/locales/src/format.js"
 		},
+		"./mail": {
+			"types": "./dist/mail/src/index.d.ts",
+			"default": "./dist/mail/src/index.js"
+		},
 		"./robots": {
 			"types": "./dist/robots/src/index.d.ts",
 			"default": "./dist/robots/src/index.js"
