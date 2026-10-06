@@ -26,6 +26,7 @@
 		},
 		"./theme/palettes/concrete.css": "./dist/theme/src/palettes/concrete.css",
 		"./theme/palettes/mono.css": "./dist/theme/src/palettes/mono.css",
+		"./theme/palettes/nord.css": "./dist/theme/src/palettes/nord.css",
 		"./tokens/interaction.css": "./dist/tokens/src/interaction.css",
 		"./tokens/player.css": "./dist/tokens/src/player.css",
 		"./tokens/surfaces": {

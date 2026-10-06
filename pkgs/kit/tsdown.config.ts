@@ -28,6 +28,7 @@ export default defineConfig({
 	copy: [
 		{ from: 'theme/src/palettes/concrete.css', to: 'dist/theme/src/palettes' },
 		{ from: 'theme/src/palettes/mono.css', to: 'dist/theme/src/palettes' },
+		{ from: 'theme/src/palettes/nord.css', to: 'dist/theme/src/palettes' },
 		{ from: 'tokens/src/interaction.css', to: 'dist/tokens/src' },
 		{ from: 'tokens/src/player.css', to: 'dist/tokens/src' },
 		{ from: 'behavior/src/title.svelte', to: 'dist/behavior/src' },

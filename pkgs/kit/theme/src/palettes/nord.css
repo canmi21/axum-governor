@@ -1,0 +1,67 @@
+/* Nord, dark only: the panel's and the console's one theme, so `color-scheme` is `dark` and there
+   is no light twin; one would be a second step. The sixteen colors keep their own names, and the
+   semantic tokens are read by a surface in place of a number. Not a `.dark` selector, because
+   there is nothing to switch to. The chart series are their own palette, not Nord's: validated
+   with the dataviz validator against `--color-surface`, and kept at least 9.9 OKLab dE (x100)
+   from every status token. */
+:root {
+	color-scheme: dark;
+
+	/* Polar Night */
+	--nord0: #2e3440;
+	--nord1: #3b4252;
+	--nord2: #434c5e;
+	--nord3: #4c566a;
+	/* Snow Storm */
+	--nord4: #d8dee9;
+	--nord5: #e5e9f0;
+	--nord6: #eceff4;
+	/* Frost */
+	--nord7: #8fbcbb;
+	--nord8: #88c0d0;
+	--nord9: #81a1c1;
+	--nord10: #5e81ac;
+	/* Aurora */
+	--nord11: #bf616a;
+	--nord12: #d08770;
+	--nord13: #ebcb8b;
+	--nord14: #a3be8c;
+	--nord15: #b48ead;
+
+	/* The ground, and the sidebar a step below it: nord0 darkened toward black. */
+	--color-ground: var(--nord0);
+	--color-sunken: #282d38;
+	/* A card on the ground, a row hovered inside one, and the one selected. */
+	--color-surface: #323845;
+	--color-raised: var(--nord1);
+	--color-selected: var(--nord2);
+	--color-line: #3e4555;
+	--color-line-strong: var(--nord3);
+
+	--color-text-strong: var(--nord6);
+	--color-text: var(--nord4);
+	/* Between nord3 and nord4: nord3 is Nord's own comment color, and too faint to read on nord1. */
+	--color-text-muted: #9aa3b5;
+	--color-text-faint: #6f7a8f;
+
+	--color-accent: var(--nord8);
+	--color-primary: var(--nord10);
+	--color-good: var(--nord14);
+	--color-warn: var(--nord13);
+	--color-danger: var(--nord11);
+	--color-busy: var(--nord12);
+	--color-note: var(--nord15);
+
+	--color-selection: rgb(136 192 208 / 0.3);
+
+	/* Chart series in a fixed order, where no meaning picks the color. A chart that draws a state
+	   uses the status token, not these. */
+	--color-series-1: oklch(0.628 0.134 306); /* #9d71c8 */
+	--color-series-2: oklch(0.633 0.177 144); /* #33a439 */
+	--color-series-3: oklch(0.651 0.203 338); /* #d952b9 */
+	--color-series-4: oklch(0.624 0.128 105); /* #938b13 */
+	--color-series-5: oklch(0.652 0.181 250); /* #0d93f8 */
+	--color-series-6: oklch(0.66 0.21 19); /* #f8495d */
+	--color-series-7: oklch(0.66 0.115 212); /* #01a4bb */
+	--color-series-8: oklch(0.629 0.18 45); /* #dd5b00 */
+}
