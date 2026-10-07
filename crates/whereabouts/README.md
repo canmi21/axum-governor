@@ -14,7 +14,10 @@ whereabouts = { version = "1", features = ["coordinates", "ip"] }
 use std::path::Path;
 use whereabouts::{coordinates::Gazetteer, ip::Databases};
 
-let gazetteer = Gazetteer::open(Path::new("data/geonames")).expect("GeoNames is fetched");
+// Once, wherever the GeoNames text is fetched: the index is all `open` needs after.
+Gazetteer::build(Path::new("data/geonames"), Path::new("data/places"))?;
+
+let gazetteer = Gazetteer::open(Path::new("data/places")).expect("the index is built");
 let place = gazetteer.lookup(64.15, -21.95);
 
 // SAFETY: new files are renamed into place, never written over the mapped ones.
@@ -28,8 +31,12 @@ let location = databases.lookup("1.1.1.1".parse()?);
   place: country, region, city, district, postal code and time zone.
 - **IP lookup** — `Databases::lookup` turns an address into its country, region, city, position,
   time zone and network.
-- **Memory-mapped** — the GeoLite2 files are mapped, so the page cache holds what is asked and the
-  heap nothing; `Databases::from_bytes` takes them from memory instead.
+- **Memory-mapped** — the GeoLite2 files and the place index are mapped, so the page cache holds
+  what is asked and the heap nothing; `Databases::from_bytes` takes GeoLite2 from memory instead.
+- **A place index** — `Gazetteer::build` turns the GeoNames text into two files laid out for a
+  nearest lookup: fixed-width records sorted along a Z-order curve, with an offset table to find any
+  cell. `Gazetteer::open` maps them, or builds the same index in memory from the text when they are
+  missing. Time zones are read in place from tzf's own file.
 - **No network** — nothing is fetched. Where the data comes from, how often, and under which
   license is up to you.
 
@@ -42,10 +49,10 @@ let location = databases.lookup("1.1.1.1".parse()?);
 
 Each reads its own files from the directory it is given:
 
-| Feature       | Reads                                                                                                 |
-| ------------- | ----------------------------------------------------------------------------------------------------- |
-| `coordinates` | GeoNames' `cities500.txt`, `countryInfo.txt`, `admin1CodesASCII.txt`, `admin2Codes.txt`, `postal.txt` |
-| `ip`          | MaxMind's `GeoLite2-City.mmdb` and `GeoLite2-ASN.mmdb`                                                |
+| Feature       | Reads                                                                                                                                                         |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `coordinates` | `places.index` and `postal.index`, or else GeoNames' `cities500.txt`, `countryInfo.txt`, `admin1CodesASCII.txt`, `admin2Codes.txt`, `postal.txt` to build them |
+| `ip`          | MaxMind's `GeoLite2-City.mmdb` and `GeoLite2-ASN.mmdb`                                                                                                        |
 
 GeoLite2 asks anything built on it to credit MaxMind where the data is shown.
 

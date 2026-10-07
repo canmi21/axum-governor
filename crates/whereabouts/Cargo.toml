@@ -1,6 +1,6 @@
 [package]
 name = "whereabouts"
-version = "1.0.1"
+version = "1.1.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
@@ -14,15 +14,21 @@ workspace = true
 # Each lookup is a feature and none is on by default: their data and dependencies differ, and a
 # caller needing one has no use for the other's.
 [features]
-coordinates = ["dep:rstar", "dep:tzf-rs"]
+coordinates = ["dep:memmap2", "dep:tzf-rs"]
 ip = ["dep:maxminddb"]
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-rstar = { version = "0.13.0", optional = true }
-tzf-rs = { version = "2.1.2", optional = true }
+# Without its default `clap`, which only its command-line tool uses.
+tzf-rs = { version = "2.1.2", default-features = false, features = ["bundled"], optional = true }
+# The place index, mapped; the same crate maxminddb maps GeoLite2 with.
+memmap2 = { version = "0.9.11", optional = true }
 # Memory-mapped, so the page cache holds what is asked and the heap nothing.
 maxminddb = { version = "0.32.0", features = ["mmap"], optional = true }
+
+[dev-dependencies]
+# The R-tree version 1.0 searched, kept to test the place index against.
+rstar = "0.13.0"
 
 [package.metadata.docs.rs]
 all-features = true
