@@ -53,6 +53,10 @@
 			"types": "./dist/behavior/src/collapse.d.ts",
 			"default": "./dist/behavior/src/collapse.js"
 		},
+		"./behavior/cursor": {
+			"types": "./dist/behavior/src/cursor.svelte.d.ts",
+			"default": "./dist/behavior/src/cursor.svelte.js"
+		},
 		"./behavior/edge": {
 			"types": "./dist/behavior/src/edge.d.ts",
 			"default": "./dist/behavior/src/edge.js"
@@ -65,9 +69,17 @@
 			"types": "./dist/behavior/src/progress.d.ts",
 			"default": "./dist/behavior/src/progress.js"
 		},
+		"./behavior/query": {
+			"types": "./dist/behavior/src/query.svelte.d.ts",
+			"default": "./dist/behavior/src/query.svelte.js"
+		},
 		"./behavior/resize": {
 			"types": "./dist/behavior/src/resize.d.ts",
 			"default": "./dist/behavior/src/resize.js"
+		},
+		"./behavior/shortcut": {
+			"types": "./dist/behavior/src/shortcut.d.ts",
+			"default": "./dist/behavior/src/shortcut.js"
 		},
 		"./behavior/state": {
 			"types": "./dist/behavior/src/state.d.ts",
