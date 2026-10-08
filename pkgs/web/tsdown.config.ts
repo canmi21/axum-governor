@@ -4,6 +4,7 @@ import { defineConfig } from 'tsdown';
 // compiles and a `.stylex.ts` one StyleX reads; what is not TypeScript is copied as it is.
 export default defineConfig({
 	entry: [
+		'build/src/index.ts',
 		'compat/src/index.ts',
 		'compat/src/build.ts',
 		'disclose/src/build.ts',
