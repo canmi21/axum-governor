@@ -80,6 +80,10 @@ export const EXTERNAL = {
 			'https://0c9dd7de9a89dddc79dbdc2252e1c940@o4511131162116096.ingest.us.sentry.io/4512173650542592' as
 				| string
 				| undefined,
+		// The console's own, so its errors are told apart from the site's. See web's
+		// spec/architecture/console.md, "Errors go to Sentry, and development sends nothing".
+		console:
+			'https://e98f0c542e47deda9f12d7334be3f239@o4511131162116096.ingest.us.sentry.io/4512223218171904',
 	},
 	// Named as the feed's generator. Nothing fetches it, but it is emitted into published
 	// output, so it belongs with the other URLs rather than inline in a route.
