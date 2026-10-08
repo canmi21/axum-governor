@@ -17,6 +17,7 @@ export default defineConfig({
 		'behavior/src/progress.ts',
 		'behavior/src/query.svelte.ts',
 		'behavior/src/resize.ts',
+		'behavior/src/focus-source.ts',
 		'behavior/src/shortcut.ts',
 		'behavior/src/state.ts',
 		'units/src/index.ts',

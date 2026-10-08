@@ -35,3 +35,15 @@ as the site's spec states the behavior -- web's `spec/search.md`.
 
 The dialog around them is the app's, from Bits UI, which already traps focus, closes on Escape and
 outside clicks, locks scrolling and returns focus; nothing here repeats it.
+
+## Where focus came from
+
+**`focus-source` records what the last input was, on the document, for the focus ring to read**:
+`data-focus-source="kbd"` after a key that moves or acts on focus, `"pointer"` after a press, touch
+arriving as a pointer like any other. `tokens/interaction.css` takes the ring away only where the
+source is positively a pointer, because `:focus-visible` is the browser's guess and is least
+reliable for focus a script moved -- a menu handing it back to its trigger. Written as a suppression
+and never as a requirement, so with nothing recorded the guess stands: it can show a ring once too
+often and never leave a keyboard with none. The rule is web's `spec/styling/focus.md`,
+"`:focus-visible` is the browser's guess, and the site keeps its own answer"; the tracker moved here
+from the site on 2026-10-08, when the console took the same ring.

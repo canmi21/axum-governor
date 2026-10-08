@@ -77,6 +77,10 @@
 			"types": "./dist/behavior/src/resize.d.ts",
 			"default": "./dist/behavior/src/resize.js"
 		},
+		"./behavior/focus-source": {
+			"types": "./dist/behavior/src/focus-source.d.ts",
+			"default": "./dist/behavior/src/focus-source.js"
+		},
 		"./behavior/shortcut": {
 			"types": "./dist/behavior/src/shortcut.d.ts",
 			"default": "./dist/behavior/src/shortcut.js"
