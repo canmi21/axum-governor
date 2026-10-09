@@ -1,6 +1,6 @@
 # Web
 
-SvelteKit compat, referer and Sentry, for running my sites in public.  
+SvelteKit compat, referer, errors and Sentry, for running my sites in public.  
 Mostly for my own projects.
 
 ## License

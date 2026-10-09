@@ -1,7 +1,7 @@
 {
 	"name": "@canmi/web",
 	"version": "0.0.0",
-	"description": "SvelteKit compat, referer and Sentry.",
+	"description": "SvelteKit compat, referer, errors and Sentry.",
 	"keywords": [
 		"browserslist",
 		"canmi",
@@ -67,6 +67,10 @@
 		"./disclose/hono": {
 			"types": "./dist/disclose/src/hono.d.ts",
 			"default": "./dist/disclose/src/hono.js"
+		},
+		"./error": {
+			"types": "./dist/error/src/index.d.ts",
+			"default": "./dist/error/src/index.js"
 		},
 		"./disclose": {
 			"types": "./dist/disclose/src/index.d.ts",

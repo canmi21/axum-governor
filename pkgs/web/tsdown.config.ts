@@ -10,6 +10,7 @@ export default defineConfig({
 		'disclose/src/build.ts',
 		'disclose/src/hono.ts',
 		'disclose/src/index.ts',
+		'error/src/index.ts',
 		'referer/src/index.ts',
 		'sentry/src/build.ts',
 		'sentry/src/client.ts',
