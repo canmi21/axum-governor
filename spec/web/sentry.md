@@ -8,6 +8,18 @@ that opens it or falls back to mail (`./sentry/report`). Which
 project an app reports to is its own DSN, so what a reader sends from an app reaches that app's
 project.
 
+## `initClient` needs Sentry's Vite plugin, or the page never hydrates
+
+**An app that calls `initClient` installs `sentrySvelteKit` in its Vite config, with `pluginOptions`
+from `@canmi/web/sentry/build`, whether or not it uploads source maps.** `@sentry/sveltekit` ships
+two browser-tracing variants behind one import, one reading `$app/stores` and one reading
+`$app/state`, and only its Vite plugin chooses between them; without the plugin the import resolves
+to the `$app/stores` one. SvelteKit 3 removed `$app/stores`, so the SDK throws while it initializes,
+the client hook rejects, and the page renders on the server and never hydrates -- no error a reader
+sees, only a page whose controls are dead. Found on 2026-10-08 when the console called `initClient`
+without the plugin; the site and the status page had the plugin for their uploads, and were spared
+by that.
+
 ## The feedback dialog is fetched when a reader asks for it, and offers mail when it cannot open
 
 **`openReport()` is imported with `await import`, never at the top of a file -- and only by
