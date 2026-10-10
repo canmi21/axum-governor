@@ -27,6 +27,8 @@ pub const EXTERNAL_SENTRY_STATUS: &str =
 	"https://0c9dd7de9a89dddc79dbdc2252e1c940@o4511131162116096.ingest.us.sentry.io/4512173650542592";
 pub const EXTERNAL_SENTRY_CONSOLE: &str =
 	"https://e98f0c542e47deda9f12d7334be3f239@o4511131162116096.ingest.us.sentry.io/4512223218171904";
+pub const EXTERNAL_SENTRY_SPACE: &str =
+	"https://60ef763a7d72a62e0def04ca1b30c678@o4511131162116096.ingest.us.sentry.io/4512234419257344";
 pub const EXTERNAL_FEEDSMITH: &str = "https://feedsmith.dev";
 pub const EXTERNAL_INDEXNOW: &str = "https://api.indexnow.org/IndexNow";
 pub const EXTERNAL_SOCIAL_TELEGRAM: &str = "https://t.me";

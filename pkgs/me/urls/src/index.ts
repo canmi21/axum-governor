@@ -84,6 +84,9 @@ export const EXTERNAL = {
 		// spec/architecture/console.md, "Errors go to Sentry, and development sends nothing".
 		console:
 			'https://e98f0c542e47deda9f12d7334be3f239@o4511131162116096.ingest.us.sentry.io/4512223218171904',
+		// Space's own, at canmi.app. See web's spec/architecture/space.md.
+		space:
+			'https://60ef763a7d72a62e0def04ca1b30c678@o4511131162116096.ingest.us.sentry.io/4512234419257344',
 	},
 	// Named as the feed's generator. Nothing fetches it, but it is emitted into published
 	// output, so it belongs with the other URLs rather than inline in a route.
