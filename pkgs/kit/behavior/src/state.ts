@@ -1,10 +1,11 @@
 /**
- * The two records this site keeps in the browser, and the one mechanism behind both.
+ * The mechanism behind every record a project keeps in the browser. The records themselves --
+ * which key, which storage area, which steps -- are the project's, declared as data and handed to
+ * `record`; this file only executes them.
  *
- * Why there are two records, why keys are flat and dotted, why `video.at` is the exception to
- * that, why the version is an integer from the first write, why a record from a newer version is
- * left alone, and why the store is passed in rather than reached for -- all covered in
- * spec/kit/state.md. This file is the mechanism itself.
+ * Why keys are flat and dotted, why the version is an integer from the first write, why a record
+ * from a newer version is left alone, and why the store is passed in rather than reached for -- all
+ * covered in spec/kit/state.md.
  */
 
 export type State = { version: number; [key: string]: unknown };
@@ -13,13 +14,14 @@ export type State = { version: number; [key: string]: unknown };
 export type Store = Pick<Storage, 'getItem' | 'setItem'>;
 
 /**
- * One step per version, in order: `migrations[0]` takes a record at version 1 to version 2.
+ * One version's step, as data: each key it changes, and that key's value in its new form.
  *
- * A step edits the record in place and may assume every earlier step has run. It may not fail:
- * there is nowhere to report to and nothing a reader could do, so a step that cannot make sense
- * of what it finds deletes it and lets the default stand.
+ * `steps[0]` takes a record at version 1 to version 2. A change sees only its own key's value,
+ * runs only where the key is present, and returning `undefined` drops the key. It may not fail:
+ * there is nowhere to report to and nothing a reader could do, so a change that throws drops its
+ * key and lets the default stand.
  */
-export type Migration = (state: State) => void;
+export type Step = Readonly<Record<string, (value: unknown) => unknown>>;
 
 /**
  * Whether a stored value is the same kind of thing as the fallback asked for.
@@ -37,7 +39,9 @@ function alike(value: unknown, fallback: unknown): boolean {
 }
 
 export interface Container {
-	/** The shape `remember` produces. Raise it in the same commit that adds the step to reach it. */
+	/** The storage key the record lives under; the storage area is the caller's to pair. */
+	readonly key: string;
+	/** The shape `remember` produces: one more than the record's steps. */
 	readonly version: number;
 	/** What is stored under `key`, or `fallback` where there is none, or its kind does not match. */
 	recall<T>(storage: Store, key: string, fallback: T): T;
@@ -47,7 +51,24 @@ export interface Container {
 	forget(storage: Store, key: string): void;
 }
 
-function container(key: string, version: number, migrations: Migration[]): Container {
+/** Carry `state` through one step, in place. */
+function apply(state: State, step: Step): void {
+	for (const [name, change] of Object.entries(step)) {
+		if (!Object.hasOwn(state, name)) continue;
+		let next: unknown;
+		try {
+			next = change(state[name]);
+		} catch {
+			next = undefined;
+		}
+		if (next === undefined) delete state[name];
+		else state[name] = next;
+	}
+}
+
+/** A record kept under `key`, migrated through `steps`; its version is one more than its steps. */
+export function record(key: string, steps: readonly Step[]): Container {
+	const version = steps.length + 1;
 	const fresh = (): State => ({ version });
 
 	/**
@@ -67,7 +88,8 @@ function container(key: string, version: number, migrations: Migration[]): Conta
 			const state = parsed as State;
 			if (!Number.isInteger(state.version) || state.version < 1) return fresh();
 			while (state.version < version) {
-				migrations[state.version - 1]?.(state);
+				const step = steps[state.version - 1];
+				if (step) apply(state, step);
 				state.version += 1;
 			}
 			return state;
@@ -87,6 +109,7 @@ function container(key: string, version: number, migrations: Migration[]): Conta
 	}
 
 	return {
+		key,
 		version,
 		recall<T>(storage: Store, name: string, fallback: T): T {
 			const value = read(storage)[name];
@@ -105,29 +128,3 @@ function container(key: string, version: number, migrations: Migration[]): Conta
 		},
 	};
 }
-
-/** What is true of the person. Pair it with `localStorage`. */
-export const reader = container('state', 1, []);
-
-/** What is true of this sitting. Pair it with `sessionStorage`. */
-export const tab = container('state', 2, [
-	/**
-	 * 1 to 2: `video.at` went from a position to a position and a picture of it.
-	 *
-	 * The old shape would have expired on its own -- it only ever lives for one tab -- so this is
-	 * not a step anybody needed. It is the step that proves the mechanism works before there is a
-	 * record worth losing, which is the only time that can be checked cheaply.
-	 */
-	(state) => {
-		const map = state['video.at'];
-		if (typeof map !== 'object' || map === null || Array.isArray(map)) {
-			delete state['video.at'];
-			return;
-		}
-		const carried: Record<string, unknown> = {};
-		for (const [clip, at] of Object.entries(map as Record<string, unknown>)) {
-			if (typeof at === 'number' && Number.isFinite(at) && at > 0) carried[clip] = { at };
-		}
-		state['video.at'] = carried;
-	},
-]);

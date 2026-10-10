@@ -4,13 +4,13 @@
  * Restores a position, never a stage and never playback -- see web's
  * spec/architecture/video/player.md, "A reload finds a clip where the tab left it".
  *
- * Lives in the `tab` record in `sessionStorage` (see `state.ts`), as one key holding a map rather
- * than one key per clip, and uncapped -- see spec/kit/state.md for why both
- * hold here.
+ * Lives in a record the caller declares for one tab, paired with `sessionStorage` (see
+ * `state.ts`), as one key holding a map rather than one key per clip, and uncapped -- see
+ * spec/kit/state.md for why both hold here.
  */
 
 import { rgbaToThumbHash, thumbHashToRGBA } from 'thumbhash';
-import { tab, type Store } from './state';
+import type { Container, Store } from './state';
 
 const KEY = 'video.at';
 
@@ -63,8 +63,8 @@ export type Place = {
  * record holds a map at all. What is inside it came from an older build, another tab's idea of
  * this key, or a reader with a console, and one `NaN` reaching `currentTime` throws.
  */
-function positions(storage: Store): Record<string, Place> {
-	const stored = tab.recall<Record<string, unknown>>(storage, KEY, {});
+function positions(record: Container, storage: Store): Record<string, Place> {
+	const stored = record.recall<Record<string, unknown>>(storage, KEY, {});
 	const clean: Record<string, Place> = {};
 	for (const [clip, place] of Object.entries(stored)) {
 		if (typeof place !== 'object' || place === null || Array.isArray(place)) continue;
@@ -76,8 +76,8 @@ function positions(storage: Store): Record<string, Place> {
 }
 
 /** Where this clip had got to, or nothing if it had not got anywhere worth returning to. */
-export function positionOf(storage: Store, clip: string): Place | undefined {
-	return positions(storage)[clip];
+export function positionOf(record: Container, storage: Store, clip: string): Place | undefined {
+	return positions(record, storage)[clip];
 }
 
 /**
@@ -132,6 +132,7 @@ export function stillOf(element: HTMLVideoElement): string | undefined {
  * at each of the call sites instead of here.
  */
 export function keepPosition(
+	record: Container,
 	storage: Store,
 	clip: string,
 	at: number,
@@ -139,7 +140,7 @@ export function keepPosition(
 	still?: string,
 ): void {
 	const finished = duration > 0 && at >= duration - ENDING;
-	const map = positions(storage);
+	const map = positions(record, storage);
 	if (!Number.isFinite(at) || at < FLOOR || finished) {
 		if (!(clip in map)) return;
 		delete map[clip];
@@ -147,5 +148,5 @@ export function keepPosition(
 		if (map[clip]?.at === at && map[clip]?.still === still) return;
 		map[clip] = { at, still };
 	}
-	tab.remember(storage, KEY, map);
+	record.remember(storage, KEY, map);
 }

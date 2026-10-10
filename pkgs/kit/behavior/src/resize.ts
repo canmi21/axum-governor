@@ -3,8 +3,9 @@
  *
  * Three halves of one thing, kept in one file so they cannot disagree about the record: the range a
  * width may take, the handle that changes it, and the script that puts the remembered width on the
- * page before the first frame. The width lives in the `reader` record (`state.ts`), because how
- * wide somebody likes a column is a fact about them rather than about this tab.
+ * page before the first frame. The width lives in the record the divider names, which is one
+ * paired with `localStorage` (`state.ts`), because how wide somebody likes a column is a fact about
+ * them rather than about this tab.
  *
  * The width is a custom property on the root element, not a style on the region. The script runs
  * before the region exists, so the root is the only element both it and the handle can reach, and
@@ -12,14 +13,16 @@
  * page with nothing remembered draws the same width before and after hydration.
  */
 
-import { reader, type Store } from './state.ts';
+import type { Container, Store } from './state.ts';
 
 /** The widths a region may take, in rem so they follow the reader's text size. */
 export type Span = { min: number; max: number; fallback: number };
 
 /** Where a remembered width is kept, and what it is written to. */
 export type Divider = {
-	/** The key in the `reader` record, flat and dotted: see spec/kit/state.md. */
+	/** The record the width is kept in, the project's own, paired with `localStorage`. */
+	record: Container;
+	/** The key in that record, flat and dotted: see spec/kit/state.md. */
 	key: string;
 	/** The custom property the region reads, set on the root element. */
 	property: `--${string}`;
@@ -34,20 +37,23 @@ export function clampSpan(rem: unknown, span: Span): number {
 
 /** The width remembered for this divider, held inside its span. */
 export function rememberedWidth(storage: Store, divider: Divider): number {
-	return clampSpan(reader.recall(storage, divider.key, divider.span.fallback), divider.span);
+	return clampSpan(
+		divider.record.recall(storage, divider.key, divider.span.fallback),
+		divider.span,
+	);
 }
 
 /**
  * The script that sets the remembered width before the first frame, as a string for the head. It
  * reads the record itself, since it runs before any module loads; what it repeats of the record's
- * shape -- one JSON object under `state`, the width a number under the key -- is held against
+ * shape -- one JSON object under its key, the width a number under the divider's -- is held against
  * `rememberedWidth` by the test beside this file. Every value goes through `JSON.stringify`, and
  * all are this repository's own constants.
  */
 export function dividerScript(divider: Divider): string {
-	const { key, property, span } = divider;
+	const { record, key, property, span } = divider;
 	return (
-		`(function(){try{var r=localStorage.getItem("state");if(!r)return;` +
+		`(function(){try{var r=localStorage.getItem(${JSON.stringify(record.key)});if(!r)return;` +
 		`var v=JSON.parse(r)[${JSON.stringify(key)}];if(typeof v!=="number"||!isFinite(v))return;` +
 		`v=Math.min(${span.max},Math.max(${span.min},v));` +
 		`document.documentElement.style.setProperty(${JSON.stringify(property)},v+"rem")}catch(e){}})()`
@@ -148,7 +154,7 @@ export function resizeHandle(
 			if (released) divider.fold?.fold();
 			return;
 		}
-		reader.remember(storage, divider.key, width);
+		divider.record.remember(storage, divider.key, width);
 	}
 
 	const up = (event: PointerEvent) => end(event, true);
@@ -159,11 +165,11 @@ export function resizeHandle(
 		if (step === 0) return;
 		event.preventDefault();
 		show(width + step);
-		reader.remember(storage, divider.key, width);
+		divider.record.remember(storage, divider.key, width);
 	}
 
 	function reset() {
-		reader.forget(storage, divider.key);
+		divider.record.forget(storage, divider.key);
 		show(divider.span.fallback);
 	}
 

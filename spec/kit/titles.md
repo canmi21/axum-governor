@@ -6,7 +6,7 @@ name alone. Two subpaths hold the halves: `@canmi/kit/behavior/brevity` decides 
 `@canmi/kit/behavior/title.svelte` renders the page's `<title>` from it.
 
 - **A page loaded fresh in a browser the app has no mark in shows the full title**, and the server
-  renders it. Then it marks the browser: `visit.seen` in the `reader` record, see
+  renders it. Then it marks the browser: `visit.seen` in the record the app passes to `settleBrevity`, its `reader` record, see
   [state.md](state.md).
 - **A page loaded fresh where the mark is shows the short title once it has hydrated.**
 - **A page reached by a navigation inside the app shows the short title.** Only the landing page of

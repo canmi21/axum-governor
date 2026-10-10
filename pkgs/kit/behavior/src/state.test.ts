@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { reader, type Store, tab } from './state';
+import { record, type Step, type Store } from './state';
 
 const KEY = 'state';
+
+/** A record with no steps, which is what a project's first record is. */
+const reader = record(KEY, []);
 
 const VERSION = reader.version;
 
@@ -72,30 +75,91 @@ describe('a stored record', () => {
 	});
 });
 
-describe('the two records', () => {
+describe('a record declared with steps', () => {
 	let local: ReturnType<typeof store>;
-	let session: ReturnType<typeof store>;
-	beforeEach(() => {
-		local = store();
-		session = store();
+	beforeEach(() => (local = store()));
+
+	/** Write a record as an older build would have left it. */
+	function stored(state: Record<string, unknown>): void {
+		local.setItem(KEY, JSON.stringify(state));
+	}
+
+	it('stands one version above its steps', () => {
+		expect(reader.version).toBe(1);
+		expect(record(KEY, [{}, {}]).version).toBe(3);
 	});
 
-	it('do not see each other, even sharing a key name', () => {
-		// Both are called `state`, because the storage area is what says which record it is. That
-		// only holds while nothing reaches across.
+	it('runs every step from the stored version on, in order', () => {
+		const steps: Step[] = [
+			{ count: (value) => `${value}+a` },
+			{ count: (value) => `${value}+b` },
+			{ count: (value) => `${value}+c` },
+		];
+		stored({ version: 2, count: '2' });
+		expect(record(KEY, steps).recall(local, 'count', '')).toBe('2+b+c');
+		stored({ version: 1, count: '1' });
+		expect(record(KEY, steps).recall(local, 'count', '')).toBe('1+a+b+c');
+	});
+
+	it('writes the migrated record back at its own version', () => {
+		const steps: Step[] = [{ count: (value) => (value as number) * 10 }];
+		stored({ version: 1, count: 4, other: 'kept' });
+		const migrated = record(KEY, steps);
+		migrated.remember(local, 'more', true);
+		expect(JSON.parse(local.getItem(KEY) ?? '{}')).toEqual({
+			version: 2,
+			count: 40,
+			other: 'kept',
+			more: true,
+		});
+	});
+
+	it('drops a key whose change answers undefined', () => {
+		stored({ version: 1, gone: 'x', kept: 'y' });
+		const migrated = record(KEY, [{ gone: () => undefined }]);
+		migrated.remember(local, 'touched', 1);
+		expect(JSON.parse(local.getItem(KEY) ?? '{}')).toEqual({ version: 2, kept: 'y', touched: 1 });
+	});
+
+	it('drops a key whose change throws, and still reads the rest', () => {
+		stored({ version: 1, broken: 'x', kept: 'y' });
+		const migrated = record(KEY, [
+			{
+				broken: () => {
+					throw new Error('no sense in it');
+				},
+			},
+		]);
+		expect(migrated.recall(local, 'broken', 'fallback')).toBe('fallback');
+		expect(migrated.recall(local, 'kept', '')).toBe('y');
+	});
+
+	it('leaves a key that is absent absent, rather than calling its change', () => {
+		let called = false;
+		stored({ version: 1, other: 'y' });
+		const migrated = record(KEY, [{ missing: () => ((called = true), 'made up') }]);
+		migrated.remember(local, 'touched', 1);
+		expect(called).toBe(false);
+		expect(JSON.parse(local.getItem(KEY) ?? '{}')).toEqual({ version: 2, other: 'y', touched: 1 });
+	});
+
+	it('runs no step on a record from a later version', () => {
+		stored({ version: 5, count: 4 });
+		const migrated = record(KEY, [{ count: () => 'changed' }]);
+		expect(migrated.recall(local, 'count', 0)).toBe(4);
+		migrated.remember(local, 'more', true);
+		expect(JSON.parse(local.getItem(KEY) ?? '{}')).toEqual({ version: 5, count: 4, more: true });
+	});
+
+	it('does not reach a record in another store, even sharing its key', () => {
+		// The storage area is what says which record it is; that only holds while nothing reaches
+		// across.
+		const session = store();
+		const tab = record(KEY, [{}]);
 		reader.remember(local, 'support.preferred', true);
 		tab.remember(session, 'support.preferred', false);
 		expect(reader.recall(local, 'support.preferred', false)).toBe(true);
 		expect(tab.recall(session, 'support.preferred', true)).toBe(false);
-		expect(local.items.size).toBe(1);
-		expect(session.items.size).toBe(1);
-	});
-
-	it('carry their own version, because they will not move together', () => {
-		// The failure this separation exists to prevent is a migration written for one record
-		// running against the other, and a shared version line is how that starts.
-		expect(reader.version).toBeTypeOf('number');
-		expect(tab.version).toBeTypeOf('number');
 	});
 });
 

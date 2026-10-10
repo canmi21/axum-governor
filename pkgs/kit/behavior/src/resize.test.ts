@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { clampSpan, dividerScript, dragged, rememberedWidth, type Divider } from './resize';
-import { reader, type Store } from './state';
+import { record, type Store } from './state';
+
+const reader = record('state', []);
 
 const DIVIDER: Divider = {
+	record: reader,
 	key: 'test.width',
 	property: '--test-width',
 	span: { min: 10, max: 20, fallback: 15 },
