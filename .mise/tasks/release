@@ -27,6 +27,7 @@ LOCAL = "http://localhost:4873"
 # Each dated package: its npm directory, and the crate published beside it under one version.
 PACKAGES = [
 	{"name": "@canmi/me", "npm": "pkgs/me", "crate": "crates/canmi"},
+	{"name": "@canmi/design", "npm": "pkgs/design"},
 	{"name": "@canmi/kit", "npm": "pkgs/kit"},
 	{"name": "@canmi/ui", "npm": "pkgs/ui"},
 	{"name": "@canmi/web", "npm": "pkgs/web"},

@@ -1,0 +1,98 @@
+/* Mono's palette, under the style in ../mono.css and read by nothing else: taken from @canmi/kit's,
+   which stays for the apps not yet moved -- lib's spec/design/styles.md, "Kit is frozen".
+
+   Black and white after Vercel's Geist, on the same names as concrete.css. Each value is a Geist
+   step, named beside it, and every name keeps a value of its own -- see web's
+   spec/styling/palettes.md. `accents-*` are Geist's older grays, taken where the current scale has
+   no step at a tier the ramp needs. */
+:root {
+	color-scheme: light dark;
+	--color-page: oklch(0.985 0 0); /* background-200, off paper's white */
+	--color-border: oklch(0.937 0 0); /* gray-400 */
+	--color-border-strong: oklch(0.836 0 0); /* gray-500 */
+	--color-text: oklch(0.178 0 0); /* accents-8 */
+	--color-text-muted: oklch(0.387 0 0); /* accents-6 */
+	--color-text-soft: oklch(0.51 0 0); /* accents-5 */
+	--color-text-strong: oklch(0 0 0); /* foreground */
+	--color-ink: oklch(0.205 0 0); /* gray-1000 */
+	--color-paper: oklch(1 0 0); /* background-100 */
+	--color-paper-hover: oklch(0.961 0 0); /* gray-100 */
+	--color-native-divider: oklch(0 0 0 / 0.21); /* gray-alpha-500 */
+	--color-native-hover: oklch(0 0 0 / 0.05); /* gray-alpha-100 */
+	--color-native-selected: oklch(0 0 0 / 0.1); /* gray-alpha-300 */
+	--color-selection: oklch(0.205 0 0); /* gray-1000 */
+	--color-accent: oklch(0.576 0.219 258.6); /* blue-700, Geist's focus color */
+	--color-blue: oklch(0.576 0.219 258.6); /* blue-700 */
+	--color-blue-ink: oklch(0.535 0.207 259); /* blue-900 */
+	--color-green: oklch(0.646 0.175 147.2); /* green-700 */
+	--color-green-ink: oklch(0.516 0.144 147.8); /* green-900 */
+	--color-amber: oklch(0.82 0.16 76); /* amber-700 */
+	--color-amber-ink: oklch(0.52 0.14 55); /* amber-900 */
+	--color-red: oklch(0.625 0.252 23.1); /* red-700 */
+	--color-red-ink: oklch(0.552 0.224 25.5); /* red-900 */
+}
+
+html {
+	background: var(--color-page);
+	color: var(--color-text);
+}
+
+/* Geist's own selection: the ramp's far end under text in its near one. */
+::selection {
+	background-color: var(--color-selection);
+	color: var(--color-paper-hover);
+}
+
+.dark,
+[data-theme='dark'] {
+	color-scheme: dark;
+	--color-page: oklch(0.145 0 0); /* background-100, before it went to #000 */
+	--color-border: oklch(0.301 0 0); /* gray-400 */
+	--color-border-strong: oklch(0.39 0 0); /* gray-500 */
+	--color-text: oklch(0.937 0 0); /* accents-7 */
+	--color-text-muted: oklch(0.706 0 0); /* gray-900 */
+	--color-text-soft: oklch(0.59 0 0); /* gray-800 */
+	--color-text-strong: oklch(1 0 0); /* foreground */
+	--color-ink: oklch(0.946 0 0); /* gray-1000 */
+	--color-paper: oklch(0 0 0); /* background-200 */
+	--color-paper-hover: oklch(0.218 0 0); /* gray-100 */
+	--color-native-divider: oklch(1 0 0 / 0.24); /* gray-alpha-500 */
+	--color-native-hover: oklch(1 0 0 / 0.06); /* gray-alpha-100 */
+	--color-native-selected: oklch(1 0 0 / 0.13); /* gray-alpha-300 */
+	--color-selection: oklch(0.946 0 0); /* gray-1000 */
+	--color-accent: oklch(0.717 0.153 250.6); /* blue-900, Geist's focus color */
+	--color-blue: oklch(0.649 0.193 251.8); /* blue-600 */
+	--color-blue-ink: oklch(0.717 0.153 250.6); /* blue-900 */
+	--color-green: oklch(0.732 0.212 148.1); /* green-900 */
+	--color-green-ink: oklch(0.231 0.065 148.9); /* green-100 */
+	--color-amber: oklch(0.82 0.16 76); /* amber-700 */
+	--color-amber-ink: oklch(0.22 0.04 70); /* amber-100 */
+	--color-red: oklch(0.694 0.196 22); /* red-900 */
+	--color-red-ink: oklch(0.221 0.066 14.4); /* red-100 */
+}
+
+@theme inline {
+	--color-page: var(--color-page);
+	--color-border: var(--color-border);
+	--color-border-strong: var(--color-border-strong);
+	--color-text: var(--color-text);
+	--color-text-muted: var(--color-text-muted);
+	--color-text-soft: var(--color-text-soft);
+	--color-text-strong: var(--color-text-strong);
+	--color-ink: var(--color-ink);
+	--color-paper: var(--color-paper);
+	--color-paper-hover: var(--color-paper-hover);
+	--color-native-divider: var(--color-native-divider);
+	--color-native-hover: var(--color-native-hover);
+	--color-native-selected: var(--color-native-selected);
+	--color-selection: var(--color-selection);
+	--color-accent: var(--color-accent);
+	--color-blue: var(--color-blue);
+	--color-blue-ink: var(--color-blue-ink);
+	--color-green: var(--color-green);
+	--color-green-ink: var(--color-green-ink);
+	--color-amber: var(--color-amber);
+	--color-amber-ink: var(--color-amber-ink);
+	--color-red: var(--color-red);
+	--color-red-ink: var(--color-red-ink);
+}

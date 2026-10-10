@@ -12,7 +12,7 @@ drawn. How each package is versioned and published is below.
 
 ## A package's rules are here, and a site's are its own
 
-Each package that has rules of its own keeps them under a directory of its name: [me/](me/), [kit/](kit/), [web/](web/),
+Each package that has rules of its own keeps them under a directory of its name: [me/](me/), [design/](design/), [kit/](kit/), [web/](web/),
 [response/](response/) and [axum-governor/](axum-governor/). A section that rules on how a package
 behaves is here, whoever uses it. One that rules on how a site uses a package -- which palette it
 draws, which canaries it has met, what its pages remember -- stays with that site, and a comment
@@ -32,7 +32,7 @@ first.
 day, and the release's number within that day from 0 -- `2026.1004.0`, then `2026.1004.1`; the
 fourth of January is `2026.104.0`. Nothing is zero-padded, which semver forbids. A day holds as many
 releases as it needs, so a change is never held back for the date to turn. `@canmi/me`,
-`@canmi/kit`, `@canmi/ui` and `@canmi/web` are dated, and the `canmi` crate takes `@canmi/me`'s
+`@canmi/design`, `@canmi/kit`, `@canmi/ui` and `@canmi/web` are dated, and the `canmi` crate takes `@canmi/me`'s
 version. The earlier `2026.10.3` and `2026.10.4` were `YYYY.M.D`, and sort below every one since.
 
 **A push to main that changes a dated package publishes it**: `.github/workflows/release.yml` runs

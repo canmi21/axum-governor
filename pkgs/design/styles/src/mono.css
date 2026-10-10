@@ -1,0 +1,71 @@
+/* Mono's values for the contract every component reads: a component names a role here and never a
+   color, so one family of components takes any style. The palette's own names stay under it, and
+   a style's light and dark are two sets of values for the same names. See lib's
+   spec/design/styles.md. */
+@import './mono/palette.css';
+
+/* On the dark's own element too, not on the root alone: a name made of others is worked out where
+   it is declared, so a dark part of a light page needs each one declared again there. */
+:root,
+.dark,
+[data-theme='dark'] {
+	/* In the light a surface is white on a base a step grey, lifted by a shadow too faint to see as
+	   one; in the dark the base is black and a surface a step above it. */
+	--background-base: var(--color-page);
+	--background-inset: var(--color-page);
+	--background-surface: var(--color-paper);
+	--background-raised: var(--color-paper-hover);
+
+	/* A default border is a share of the foreground's own color rather than a gray of its own, so
+	   it sits as lightly on any background. */
+	--border-subtle: var(--color-paper-hover);
+	--border-default: oklch(0 0 0 / 0.08);
+	--border-strong: var(--color-border-strong);
+
+	--foreground-subtle: var(--color-text-soft);
+	--foreground-muted: var(--color-text-muted);
+	--foreground-default: var(--color-text);
+	--foreground-strong: var(--color-text-strong);
+
+	/* Hover and selection are one tint of the foreground at two strengths: the tint and its full
+	   strength are a style's, the shares of it are not. */
+	--interaction-tint: 0;
+	--interaction-strength: 0.05;
+	--interaction-hover: oklch(var(--interaction-tint) 0 0 / calc(var(--interaction-strength) * 0.7));
+	--interaction-selected: oklch(var(--interaction-tint) 0 0 / var(--interaction-strength));
+	/* The selection laid on the surface as one opaque color, for what must match a selected row and
+	   cannot be translucent itself. */
+	--interaction-selected-opaque: color-mix(
+		in srgb,
+		var(--background-surface),
+		oklch(var(--interaction-tint) 0 0) calc(var(--interaction-strength) * 100%)
+	);
+	/* The site's blue, in light and dark alike, where mono's own are two blues. */
+	--interaction-focus: oklch(0.623 0.214 259.815);
+	--accent: oklch(0.623 0.214 259.815);
+
+	--status-success: var(--color-green);
+	--status-info: var(--color-blue);
+	--status-warning: var(--color-amber);
+	--status-critical: var(--color-red);
+
+	--shadow-surface: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 3px oklch(0 0 0 / 0.02);
+
+	--font-sans: ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'Ioskeley Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+	/* The sans's capital height, as `H` is drawn: what CSS's `cap` should be, which Chrome reads
+	   from the sans as 0.86em. In `em`, so it scales with the type around it. */
+	--font-sans-cap-height: 0.714em;
+}
+
+/* No shadow in the dark, which cannot show one. */
+.dark,
+[data-theme='dark'] {
+	--background-base: var(--color-paper);
+	--background-inset: var(--color-paper);
+	--background-surface: var(--color-page);
+	--border-default: oklch(1 0 0 / 0.09);
+	--interaction-tint: 1;
+	--interaction-strength: 0.07;
+	--shadow-surface: none;
+}

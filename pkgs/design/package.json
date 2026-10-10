@@ -1,0 +1,32 @@
+{
+	"name": "@canmi/design",
+	"version": "0.0.0",
+	"description": "A design system: one contract of tokens, and the styles that fill it.",
+	"keywords": [
+		"canmi",
+		"design-system",
+		"design-tokens",
+		"svelte"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/canmi21/lib.git",
+		"directory": "pkgs/design"
+	},
+	"files": [
+		"dist"
+	],
+	"type": "module",
+	"exports": {
+		"./contract": {
+			"types": "./dist/contract/src/index.d.ts",
+			"default": "./dist/contract/src/index.js"
+		},
+		"./styles/mono.css": "./dist/styles/src/mono.css",
+		"./package.json": "./package.json"
+	},
+	"scripts": {
+		"build": "tsdown"
+	}
+}
