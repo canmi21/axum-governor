@@ -182,6 +182,8 @@ importers:
         specifier: ^5.0.3
         version: 5.0.3(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(vite@8.3.2(@types/node@24.19.1))
 
+  pkgs/design: {}
+
   pkgs/kit:
     dependencies:
       motion:
