@@ -21,7 +21,9 @@ by hand from the other.
 
 **`@canmi/design/layouts/shell.svelte` is the console's frame.** The sidebar down the left, 15rem
 wide: its head as tall as the top bar, inset 0.75rem; its pages below, inset as the head is and a
-quarter rem from the head, scrolling on their own; its foot under them. The top bar, its three
+quarter rem from the head, scrolling on their own; its foot under them. **The head is the app's to
+give or leave out** -- the console's holds finding, space's sidebar has none -- and without one
+the pages stand 0.75rem off the sidebar's top. The top bar, its three
 places in a grid of `1fr auto 1fr` so the middle is centered whatever the sides hold, inset 2rem.
 The page between them, the one region that scrolls, its column at most 90rem wide, inset 2rem, its
 parts 1.5rem apart. Where the viewport is narrower than 48rem the regions stack into one column
@@ -33,12 +35,11 @@ that scrolls whole.
   3.5rem, the console's. The words are the size classes Apple's guidelines and the density
   settings of Material and Carbon use for one thing drawn closer.
 - **`span` is which bar runs the whole edge**: `sidebar`, top to bottom, the top bar cut at it --
-  the console's; or `bar`, side to side, the sidebar starting under it. Where the bar spans, it is
-  one band from side to side with nothing cutting it: its first place over the sidebar is a corner as
-  wide as the sidebar, holding what the app gives it -- a name, a mark -- inset to the column the
-  sidebar's icons stand on, the sidebar's edge starts under the bar, and the sidebar keeps its
-  head, under the bar, and the bar's sides stand where they would were it cut, over the page's column. Narrower
-  than 48rem there is no corner.
+  the console's; or `bar`, side to side, the sidebar starting under it. **A spanning bar owes the
+  sidebar and the page nothing**: its places stand as in the cut bar, inset by the bar's own 2rem,
+  never aligned to the sidebar's width or the page's column, and the page keeps its own inset
+  either way. The bar's left is one whole, `corner` first -- a name, a mark -- and `start` after
+  it, 1rem apart, at every width.
 
 Both named with the author on 2026-10-11: the console is `compact` and spans with its sidebar,
 space's design pages `compact` and span with their bar.

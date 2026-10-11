@@ -1,13 +1,13 @@
 <script lang="ts">
 	/**
-	 * A page's whole frame: the sidebar down the left, its head as tall as the top bar, its pages
-	 * below and its foot at the bottom; the top bar, its three places left, middle and right; and the
-	 * page between them, the one region that scrolls. `span` says which of the two bars runs the
-	 * whole edge -- the sidebar from top to bottom with the top bar cut at it, or the top bar from
-	 * side to side, one band, with the sidebar under it and `corner` in the bar's place over it -- and
-	 * `density` how tall the top bar stands. Where the viewport is too narrow
-	 * for a sidebar, the regions stack into one column that scrolls whole. An app fills each place
-	 * and decides nothing of where they stand. See lib's spec/design/layouts.md, "The shell".
+	 * A page's whole frame: the sidebar down the left, its head, if it has one, as tall as the top
+	 * bar, its pages below and its foot at the bottom; the top bar, its three places left, middle
+	 * and right; and the page between them, the one region that scrolls. `span` says which of the
+	 * two bars runs the whole edge -- the sidebar from top to bottom with the top bar cut at it, or
+	 * the top bar from side to side with the sidebar under it -- and `density` how tall the top bar
+	 * stands. Where the viewport is too narrow for a sidebar, the regions stack into one column that
+	 * scrolls whole. An app fills each place and decides nothing of where they stand. See lib's
+	 * spec/design/layouts.md, "The shell".
 	 */
 	import * as stylex from '@stylexjs/stylex';
 	import type { Snippet } from 'svelte';
@@ -34,10 +34,10 @@
 		density?: 'regular' | 'compact';
 		/** Which bar runs the whole edge: the sidebar top to bottom, or the top bar side to side. */
 		span?: 'sidebar' | 'bar';
-		/** The bar's corner over the sidebar, where the bar spans: a name, a mark. */
+		/** The bar's first thing, before `start`, where the bar spans: a name, a mark. */
 		corner?: Snippet;
-		/** The sidebar's head, as tall as the top bar, under the bar where the bar spans. */
-		head: Snippet;
+		/** The sidebar's head, as tall as the top bar: finding, for one. A sidebar may have none. */
+		head?: Snippet;
 		/** The sidebar's pages, which scroll on their own where they outgrow it. */
 		nav: Snippet;
 		/** What stands under the pages, at the sidebar's foot. */
@@ -91,6 +91,8 @@
 			paddingTop: '0.25rem',
 			paddingBottom: '0.75rem',
 		},
+		/** With no head over them, the pages stand off the sidebar's top by its inset. */
+		navAlone: { paddingTop: '0.75rem' },
 		bar: {
 			display: 'grid',
 			gridTemplateColumns: '1fr auto 1fr',
@@ -109,30 +111,11 @@
 			left: { default: null, '@media (min-width: 48rem)': '15rem' },
 			zIndex: { default: null, '@media (min-width: 48rem)': 30 },
 		},
-		/**
-		 * The bar across the whole width, one band with nothing cutting it: its first place an empty
-		 * corner as wide as the sidebar, so the bar's sides stand over the page as they would were it
-		 * cut; the sidebar's edge starts under the bar.
-		 */
-		barSpans: {
-			gridTemplateColumns: {
-				default: '1fr auto 1fr',
-				'@media (min-width: 48rem)': '15rem 1fr auto 1fr',
-			},
-			paddingInline: { default: '2rem', '@media (min-width: 48rem)': 0 },
-			left: { default: null, '@media (min-width: 48rem)': 0 },
-		},
-		/**
-		 * The corner, inset to the column the sidebar's icons stand on; where there is no sidebar
-		 * beside the page, not there either.
-		 */
-		corner: {
-			display: { default: 'none', '@media (min-width: 48rem)': 'flex' },
-			alignItems: 'center',
-			alignSelf: 'stretch',
-			paddingInline: '1.5rem',
-		},
+		/** The bar across the whole width, its places as in the cut bar. */
+		barSpans: { left: { default: null, '@media (min-width: 48rem)': 0 } },
+		corner: { display: 'flex', flexShrink: 0, alignItems: 'center' },
 		start: { display: 'flex', minWidth: 0, alignItems: 'center', justifySelf: 'start' },
+		startSpans: { gap: '1rem' },
 		center: { display: 'flex', minWidth: 0, alignItems: 'center', justifySelf: 'center' },
 		end: {
 			display: 'flex',
@@ -141,12 +124,6 @@
 			gap: '0.5rem',
 			justifySelf: 'end',
 		},
-		/**
-		 * The bar's sides inset where the bar spans, so each stands where it would were the bar cut:
-		 * the left a rem past the grid's own gap after the head, 2rem in all, over the page's column.
-		 */
-		startInset: { paddingLeft: { default: 0, '@media (min-width: 48rem)': '1rem' } },
-		endInset: { paddingRight: { default: 0, '@media (min-width: 48rem)': '2rem' } },
 		main: {
 			position: { default: 'static', '@media (min-width: 48rem)': 'fixed' },
 			right: { default: null, '@media (min-width: 48rem)': 0 },
@@ -182,22 +159,24 @@
 
 {#snippet sidebar()}
 	<aside aria-label={label} class={stylex.attrs(styles.sidebar, spans && below).class}>
-		<div class={stylex.attrs(styles.head, tall).class}>{@render head()}</div>
-		<div class={stylex.attrs(styles.nav).class}>{@render nav()}</div>
+		{#if head}
+			<div class={stylex.attrs(styles.head, tall).class}>{@render head()}</div>
+		{/if}
+		<div class={stylex.attrs(styles.nav, !head && styles.navAlone).class}>{@render nav()}</div>
 		{@render foot?.()}
 	</aside>
 {/snippet}
 
 {#snippet bar()}
 	<header class={stylex.attrs(styles.bar, tall, spans && styles.barSpans).class}>
-		{#if spans}
-			<div class={stylex.attrs(styles.corner).class}>{@render corner?.()}</div>
-		{/if}
-		<div class={stylex.attrs(styles.start, spans && styles.startInset).class}>
+		<div class={stylex.attrs(styles.start, spans && styles.startSpans).class}>
+			{#if spans && corner}
+				<div class={stylex.attrs(styles.corner).class}>{@render corner()}</div>
+			{/if}
 			{@render start?.()}
 		</div>
 		<div class={stylex.attrs(styles.center).class}>{@render center?.()}</div>
-		<div class={stylex.attrs(styles.end, spans && styles.endInset).class}>{@render end?.()}</div>
+		<div class={stylex.attrs(styles.end).class}>{@render end?.()}</div>
 	</header>
 {/snippet}
 
