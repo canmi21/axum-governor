@@ -5,12 +5,7 @@
 export const CONTRACT = [
 	{
 		group: 'background',
-		names: [
-			'--background-base',
-			'--background-inset',
-			'--background-surface',
-			'--background-raised',
-		],
+		names: ['--background-base', '--background-surface'],
 	},
 	{ group: 'border', names: ['--border-subtle', '--border-default', '--border-strong'] },
 	{
@@ -25,9 +20,10 @@ export const CONTRACT = [
 	{
 		group: 'interaction',
 		names: [
-			'--interaction-hover',
-			'--interaction-selected',
-			'--interaction-selected-opaque',
+			'--interaction-subtle',
+			'--interaction-muted',
+			'--interaction-default',
+			'--interaction-strong',
 			'--interaction-focus',
 		],
 	},

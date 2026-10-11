@@ -38,10 +38,11 @@ copies it.
 ## A link to a page
 
 **`@canmi/design/components/nav-link.svelte` is one page in a list of pages**: an 18px icon and the
-page's name, 2.25rem tall, the pointer's tint over it and the selection's when it is the page being
-read. Its `current` is what assistive technology is told -- `page` where it is the page, `true`
-where the page is somewhere under it -- and either draws it selected. It is a component and not the
-sidebar's: a list of pages may stand anywhere.
+page's name, 2.25rem tall, `--interaction-subtle` under the pointer and `--interaction-muted` when
+it is the page being read -- the two lower ranks, since a chosen page stands among pages that can be
+pointed at, and the hover must stay below it. Its `current` is what assistive technology is told --
+`page` where it is the page, `true` where the page is somewhere under it -- and either draws it
+selected. It is a component and not the sidebar's: a list of pages may stand anywhere.
 
 ## An error page
 
@@ -66,12 +67,13 @@ no underline.
 ### An icon button
 
 **A button that is only an icon is one component, `@canmi/design/components/icon-button.svelte`, in
-one of two kinds, square or round.** `ghost` has no ground of its own and takes the selection's
-tint on hover -- a bar's own controls. `framed` is filled with the surface and ruled by a one-pixel
-shadow rather than a border, as Geist's secondary button is, so the rule takes no room and the
-button is exactly its size; its hover lifts the fill to `--background-raised` and leaves the rule
--- a control set apart from what is around it. A kind is added to it rather than drawn again where
-it is wanted, so every icon answers a hover the same way; its `label` is its name and its title both.
+one of two kinds, square or round.** `ghost` has no ground of its own and takes
+`--interaction-default` on hover -- a bar's own controls, where nothing is chosen beside it.
+`framed` is filled with the surface and ruled by a one-pixel shadow rather than a border, as Geist's
+secondary button is, so the rule takes no room and the button is exactly its size; its hover lays
+`--interaction-strong` over the fill and leaves the rule -- a control set apart from what is around
+it. A kind is added to it rather than drawn again where it is wanted, so every icon answers a hover
+the same way; its `label` is its name and its title both.
 
 ### An icon is drawn in layers
 

@@ -32,7 +32,7 @@
 			gap: '0.625rem',
 			paddingInline: '0.75rem',
 			borderRadius: radius.md,
-			backgroundColor: { default: 'transparent', ':hover': 'var(--interaction-hover)' },
+			backgroundColor: { default: 'transparent', ':hover': 'var(--interaction-subtle)' },
 			color: { default: 'var(--foreground-muted)', ':hover': 'var(--foreground-strong)' },
 			fontSize: fontSize.body,
 			fontWeight: fontWeight.medium,
@@ -41,8 +41,8 @@
 		},
 		current: {
 			backgroundColor: {
-				default: 'var(--interaction-selected)',
-				':hover': 'var(--interaction-selected)',
+				default: 'var(--interaction-muted)',
+				':hover': 'var(--interaction-muted)',
 			},
 			color: { default: 'var(--foreground-strong)', ':hover': 'var(--foreground-strong)' },
 		},

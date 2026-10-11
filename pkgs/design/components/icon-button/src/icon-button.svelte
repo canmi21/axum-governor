@@ -51,16 +51,16 @@
 		ghost: {
 			backgroundColor: {
 				default: 'transparent',
-				':hover': 'var(--interaction-selected)',
+				':hover': 'var(--interaction-default)',
 			},
 			color: { default: 'var(--foreground-muted)', ':hover': 'var(--foreground-strong)' },
 		},
-		// Ruled by a shadow rather than a border, as Geist's secondary button is, so the rule takes no
-		// room and the button is exactly its size; the hover lifts the fill and leaves the rule.
+		// Ruled by a shadow rather than a border, so the rule takes no room and the button is exactly
+		// its size; the hover lays the strong rank over the fill and leaves the rule.
 		framed: {
 			backgroundColor: {
 				default: 'var(--background-surface)',
-				':hover': 'var(--background-raised)',
+				':hover': 'var(--interaction-strong)',
 			},
 			boxShadow: `0 0 0 ${borderWidth.hairline} var(--border-default)`,
 			color: { default: 'var(--foreground-muted)', ':hover': 'var(--foreground-strong)' },

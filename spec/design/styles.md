@@ -44,10 +44,10 @@ value is for, not who first wanted it.
 
 | group         | names                                                                                              |
 | ------------- | -------------------------------------------------------------------------------------------------- |
-| `background`  | `base`, under everything; `inset`, set into a surface; `surface`; `raised`, a step above a surface |
+| `background`  | `base`, under everything; `surface`, a card on it                                                 |
 | `border`      | `subtle`, `default`, `strong`                                                                      |
 | `foreground`  | `subtle`, `muted`, `default`, `strong`: text, and the icons and marks drawn as text is             |
-| `interaction` | `hover`, `selected`, `selected-opaque`, `focus`                                                    |
+| `interaction` | `subtle`, `muted`, `default`, `strong`: ranks of one tint, laid over a ground; and `focus`         |
 | `accent`      | `--accent` alone: what is the system's own and live                                                |
 | `status`      | `success`, `info`, `warning`, `critical`                                                           |
 | `shadow`      | `surface`, the shadow a surface casts                                                              |
@@ -77,6 +77,28 @@ value as written. A measure joins when a component on the system first reads it,
 
 A style may derive its values from parameters no component reads: mono's hover and selection are
 one tint of the foreground, `--interaction-tint`, at `--interaction-strength` and a share of it.
+
+**Two grounds, and every other ground an interaction rank laid over one of them.** A ground that is
+neither the page nor a card -- a hover, a selection, a control's fill, a skeleton -- is not a gray
+of its own but a rank: the text's own color laid thin, so it leaves whatever it lies on toward the
+text in either theme, where a fixed gray lighter than a white card would sink back toward the page.
+A component takes a rank, never a share. The ranks in mono are shares of one strength:
+
+| rank      | light | dark |
+| --------- | ----- | ---- |
+| `subtle`  | 0.5   | 0.7  |
+| `muted`   | 0.75  | 0.8  |
+| `default` | 1     | 1    |
+| `strong`  | 1.5   | 1.5  |
+
+**The dark's strength, 7 percent, is the reference, and the light's is it over
+`--interaction-ratio`, 1.4**, since near black a share reads larger: one rank is one visual weight
+in both themes. The two lower ranks sit closer in the dark, where the eye needs them nearer to tell
+them apart at all. **Where something chosen stands among what can be pointed at, the chosen takes
+`muted` and the hover `subtle`; where only a hover shows, it takes `default`.** `inset` and `raised`
+were dropped for this on 2026-10-11, with the author: `inset` had the base's value in both themes,
+and `raised` was a gray darker than the light's base, so a hover on a white field sank toward the
+page. Ranks and names settled with the author on 2026-10-11.
 
 ## Who is on it
 
