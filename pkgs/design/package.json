@@ -28,6 +28,7 @@
 			"default": "./dist/components/icon/src/optics.js"
 		},
 		"./components/icon.svelte": "./dist/components/icon/src/icon.svelte",
+		"./components/icon-button.svelte": "./dist/components/icon-button/src/icon-button.svelte",
 		"./scale.stylex": {
 			"types": "./dist/scale/src/scale.stylex.d.ts",
 			"default": "./dist/scale/src/scale.stylex.js"

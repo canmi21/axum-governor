@@ -38,6 +38,16 @@ copies it.
 
 **Tabler is the system's icon family**, a peer every app that draws an icon depends on itself.
 
+### An icon button
+
+**A button that is only an icon is one component, `@canmi/design/components/icon-button.svelte`, in
+one of two kinds, square or round.** `ghost` has no ground of its own and takes the selection's
+tint on hover -- a bar's own controls. `framed` is filled with the surface and ruled by a one-pixel
+shadow rather than a border, as Geist's secondary button is, so the rule takes no room and the
+button is exactly its size; its hover lifts the fill to `--background-raised` and leaves the rule
+-- a control set apart from what is around it. A kind is added to it rather than drawn again where
+it is wanted, so every icon answers a hover the same way; its `label` is its name and its title both.
+
 ### An icon is drawn in layers
 
 **An icon's box, its drawing's offset, its drawing's scale, and where its box sits among words are

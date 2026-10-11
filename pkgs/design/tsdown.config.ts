@@ -15,5 +15,9 @@ export default defineConfig({
 		{ from: 'styles/src/mono.css', to: 'dist/styles/src' },
 		{ from: 'styles/src/mono/palette.css', to: 'dist/styles/src/mono' },
 		{ from: 'components/icon/src/icon.svelte', to: 'dist/components/icon/src' },
+		{
+			from: 'components/icon-button/src/icon-button.svelte',
+			to: 'dist/components/icon-button/src',
+		},
 	],
 });
