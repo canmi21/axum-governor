@@ -3,7 +3,7 @@ import { defineConfig } from 'tsdown';
 // One output per source file, named as the source is; what is not TypeScript is copied as it is,
 // a style beside the palette it imports.
 export default defineConfig({
-	entry: ['contract/src/index.ts'],
+	entry: ['contract/src/index.ts', 'scale/src/scale.stylex.ts'],
 	unbundle: true,
 	// The package's own directory, so `dist/` mirrors it whatever the entries have in common.
 	root: '.',

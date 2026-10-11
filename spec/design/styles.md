@@ -1,7 +1,7 @@
 # Design: the system the console and space are built on
 
 `@canmi/design` is the design system: a contract of names every style gives a value to, the styles,
-and in time the primitives and the components standing on them. Its layers and who is on it are
+a scale of measures, and in time the primitives and the components standing on them. Its layers and who is on it are
 web's `spec/architecture/space.md`, "The design system: three layers, and a style across them".
 
 ## Kit is frozen
@@ -59,7 +59,20 @@ since another face's capitals stand at another height.
 **`--interaction-focus` and `--accent` are the same blue in mono, under two names**, so the focus
 ring can move without every mark moving with it.
 
-## What a style keeps to itself
+## The scale
+
+**`@canmi/design/scale.stylex` holds the measures, and they are the same under every style**: a
+style changes colors and never a size. Each is a StyleX const, so a reading declaration keeps the
+value as written. A measure joins when a component on the system first reads it, not before.
+
+- **Type sizes are named for what they set**: `caption`, `label`, `body`, and above them in time
+  `title`, `headline`, `display`. Tailwind already holds the t-shirt sizes for type, with other
+  values -- its `text-sm` is 14px -- and two meanings of one word in files that mix the two would be
+  read wrong; a number named only an order a reader would take for a share of the body.
+- **Radii keep the t-shirt sizes**, `sm` to `xl` and `full`, since they are Tailwind's `rounded-*`
+  steps at Tailwind's values: one word, one value, either way it is read.
+- **Weights are `regular`, `medium`, `semibold`; a border's width is `hairline`; a transition's
+  length is `duration.base`.**
 
 A style may derive its values from parameters no component reads: mono's hover and selection are
 one tint of the foreground, `--interaction-tint`, at `--interaction-strength` and a share of it.

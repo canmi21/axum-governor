@@ -1,6 +1,6 @@
 # Design
 
-A design system: one contract of tokens, and the styles that fill it.  
+A design system: one contract of tokens, the styles that fill it, and a scale.  
 Built for Svelte, mostly for my own projects.
 
 ## License

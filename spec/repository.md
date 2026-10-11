@@ -73,6 +73,13 @@ must compile by reading each dependency's manifest, and one it cannot resolve is
 silence: `@canmi/kit` was, so in development Vite pre-bundled its `.stylex` modules uncompiled and
 every page that imports them threw before hydrating.
 
+**A package holding StyleX declares `svelte` a peer, optional where it can be.** StyleX's plugin
+only keeps such a package out of Vite's prebundling; nothing tells the server's render to compile
+it, so `vite dev` imported `@canmi/design`'s scale raw and every page threw `Unexpected
+'stylex.defineConsts' call at runtime`. `vite-plugin-svelte` bundles any package with `svelte` among
+its peers into the server's render, where StyleX's plugin reaches it -- which is why `@canmi/kit`
+never met this.
+
 **Each package is built by tsdown into `dist/`**, one output per source file, so a `.svelte.ts`
 stays a module Svelte compiles and a `.stylex.ts` one StyleX reads; CSS, JSON and Svelte components
 are copied as they are. A consumer that is not a bundler -- node, loading a Vite config -- does

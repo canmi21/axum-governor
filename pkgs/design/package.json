@@ -1,7 +1,7 @@
 {
 	"name": "@canmi/design",
 	"version": "0.0.0",
-	"description": "A design system: one contract of tokens, and the styles that fill it.",
+	"description": "A design system: one contract of tokens, the styles that fill it, and a scale.",
 	"keywords": [
 		"canmi",
 		"design-system",
@@ -23,10 +23,30 @@
 			"types": "./dist/contract/src/index.d.ts",
 			"default": "./dist/contract/src/index.js"
 		},
+		"./scale.stylex": {
+			"types": "./dist/scale/src/scale.stylex.d.ts",
+			"default": "./dist/scale/src/scale.stylex.js"
+		},
 		"./styles/mono.css": "./dist/styles/src/mono.css",
 		"./package.json": "./package.json"
 	},
 	"scripts": {
 		"build": "tsdown"
+	},
+	"devDependencies": {
+		"@stylexjs/stylex": "^0.19.1",
+		"svelte": "^5.57.1"
+	},
+	"peerDependencies": {
+		"@stylexjs/stylex": "^0.19.1",
+		"svelte": "^5.57.1"
+	},
+	"peerDependenciesMeta": {
+		"@stylexjs/stylex": {
+			"optional": true
+		},
+		"svelte": {
+			"optional": true
+		}
 	}
 }
