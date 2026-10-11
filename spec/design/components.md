@@ -69,11 +69,12 @@ no underline.
 **A button that is only an icon is one component, `@canmi/design/components/icon-button.svelte`, in
 one of two kinds, square or round.** `ghost` has no ground of its own and takes
 `--interaction-default` on hover -- a bar's own controls, where nothing is chosen beside it.
-`framed` is filled with the surface and ruled by a one-pixel shadow rather than a border, as Geist's
-secondary button is, so the rule takes no room and the button is exactly its size; its hover lays
-`--interaction-strong` over the fill and leaves the rule -- a control set apart from what is around
-it. A kind is added to it rather than drawn again where it is wanted, so every icon answers a hover
-the same way; its `label` is its name and its title both.
+`framed` is set into what it stands on, filled with the page's base as finding's field is, and ruled
+by a one-pixel shadow rather than a border, as Geist's secondary button is, so the rule takes no
+room and the button is exactly its size; its hover lays `--interaction-strong` over the fill and
+leaves the rule -- a control set apart from what is around it. A kind is added to it rather than
+drawn again where it is wanted, so every icon answers a hover the same way; its `label` is its name
+and its title both.
 
 ### An icon is drawn in layers
 

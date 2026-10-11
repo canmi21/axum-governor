@@ -60,7 +60,8 @@
 			display: 'flex',
 			flexDirection: 'column',
 			userSelect: 'none',
-			backgroundColor: 'var(--background-base)',
+			// On the bar's surface, the two bars one layer above the page.
+			backgroundColor: 'var(--background-surface)',
 			borderStyle: 'solid',
 			borderColor: 'var(--border-subtle)',
 			borderTopWidth: 0,
@@ -101,7 +102,8 @@
 			rowGap: 0,
 			paddingInline: '2rem',
 			userSelect: 'none',
-			backgroundColor: 'var(--background-base)',
+			// A layer above the page, as a card is, so lighter than it in either theme.
+			backgroundColor: 'var(--background-surface)',
 			borderBottomStyle: 'solid',
 			borderBottomWidth: borderWidth.hairline,
 			borderBottomColor: 'var(--border-subtle)',

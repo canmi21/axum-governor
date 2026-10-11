@@ -55,11 +55,12 @@
 			},
 			color: { default: 'var(--foreground-muted)', ':hover': 'var(--foreground-strong)' },
 		},
-		// Ruled by a shadow rather than a border, so the rule takes no room and the button is exactly
-		// its size; the hover lays the strong rank over the fill and leaves the rule.
+		// Set into what it stands on, on the page's base, and ruled by a shadow rather than a border,
+		// so the rule takes no room and the button is exactly its size; the hover lays the strong rank
+		// over it and leaves the rule.
 		framed: {
 			backgroundColor: {
-				default: 'var(--background-surface)',
+				default: 'var(--background-base)',
 				':hover': 'var(--interaction-strong)',
 			},
 			boxShadow: `0 0 0 ${borderWidth.hairline} var(--border-default)`,

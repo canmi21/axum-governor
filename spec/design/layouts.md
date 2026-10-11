@@ -22,12 +22,13 @@ by hand from the other.
 **`@canmi/design/layouts/shell.svelte` is the console's frame.** The sidebar down the left, 15rem
 wide: its head as tall as the top bar, inset 0.75rem; its pages below, inset as the head is and a
 quarter rem from the head, scrolling on their own; its foot under them. **The head is the app's to
-give or leave out** -- the console's holds finding, space's sidebar has none -- and without one
-the pages stand 0.75rem off the sidebar's top. The top bar, its three
-places in a grid of `1fr auto 1fr` so the middle is centered whatever the sides hold, inset 2rem.
-The page between them, the one region that scrolls, its column at most 90rem wide, inset 2rem, its
-parts 1.5rem apart. Where the viewport is narrower than 48rem the regions stack into one column
-that scrolls whole.
+give or leave out** -- the console's holds finding, space's sidebar has none -- and without one the
+pages stand 0.75rem off the sidebar's top. The top bar, its three places in a grid of `1fr auto 1fr`
+so the middle is centered whatever the sides hold, inset 2rem, both bars on `--background-surface`:
+one frame a layer above the page as a card is, lighter than it in either theme. The page between
+them, the one region that scrolls, its column at most 90rem wide, inset 2rem, its parts 1.5rem
+apart. Where the viewport is narrower than 48rem the regions stack into one column that scrolls
+whole.
 
 **Two settings, and only two, vary it; everything else is fixed.**
 

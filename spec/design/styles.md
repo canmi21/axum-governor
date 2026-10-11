@@ -50,7 +50,7 @@ value is for, not who first wanted it.
 | `interaction` | `subtle`, `muted`, `default`, `strong`: ranks of one tint, laid over a ground; and `focus`         |
 | `accent`      | `--accent` alone: what is the system's own and live                                                |
 | `status`      | `success`, `info`, `warning`, `critical`                                                           |
-| `shadow`      | `surface`, the shadow a surface casts                                                              |
+| `shadow`      | `surface`, the shadow a surface casts, `none` in mono                                              |
 | `font`        | `sans`, `mono`, and `sans-cap-height`                                                              |
 
 **`--font-sans-cap-height` is the sans's capital height**, `H` from its baseline to its top, what
@@ -78,27 +78,41 @@ value as written. A measure joins when a component on the system first reads it,
 A style may derive its values from parameters no component reads: mono's hover and selection are
 one tint of the foreground, `--interaction-tint`, at `--interaction-strength` and a share of it.
 
+**A surface is a step lighter than the base in both themes, and the light's step is the dark's over
+the ratio.** The dark's base is black and its surface 10 levels above it; the light's surface is
+white and its base 7 levels under, `oklch(0.979 0 0)`, where mono's palette page stood 5 under and
+read as a smaller step than the dark's. Regions follow the step -- a card, the shell's top bar and
+its sidebar -- and what is set into a region, a field or a framed button, stands on the base again.
+States follow the text, below. **A surface casts no shadow in either theme**: it stands off the base
+by its ground and its border alone, the same way in both. Set with the author on 2026-10-11.
+
 **Two grounds, and every other ground an interaction rank laid over one of them.** A ground that is
 neither the page nor a card -- a hover, a selection, a control's fill, a skeleton -- is not a gray
 of its own but a rank: the text's own color laid thin, so it leaves whatever it lies on toward the
 text in either theme, where a fixed gray lighter than a white card would sink back toward the page.
-A component takes a rank, never a share. The ranks in mono are shares of one strength:
+A rank is translucent, so it adapts to the ground under it. A component takes a rank, never a share.
+The ranks in mono are shares of one strength:
 
 | rank      | light | dark |
 | --------- | ----- | ---- |
-| `subtle`  | 0.5   | 0.7  |
-| `muted`   | 0.75  | 0.8  |
+| `subtle`  | 0.7   | 0.7  |
+| `muted`   | 0.85  | 0.8  |
 | `default` | 1     | 1    |
 | `strong`  | 1.5   | 1.5  |
 
 **The dark's strength, 7 percent, is the reference, and the light's is it over
 `--interaction-ratio`, 1.4**, since near black a share reads larger: one rank is one visual weight
-in both themes. The two lower ranks sit closer in the dark, where the eye needs them nearer to tell
-them apart at all. **Where something chosen stands among what can be pointed at, the chosen takes
-`muted` and the hover `subtle`; where only a hover shows, it takes `default`.** `inset` and `raised`
-were dropped for this on 2026-10-11, with the author: `inset` had the base's value in both themes,
-and `raised` was a gray darker than the light's base, so a hover on a white field sank toward the
-page. Ranks and names settled with the author on 2026-10-11.
+in both themes. The light holds `muted` further off `subtle`, where the two would otherwise read as
+one. **Where something chosen stands among what can be pointed at, the chosen takes `muted` and the
+hover `subtle`; where only a hover shows, it takes `default`.** `inset` and `raised` were dropped
+for this on 2026-10-11, with the author: `inset` had the base's value in both themes, and `raised`
+was a gray darker than the light's base, so a hover on a white field sank toward the page. Ranks and
+names settled with the author on 2026-10-11.
+
+**A border is the text's own color laid thin too, by the same ratio**: `subtle` the ranks' full
+strength, `default` 9 percent in the dark and `strong` 24, the light's each over 1.4. Each was a
+gray or a share of its own before, `default` 8 and 9 percent and `strong` two palette grays, so the
+light's borders stood nearly as heavy as the dark's. Set with the author on 2026-10-11.
 
 ## Who is on it
 

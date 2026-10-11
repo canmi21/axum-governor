@@ -9,17 +9,17 @@
 :root,
 .dark,
 [data-theme='dark'] {
-	/* In the light a surface is white on a base a step grey, lifted by a shadow too faint to see as
-	   one; in the dark the base is black and a surface a step above it. Every other ground is an
-	   interaction rank laid on one of these. */
-	--background-base: var(--color-page);
+	/* A surface is a step lighter than the base in either theme: in the dark black to 10 levels
+	   above it, in the light a grey 7 levels under white, the dark's step over the ratio below. Every
+	   other ground is an interaction rank laid on one of these. */
+	--background-base: oklch(0.979 0 0);
 	--background-surface: var(--color-paper);
 
-	/* A default border is a share of the foreground's own color rather than a gray of its own, so
-	   it sits as lightly on any background. */
-	--border-subtle: var(--color-paper-hover);
-	--border-default: oklch(0 0 0 / 0.08);
-	--border-strong: var(--color-border-strong);
+	/* A border is a share of the foreground's own color rather than a gray of its own, so it sits
+	   as lightly on any background: the dark's share, and the light's it over the ratio below. */
+	--border-subtle: oklch(var(--interaction-tint) 0 0 / var(--interaction-strength));
+	--border-default: oklch(var(--interaction-tint) 0 0 / calc(0.09 / var(--interaction-ratio)));
+	--border-strong: oklch(var(--interaction-tint) 0 0 / calc(0.24 / var(--interaction-ratio)));
 
 	--foreground-subtle: var(--color-text-soft);
 	--foreground-muted: var(--color-text-muted);
@@ -28,12 +28,12 @@
 
 	/* Each rank is the text's own color laid thin, a share of one strength. The dark's strength is
 	   the reference and the light's is it over the ratio, since near black a share reads larger; the
-	   two lower ranks sit closer in the dark, where the eye needs them nearer to tell them apart. */
+	   light holds muted further off subtle, where the two would otherwise read as one. */
 	--interaction-tint: 0;
 	--interaction-ratio: 1.4;
 	--interaction-strength: calc(0.07 / var(--interaction-ratio));
-	--interaction-subtle-share: 0.5;
-	--interaction-muted-share: 0.75;
+	--interaction-subtle-share: 0.7;
+	--interaction-muted-share: 0.85;
 	--interaction-subtle: oklch(
 		var(--interaction-tint) 0 0 / calc(var(--interaction-strength) * var(--interaction-subtle-share))
 	);
@@ -51,7 +51,8 @@
 	--status-warning: var(--color-amber);
 	--status-critical: var(--color-red);
 
-	--shadow-surface: 0 1px 2px oklch(0 0 0 / 0.04), 0 1px 3px oklch(0 0 0 / 0.02);
+	/* A surface stands off the base by its own ground and its border, in either theme. */
+	--shadow-surface: none;
 
 	--font-sans: ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'Ioskeley Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
@@ -60,15 +61,11 @@
 	--font-sans-cap-height: 0.714em;
 }
 
-/* No shadow in the dark, which cannot show one. */
 .dark,
 [data-theme='dark'] {
 	--background-base: var(--color-paper);
 	--background-surface: var(--color-page);
-	--border-default: oklch(1 0 0 / 0.09);
 	--interaction-tint: 1;
 	--interaction-ratio: 1;
-	--interaction-subtle-share: 0.7;
 	--interaction-muted-share: 0.8;
-	--shadow-surface: none;
 }
