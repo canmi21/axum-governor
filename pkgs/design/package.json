@@ -1,7 +1,7 @@
 {
 	"name": "@canmi/design",
 	"version": "0.0.0",
-	"description": "A design system: one contract of tokens, the styles that fill it, a scale, and components.",
+	"description": "A design system: one contract of tokens, the styles that fill it, a scale, components and layouts.",
 	"keywords": [
 		"canmi",
 		"design-system",
@@ -29,6 +29,11 @@
 		},
 		"./components/icon.svelte": "./dist/components/icon/src/icon.svelte",
 		"./components/icon-button.svelte": "./dist/components/icon-button/src/icon-button.svelte",
+		"./components/error-page/client.svelte": "./dist/components/error-page/src/client.svelte",
+		"./components/error-page/offer.svelte": "./dist/components/error-page/src/offer.svelte",
+		"./components/error-page/status.svelte": "./dist/components/error-page/src/status.svelte",
+		"./components/nav-link.svelte": "./dist/components/nav-link/src/nav-link.svelte",
+		"./layouts/shell.svelte": "./dist/layouts/shell/src/shell.svelte",
 		"./scale.stylex": {
 			"types": "./dist/scale/src/scale.stylex.d.ts",
 			"default": "./dist/scale/src/scale.stylex.js"

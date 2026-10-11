@@ -2,8 +2,8 @@
 
 `@canmi/design` is the design system: a contract of names every style gives a value to, the styles,
 a scale of measures, and in time the primitives and the components standing on them. What it draws is
-[components.md](components.md). Its layers and who is on it are web's
-`spec/architecture/space.md`, "The design system: three layers, and a style across them".
+[components.md](components.md), and what it frames a page with [layouts.md](layouts.md). Its layers and who is on it are web's
+`spec/architecture/space.md`, "The design system: its layers, and a style across them".
 
 ## Kit is frozen
 
@@ -81,5 +81,5 @@ one tint of the foreground, `--interaction-tint`, at `--interaction-strength` an
 ## Who is on it
 
 The console's polished parts and space, first -- web's `spec/architecture/space.md`, "The design
-system: three layers, and a style across them". The rest of the console reads its old names, each
+system: its layers, and a style across them". The rest of the console reads its old names, each
 declared in its own stylesheet as the contract's value, until each part is polished.

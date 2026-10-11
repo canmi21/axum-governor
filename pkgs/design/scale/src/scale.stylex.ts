@@ -26,6 +26,11 @@ export const fontSize = stylex.defineConsts({
 	body: '0.875rem',
 });
 
+/** A line's height to its type, named and valued as Tailwind's `leading-*`. */
+export const lineHeight = stylex.defineConsts({
+	relaxed: 1.625,
+});
+
 export const fontWeight = stylex.defineConsts({
 	regular: 400,
 	medium: 500,

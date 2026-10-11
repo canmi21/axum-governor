@@ -1,8 +1,9 @@
 # Components
 
 What `@canmi/design` draws: each a unit an interface is made of, standing on the contract and the
-scale -- [styles.md](styles.md). Its layers and who is on it are web's
-`spec/architecture/space.md`, "The design system: three layers, and a style across them".
+scale -- [styles.md](styles.md). What frames a whole page is a layout, not a component --
+[layouts.md](layouts.md). Its layers and who is on it are web's
+`spec/architecture/space.md`, "The design system: its layers, and a style across them".
 
 ## What makes a component, and what does not
 
@@ -33,6 +34,30 @@ draw nothing; a caller's `class` is still taken and set after the component's ow
 **A `.svelte` file is published as written** and imports its neighbors by the name the build gives
 them -- `./optics.js` for `optics.ts` -- since the app's Svelte compiles it and the build only
 copies it.
+
+## A link to a page
+
+**`@canmi/design/components/nav-link.svelte` is one page in a list of pages**: an 18px icon and the
+page's name, 2.25rem tall, the pointer's tint over it and the selection's when it is the page being
+read. Its `current` is what assistive technology is told -- `page` where it is the page, `true`
+where the page is somewhere under it -- and either draws it selected. It is a component and not the
+sidebar's: a list of pages may stand anywhere.
+
+## An error page
+
+**A page that fails is drawn as the site draws one**: the status, a hairline, and a sentence for a
+person on one line in the middle -- `This page could not be found` for a 404, `Something went
+wrong` for the rest -- and the way out at the foot;
+`@canmi/design/components/error-page/status.svelte`. A browser that broke, with no status, gets
+`client.svelte`: `This page crashed in the browser. Describing what you were doing helps`, and the
+way out under it. Which of the two a page is, and the protocol's names, are `@canmi/web/error`'s --
+[../web/error.md](../web/error.md).
+
+**The way out is `offer.svelte`, and the app gives it what it names**: the address to write to, and
+the function that opens its report form. A component knows no app's mail and no error reporter, so
+an app with neither still draws the page; with no report it offers the address alone, as a 404
+does, since nothing failed. Each is told from the muted sentence around it by its ink alone, with
+no underline.
 
 ## Icons
 

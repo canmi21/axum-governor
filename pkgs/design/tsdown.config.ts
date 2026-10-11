@@ -19,5 +19,10 @@ export default defineConfig({
 			from: 'components/icon-button/src/icon-button.svelte',
 			to: 'dist/components/icon-button/src',
 		},
+		{ from: 'components/nav-link/src/nav-link.svelte', to: 'dist/components/nav-link/src' },
+		{ from: 'layouts/shell/src/shell.svelte', to: 'dist/layouts/shell/src' },
+		{ from: 'components/error-page/src/client.svelte', to: 'dist/components/error-page/src' },
+		{ from: 'components/error-page/src/offer.svelte', to: 'dist/components/error-page/src' },
+		{ from: 'components/error-page/src/status.svelte', to: 'dist/components/error-page/src' },
 	],
 });
