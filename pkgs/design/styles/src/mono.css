@@ -21,9 +21,11 @@
 	--border-default: oklch(var(--interaction-tint) 0 0 / calc(0.09 / var(--interaction-ratio)));
 	--border-strong: oklch(var(--interaction-tint) 0 0 / calc(0.24 / var(--interaction-ratio)));
 
-	--foreground-subtle: var(--color-text-soft);
-	--foreground-muted: var(--color-text-muted);
-	--foreground-default: var(--color-text);
+	/* Each tier is set by its APCA contrast on a surface, the same in both themes: 60, 75, 90, and
+	   the most there is. */
+	--foreground-subtle: oklch(0.648 0 0);
+	--foreground-muted: oklch(0.54 0 0);
+	--foreground-default: oklch(0.412 0 0);
 	--foreground-strong: var(--color-text-strong);
 
 	/* Each rank is the text's own color laid thin, a share of one strength. The dark's strength is
@@ -65,6 +67,9 @@
 [data-theme='dark'] {
 	--background-base: var(--color-paper);
 	--background-surface: var(--color-page);
+	--foreground-subtle: oklch(0.761 0 0);
+	--foreground-muted: oklch(0.842 0 0);
+	--foreground-default: oklch(0.918 0 0);
 	--interaction-tint: 1;
 	--interaction-ratio: 1;
 	--interaction-muted-share: 0.8;

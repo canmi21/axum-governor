@@ -114,6 +114,14 @@ strength, `default` 9 percent in the dark and `strong` 24, the light's each over
 gray or a share of its own before, `default` 8 and 9 percent and `strong` two palette grays, so the
 light's borders stood nearly as heavy as the dark's. Set with the author on 2026-10-11.
 
+**Text is set by its APCA contrast on a surface, one target per tier in both themes**: `subtle` Lc
+60, `muted` 75, `default` 90, `strong` the most there is, black or white, and each theme's lightness
+worked back from the target. APCA weighs a light text on a dark ground apart from a dark one on a
+light ground, which is the difference the eye makes and the ratio above cannot, since text stands
+far off its ground where a rank stands close. Mono's palette text had the light's lower tiers near
+Lc 80 and 93 and the dark's near 33 and 51, the dark's secondary text under what a label needs; the
+light's `default` sat at the light's most, beside `strong`. Set with the author on 2026-10-11.
+
 ## Who is on it
 
 The console's polished parts and space, first -- web's `spec/architecture/space.md`, "The design
