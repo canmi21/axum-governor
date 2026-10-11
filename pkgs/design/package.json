@@ -33,12 +33,17 @@
 		"./components/error-page/offer.svelte": "./dist/components/error-page/src/offer.svelte",
 		"./components/error-page/status.svelte": "./dist/components/error-page/src/status.svelte",
 		"./components/nav-link.svelte": "./dist/components/nav-link/src/nav-link.svelte",
+		"./components/theme-scope.svelte": "./dist/components/theme-scope/src/theme-scope.svelte",
 		"./layouts/shell.svelte": "./dist/layouts/shell/src/shell.svelte",
 		"./scale.stylex": {
 			"types": "./dist/scale/src/scale.stylex.d.ts",
 			"default": "./dist/scale/src/scale.stylex.js"
 		},
 		"./styles/mono.css": "./dist/styles/src/mono.css",
+		"./theme": {
+			"types": "./dist/theme/src/index.d.ts",
+			"default": "./dist/theme/src/index.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"scripts": {

@@ -5,8 +5,12 @@
    step, named beside it, and every name keeps a value of its own -- see web's
    spec/styling/palettes.md. `accents-*` are Geist's older grays, taken where the current scale has
    no step at a tier the ramp needs. */
-:root {
-	color-scheme: light dark;
+/* The light on the root and on any element marked light, the dark on any marked dark: a theme is
+   the nearest mark, so a part of a page may hold the other. See lib's spec/design/styles.md, "A
+   theme is a mark, and any element may carry one". */
+:root,
+[data-theme='light'] {
+	color-scheme: light;
 	--color-page: oklch(0.985 0 0); /* background-200, off paper's white */
 	--color-border: oklch(0.937 0 0); /* gray-400 */
 	--color-border-strong: oklch(0.836 0 0); /* gray-500 */
@@ -37,13 +41,6 @@ html {
 	color: var(--color-text);
 }
 
-/* Geist's own selection: the ramp's far end under text in its near one. */
-::selection {
-	background-color: var(--color-selection);
-	color: var(--color-paper-hover);
-}
-
-.dark,
 [data-theme='dark'] {
 	color-scheme: dark;
 	--color-page: oklch(0.145 0 0); /* background-100, before it went to #000 */

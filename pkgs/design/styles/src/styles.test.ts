@@ -16,8 +16,8 @@ function declared(css: string, selector: RegExp): string[] {
 describe.each(readdirSync(STYLES).filter((file) => file.endsWith('.css')))('%s', (file) => {
 	const css = readFileSync(join(STYLES, file), 'utf8');
 
-	it('gives every name in the contract a value, on the dark as on the root', () => {
-		const names = declared(css, /^:root,\n\.dark,\n\[data-theme='dark'\] \{/m);
+	it("gives every name in the contract a value, on the root and on either theme's mark", () => {
+		const names = declared(css, /^:root,\n\[data-theme='light'\],\n\[data-theme='dark'\] \{/m);
 		for (const name of CONTRACT.flatMap((group) => group.names)) {
 			expect(names).toContain(name);
 		}

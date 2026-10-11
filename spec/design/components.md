@@ -44,6 +44,15 @@ pointed at, and the hover must stay below it. Its `current` is what assistive te
 `page` where it is the page, `true` where the page is somewhere under it -- and either draws it
 selected. It is a component and not the sidebar's: a list of pages may stand anywhere.
 
+## A theme scope
+
+**`@canmi/design/components/theme-scope.svelte` holds a part of a page in one theme**, its `theme`
+the mark it puts on its element -- [styles.md](styles.md), "A theme is a mark, and any element may
+carry one". Bare it is `display: contents` and lays out nothing of its own, so it may wrap as little
+as one swatch, and a specimen may hold the two themes side by side, one scope each. With `ground` it
+is a block painted in that theme's base and text: a window onto the other theme. What a reader is
+told about a scope -- a label, a caption -- stands outside it, in the page's theme.
+
 ## An error page
 
 **A page that fails is drawn as the site draws one**: the status, a hairline, and a sentence for a

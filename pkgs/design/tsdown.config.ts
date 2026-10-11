@@ -3,7 +3,12 @@ import { defineConfig } from 'tsdown';
 // One output per source file, named as the source is; what is not TypeScript is copied as it is,
 // a style beside the palette it imports.
 export default defineConfig({
-	entry: ['contract/src/index.ts', 'scale/src/scale.stylex.ts', 'components/icon/src/optics.ts'],
+	entry: [
+		'contract/src/index.ts',
+		'scale/src/scale.stylex.ts',
+		'components/icon/src/optics.ts',
+		'theme/src/index.ts',
+	],
 	unbundle: true,
 	// The package's own directory, so `dist/` mirrors it whatever the entries have in common.
 	root: '.',
@@ -20,6 +25,10 @@ export default defineConfig({
 			to: 'dist/components/icon-button/src',
 		},
 		{ from: 'components/nav-link/src/nav-link.svelte', to: 'dist/components/nav-link/src' },
+		{
+			from: 'components/theme-scope/src/theme-scope.svelte',
+			to: 'dist/components/theme-scope/src',
+		},
 		{ from: 'layouts/shell/src/shell.svelte', to: 'dist/layouts/shell/src' },
 		{ from: 'components/error-page/src/client.svelte', to: 'dist/components/error-page/src' },
 		{ from: 'components/error-page/src/offer.svelte', to: 'dist/components/error-page/src' },
