@@ -1,8 +1,9 @@
 # Design: the system the console and space are built on
 
 `@canmi/design` is the design system: a contract of names every style gives a value to, the styles,
-a scale of measures, and in time the primitives and the components standing on them. Its layers and who is on it are
-web's `spec/architecture/space.md`, "The design system: three layers, and a style across them".
+a scale of measures, and in time the primitives and the components standing on them. What it draws is
+[components.md](components.md). Its layers and who is on it are web's
+`spec/architecture/space.md`, "The design system: three layers, and a style across them".
 
 ## Kit is frozen
 

@@ -1,7 +1,7 @@
 {
 	"name": "@canmi/design",
 	"version": "0.0.0",
-	"description": "A design system: one contract of tokens, the styles that fill it, and a scale.",
+	"description": "A design system: one contract of tokens, the styles that fill it, a scale, and components.",
 	"keywords": [
 		"canmi",
 		"design-system",
@@ -23,6 +23,11 @@
 			"types": "./dist/contract/src/index.d.ts",
 			"default": "./dist/contract/src/index.js"
 		},
+		"./components/icon": {
+			"types": "./dist/components/icon/src/optics.d.ts",
+			"default": "./dist/components/icon/src/optics.js"
+		},
+		"./components/icon.svelte": "./dist/components/icon/src/icon.svelte",
 		"./scale.stylex": {
 			"types": "./dist/scale/src/scale.stylex.d.ts",
 			"default": "./dist/scale/src/scale.stylex.js"
@@ -35,14 +40,19 @@
 	},
 	"devDependencies": {
 		"@stylexjs/stylex": "^0.19.1",
+		"@tabler/icons-svelte-runes": "^3.49.0",
 		"svelte": "^5.57.1"
 	},
 	"peerDependencies": {
 		"@stylexjs/stylex": "^0.19.1",
+		"@tabler/icons-svelte-runes": "^3.49.0",
 		"svelte": "^5.57.1"
 	},
 	"peerDependenciesMeta": {
 		"@stylexjs/stylex": {
+			"optional": true
+		},
+		"@tabler/icons-svelte-runes": {
 			"optional": true
 		},
 		"svelte": {
