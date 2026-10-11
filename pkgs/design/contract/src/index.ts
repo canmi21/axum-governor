@@ -27,7 +27,6 @@ export const CONTRACT = [
 			'--interaction-focus',
 		],
 	},
-	{ group: 'accent', names: ['--accent'] },
 	{
 		group: 'status',
 		names: ['--status-success', '--status-info', '--status-warning', '--status-critical'],

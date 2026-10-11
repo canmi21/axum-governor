@@ -48,7 +48,6 @@ value is for, not who first wanted it.
 | `border`      | `subtle`, `default`, `strong`                                                                      |
 | `foreground`  | `subtle`, `muted`, `default`, `strong`: text, and the icons and marks drawn as text is             |
 | `interaction` | `subtle`, `muted`, `default`, `strong`: ranks of one tint, laid over a ground; and `focus`         |
-| `accent`      | `--accent` alone: what is the system's own and live                                                |
 | `status`      | `success`, `info`, `warning`, `critical`                                                           |
 | `shadow`      | `surface`, the shadow a surface casts, `none` in mono                                              |
 | `font`        | `sans`, `mono`, and `sans-cap-height`                                                              |
@@ -57,8 +56,13 @@ value is for, not who first wanted it.
 CSS's `cap` unit should give and Chrome does not read right from this sans. It names its font,
 since another face's capitals stand at another height.
 
-**`--interaction-focus` and `--accent` are the same blue in mono, under two names**, so the focus
-ring can move without every mark moving with it.
+**The focus ring is information's hue at full OKHSL saturation, moved toward the text until it
+stands APCA Lc 5 off `--status-info`**, counted before APCA's clip at 10: a shade apart, not a
+second blue, so a ring drawn on a blue mark still reads as a ring. In mono `oklch(0.543 0.207
+258.6)` in the light and `oklch(0.674 0.173 258.6)` in the dark. It is told apart by its lightness,
+not by a gap around it. Lc 25 and 15 were tried first and stood too far off. **There is no
+`--accent`**: what was the system's own and live is information's blue, held by `--status-info` as
+every other status holds its hue. Settled with the author on 2026-10-11.
 
 ## The scale
 
@@ -121,6 +125,16 @@ light ground, which is the difference the eye makes and the ratio above cannot, 
 far off its ground where a rank stands close. Mono's palette text had the light's lower tiers near
 Lc 80 and 93 and the dark's near 33 and 51, the dark's secondary text under what a label needs; the
 light's `default` sat at the light's most, beside `strong`. Set with the author on 2026-10-11.
+
+**A hue is drawn as graphics, and is set in OKHSL: saturation 100 in both themes, and its lightness
+9 higher in the dark than in the light.** OKHSL's saturation is a share of the most chroma the
+screen shows at that hue and lightness, so 100 is the hue at its purest whatever its lightness,
+which oklch's absolute chroma cannot say; the light's lightness is the author's per hue. In mono
+information is OKHSL lightness 50.8 at 258.6, success 58.9 at 147.2, critical 56.5 at 23.1, each 9
+higher in the dark. **Warning is the one exception: one value in both themes**, 79.1 at 76, since a
+yellow already at its brightest pure point turns cream when lifted. Contrast was tried as the
+generator first, a single APCA target per theme, and lost each hue's own lightness: yellow went
+brown and red pink. Set with the author on 2026-10-11.
 
 ## Who is on it
 
